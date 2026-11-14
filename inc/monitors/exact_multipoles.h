@@ -1,0 +1,27 @@
+/**
+ * @file monitors/exact_multipoles.h
+ * @brief The exact multipole decomposition, Alaee, Rockstuhl & Fernandez-Corbaton, Opt. Commun.
+ *        407, 17, 2018, of the induced current inside the antenna, from the normalised volume DFT
+ *
+ * @verbatim
+      J_w(r) = -i w eps0 [eps_r(r, w) - eps_host(w)] E_w(r)          contrast current, all frequencies
+      J_tot  = -i w [P_eq + P_NL,w]                                  harmonic band, SHG/THG: plus the
+                                                                     DFT of the nonlinear polarisation
+      moments p, m, Qe, Qm with the spherical-Bessel weights of Table 2, origin at the antenna centre
+   @endverbatim
+ * Output, root, ART directory: Multipoles_exact_<prec>_<pol>.txt and, with SHG/THG,
+ * Multipoles_exact_full_current_<prec>_<pol>.txt, plus the cross sections. Details in the source.
+ */
+#ifndef FDTD_MONITORS_EXACT_MULTIPOLES_H
+#define FDTD_MONITORS_EXACT_MULTIPOLES_H
+
+namespace fdtd::monitors
+{
+/// one step of the DFT of P_NL over the harmonic band, re/im_pnl of the volume DFT, at time t
+void sample_nonlinear_polarisation(double t);
+/// the moments and cross sections; collective, ranks with only CPML contribute zeros; returns at
+/// once unless [multipoles] exact is on
+void write_exact_multipoles();
+} // namespace fdtd::monitors
+
+#endif

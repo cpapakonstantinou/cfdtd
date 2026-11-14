@@ -1,0 +1,55 @@
+site_name: 3D-FDTD Documentation
+theme:
+  name: readthedocs
+use_directory_urls: false
+docs_dir: docs
+site_dir: mkdocs_output
+
+extra_javascript: 
+  - https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+
+markdown_extensions:
+  - mdx_math:
+      enable_dollar_delimiter: True
+
+extra_css: [extra.css]
+
+nav:
+  - 'Home': 'index.md'
+
+  - 'Using the Code':
+    - 'Running a Simulation': 'tutorial/CodeTutorial.md'
+    - 'The Configuration File': 'tutorial/Controls.md'
+    - 'Signal and Time Steps': 'tutorial/SignalSettings.md'
+    - 'Viewing the Outputs': 'tutorial/Outputs.md'
+    - 'Stopping and Restarting': 'tutorial/Restart.md'
+
+  - 'Sources':
+    - 'Source Types': 'sources/SourceTypes.md'
+    - 'Plane Wave Superposition': 'sources/PlaneWaveSuperposition.md'
+    - 'Plane Wave Superposition with Media': 'sources/Oblique1DSimulations.md'
+    - 'Numerical Dispersion Correction': 'sources/NumericalDispersionCorrection.md'
+    - 'Gaussian Beam': 'sources/GaussianBeam.md'
+    - 'Mode Source': 'sources/ModeSource.md'
+
+  - 'Materials and Models':
+    - 'Materials': 'models/Materials.md'
+    - 'Nonlinear Tensors': 'models/NonlinearTensors.md'
+    - 'Nonlocal Plasmonics': 'models/NonlocalPlasmonics.md'
+    - 'Hydrodynamics': 'models/Hydrodynamics.md'
+    - 'ITO and the Two-Temperature Model': 'models/ITOmodel.md'
+
+  - 'Geometry':
+    - 'Shapes': 'geometry/Shapes.md'
+    - 'Blocks': 'geometry/Blocks.md'
+    - 'Anapole': 'geometry/Anapole.md'
+
+  - 'Development':
+    - 'Architecture': 'dev/Architecture.md'
+    - 'Shared State': 'dev/StateLayers.md'
+    - 'Testing': 'dev/Tests.md'
+    - 'Style Guide': 'dev/StyleGuide.md'
+    - 'Git Guide': 'dev/GitGuide.md'
+    - 'Documentation': 'dev/DocumentationGuide.md'
+    - 'Migrating Old Input Files': 'dev/Migration.md'
+    - 'Roadmap': 'dev/Roadmap.md'
