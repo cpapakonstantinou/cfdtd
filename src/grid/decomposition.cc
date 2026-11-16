@@ -71,8 +71,18 @@ using namespace fdtd::grid; // transitional: module state, grid/state.h
  */
 struct AxisCpml
 {
-	int min, max, nea_cpml_end, far_cpml_start, pad_nea, pad_far, inner_dim, inner_org, type, shift_output;
-	bool only_cpml, no_cpml;
+	int min;
+	int max;
+	int nea_cpml_end;
+	int far_cpml_start;
+	int pad_nea;
+	int pad_far;
+	int inner_dim;
+	int inner_org;
+	int type;
+	int shift_output;
+	bool only_cpml;
+	bool no_cpml;
 	void apply(int &mn, int &mx, int &mn_e, int &mx_e, int &p_n, int &p_f, int &dim, int &org, int &t, int &shift) const
 	{
 		mn = min, mx = max, mn_e = nea_cpml_end, mx_e = far_cpml_start, p_n = pad_nea, p_f = pad_far, dim = inner_dim, org = inner_org, t = type;
@@ -83,7 +93,11 @@ struct AxisCpml
 
 static AxisCpml axis_cpml_ranges(int gmin, int n, int nea, int far, int n_tot)
 {
-	const int gmax = gmin + n, BELOW = -n, ABOVE = n + 100000, a = nea - gmin, b = far - gmin;
+	const int gmax = gmin + n;
+	const int BELOW = -n;
+	const int ABOVE = n + 100000;
+	const int a = nea - gmin;
+	const int b = far - gmin;
 	AxisCpml r{};
 	r.min = a; // the interfaces in local indices, they may lie outside [0, n]
 	r.max = b;
@@ -118,11 +132,20 @@ struct LatticeSetup
 	int here[3] = {}; // this rank's position in the rank grid
 	// first global cell, PML included, of the rank at position idx along an axis
 	static int rank_start(const std::vector<int> &cells, int idx) { int start = 0; for (int m = 0; m < idx; ++m) start += cells[m]; return start; }
-	int i{}, j{}, k{}, m{}, s{};
-	int xre{}, yre{}, zre{};
-	int Xglobmin{}, Xglobmax{};
-	int Yglobmin{}, Yglobmax{};
-	int Zglobmin{}, Zglobmax{};
+	int i{};
+	int j{};
+	int k{};
+	int m{};
+	int s{};
+	int xre{};
+	int yre{};
+	int zre{};
+	int Xglobmin{};
+	int Xglobmax{};
+	int Yglobmin{};
+	int Yglobmax{};
+	int Zglobmin{};
+	int Zglobmax{};
 	int NRglobfarX{};
 	int NRglobfarY{};
 	int NRglobfarZ{};
@@ -150,13 +173,20 @@ struct LatticeSetup
 	int QTOTglobfarZ{};
 
 	int I_Animation{};
-	int J_Animation{}, J_Animation2{}, J_Animation1{};
+	int J_Animation{};
+	int J_Animation2{};
+	int J_Animation1{};
 	int K_Animation{};
 
 	int process{};
 	int indices[3]{};
-	double xnr{}, ynr{}, znr{}, a{}, b{};
-	bool bTest1{}, bTest2{};
+	double xnr{};
+	double ynr{};
+	double znr{};
+	double a{};
+	double b{};
+	bool bTest1{};
+	bool bTest2{};
 	bool bExclTestX = false;
 	bool bExclTestY = false;
 	bool bExclTestZ = false;
@@ -1177,8 +1207,11 @@ void fdtd::grid::axis_indices(const int &rank, int pos[3])
 	int NX = num_mpi_processes_x;
 	int NY = num_mpi_processes_y;
 	int NZ = num_mpi_processes_z;
-	int m, N = NX * NY;
-	double int_part, frac_part, u;
+	int m;
+	int N = NX * NY;
+	double int_part;
+	double frac_part;
+	double u;
 
 	u = double(rank) / double(N);
 
@@ -1314,10 +1347,17 @@ void fdtd::grid::neighbour_ranks_nl(int *pos, int *nx, int *ny, int *nz)
 	std::vector<int> faces(6 * fdtd::grid::world_size);
 	MPI_Allgather(mine, 6, MPI_INT, faces.data(), 6, MPI_INT, MPI_COMM_WORLD);
 	auto face = [&](int which, int proc) { return faces[6 * proc + which] != 0; };
-	int i, j, k, process;
+	int i;
+	int j;
+	int k;
+	int process;
 	// the ranks holding the TF/SF faces, no face found: no limit on that side
-	int ind_PWNEAX = -1, ind_PWNEAY = -1, ind_PWNEAZ = -1;
-	int ind_PWFARX = num_mpi_processes_x, ind_PWFARY = num_mpi_processes_y, ind_PWFARZ = num_mpi_processes_z;
+	int ind_PWNEAX = -1;
+	int ind_PWNEAY = -1;
+	int ind_PWNEAZ = -1;
+	int ind_PWFARX = num_mpi_processes_x;
+	int ind_PWFARY = num_mpi_processes_y;
+	int ind_PWFARZ = num_mpi_processes_z;
 	int i_less = pos[0] - 1;
 	int i_more = pos[0] + 1;
 	int j_less = pos[1] - 1;

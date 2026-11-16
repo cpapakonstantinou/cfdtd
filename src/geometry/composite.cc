@@ -61,16 +61,28 @@ using namespace fdtd::geometry; // transitional: module state, geometry/state.h
 bool fdtd::geometry::create_lh_butterfly(const int &centerx, const int &centery_bulk, const int &centerz,
 					   const double &w, const double &t, const double &/*l1_r*/, const double &g, const double &l2_t, const int &index, const double &middle_layer, const double &antenna_shift, const double &/*l1_l*/, const double &l2_b, const double &alpha)
 {
-	double beta_loc, r, r_arc, centre_x_loc, centre_z_loc, beta_prev;
+	double beta_loc;
+	double r;
+	double r_arc;
+	double centre_x_loc;
+	double centre_z_loc;
+	double beta_prev;
 	r = double(corner_radius);
 	r_arc = double(corner_radius);
-	double cx_arc, cz_arc, cx_mono_prev, cz_mono_prev, cx_mono, cz_mono;
+	double cx_arc;
+	double cz_arc;
+	double cx_mono_prev;
+	double cz_mono_prev;
+	double cx_mono;
+	double cz_mono;
 	double delta = r * sin(PI / 8) / sin(3 * PI / 8);
 	double delta_arc = r_arc * sin(PI / 8) / sin(3 * PI / 8);
 	double coeff = 0.5 * sqrt(2) * g + delta; //0.5*sqrt(2)*g+r; //
 	int i;
 
-	double l_t, l_r, l_g;									 //l_t=l_b, l_r=l_l
+	double l_t;
+	double l_r;
+	double l_g; //l_t=l_b, l_r=l_l
 	l_t = 0.5 * (l2_t + l2_t + w) - 0.5 * w + r - coeff; // length of the vertical monopoles
 	l_r = 0.5 * (l2_b + l2_b + w) - 0.5 * w + r - coeff; // length of the horizontal monopoles
 	l_g = sqrt(2) * (w - r + coeff) + 2 * r;			 //sqrt(2)*r; // length of the lateral monopoles that form the gap
@@ -201,7 +213,10 @@ bool fdtd::geometry::create_lh_butterfly(const int &centerx, const int &centery_
 bool fdtd::geometry::create_round_tripole(const int &centerx, const int &centery_bulk, const int &centerz,
 						const double &w, const double &t, const double &l1_r, const double &g, const double &l2_t, const int &index, const double &middle_layer, const double &antenna_shift, const double &l1_l, const double &l2_b, const double &alpha)
 {
-	double beta_loc, r, centre_x_loc, centre_z_loc;
+	double beta_loc;
+	double r;
+	double centre_x_loc;
+	double centre_z_loc;
 	r = double(corner_radius);
 
 	//dx
@@ -256,7 +271,10 @@ bool fdtd::geometry::create_round_hybrid(const int &centerx, const int &centery_
 					   const double &w, const double &t, const double &/*l1_r*/, const double &g, const double &l2_t, const int &index, const double &middle_layer, const double &antenna_shift, const double &/*l1_l*/, const double &l2_b, const double &alpha)
 {
 	int code;
-	double beta_loc, r, centre_x_loc, centre_z_loc;
+	double beta_loc;
+	double r;
+	double centre_x_loc;
+	double centre_z_loc;
 	r = double(corner_radius);
 
 	double l_t;						   //, l_r, l_g;  //l_t=l_b, l_r=l_l
@@ -314,7 +332,9 @@ bool fdtd::geometry::create_round_hybrid(const int &centerx, const int &centery_
  */
 bool fdtd::geometry::create_background(const int &centery_bulk, const int &/*centerx*/, const int &/*centerz*/, const double &middle_layer, const double &/*t*/, const double &/*antenna_shift*/, const int &/*index*/)
 {
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 
 	int deep_y = centery_bulk - ceil(middle_layer / lat.d[1]);
 
@@ -401,8 +421,18 @@ bool fdtd::geometry::create_background(const int &centery_bulk, const int &/*cen
 bool fdtd::geometry::create_l_antenna(const int &centerx, const int &centery_bulk, const int &centerz,
 					 const double &w, const double &t, const double &l1_r, const double &/*g*/, const double &l2_t, const int &index, const double &/*middle_layer*/, const double &antenna_shift, const double &/*l1_l*/, const double &/*l2_b*/)
 {
-	int i, j, k;
-	double x, xf, y, yf, z, zf, rEx, rEy, rEz;
+	int i;
+	int j;
+	int k;
+	double x;
+	double xf;
+	double y;
+	double yf;
+	double z;
+	double zf;
+	double rEx;
+	double rEy;
+	double rEz;
 	int centery = centery_bulk - int(antenna_shift / lat.d[1]); //- int(t/DY/2)
 
 	for (i = subdomain.output_start[0]; i < subdomain.output_start[0] + subdomain.output_size[0]; ++i)

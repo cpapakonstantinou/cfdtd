@@ -433,7 +433,12 @@ std::array<double, 6> PlaneWaveOneDimensionalSimulator::return_fields(double x, 
 */
 std::array<double, 3> PlaneWaveOneDimensionalSimulator::get_cpml_coefficients_at_index(int j)
 {
-	double k, sigmaMax, sigma, alpha, b, c;
+	double k;
+	double sigmaMax;
+	double sigma;
+	double alpha;
+	double b;
+	double c;
 
 	// Depth at which the current update occurs in the CPML region
 	double cpmlPenetrationDepth;
@@ -521,7 +526,7 @@ std::array<std::vector<double>, 2> PlaneWaveOneDimensionalSimulator::update_elec
 		// TFSF correction term
 		if (i == tfsfStartIdx)
 		{
-			double signalTime = timestep * (currTimestep + 0.5) +  pw.Dir_Y  * gridstep / (2 * C0);
+			double signalTime = timestep * (currTimestep + 0.5) +  pw.Dir_Y * gridstep / (2 * C0);
 			ehNew[i] += prefactorEh * initialUpdateFields[1] * signal_function(signalTime);
 			eeNew[i] += prefactorEe * initialUpdateFields[4] * signal_function(signalTime);
 		}	

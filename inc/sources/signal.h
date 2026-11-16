@@ -42,9 +42,12 @@ public:
 	struct Params
 	{
 		Shape shape = Shape::none;
-		double dt = 0, e_peak = 0;            ///< time step [s], peak field [V/m]
-		double fundamental = 0, start_cw = 0; ///< CW signals: frequency [Hz] and settling periods
-		double chirp = 0, chirp_2 = 0;        ///< Gaussian: linear and quadratic chirp
+		double dt = 0; ///< time step [s], peak field [V/m]
+		double e_peak = 0; ///< time step [s], peak field [V/m]
+		double fundamental = 0; ///< CW signals: frequency [Hz] and settling periods
+		double start_cw = 0; ///< CW signals: frequency [Hz] and settling periods
+		double chirp = 0; ///< Gaussian: linear and quadratic chirp
+		double chirp_2 = 0; ///< Gaussian: linear and quadratic chirp
 		int cw_periods = 30;                  ///< CW pulse length [periods]
 		double max_frequency = 0;             ///< highest analysed frequency [Hz]: the band-limited signals' length
 		double pulse_width = 0;               ///< Gaussian width [s]
@@ -69,12 +72,18 @@ public:
 
 private:
 	Shape _shape = Shape::none;
-	double _dt = 0, _e_peak = 0;          ///< time step, peak field
-	double _period = 0, _k = 0;           ///< band-limited signals: length and 2 pi / length
-	double _delay = 0, _width = 0;        ///< Gaussian envelope: centre and width [s]
-	double _f_0 = 0, _f_02 = 0;           ///< Gaussian carriers [Hz], f_02: the second pulse of gaussian_alt, 0
-	double _chirp = 0, _chirp_2 = 0;      ///< linear and quadratic chirp
-	double _fundamental = 0, _start_cw = 0; ///< CW signals: frequency and settling periods
+	double _dt = 0; ///< time step, peak field
+	double _e_peak = 0; ///< time step, peak field
+	double _period = 0; ///< band-limited signals: length and 2 pi / length
+	double _k = 0; ///< band-limited signals: length and 2 pi / length
+	double _delay = 0; ///< Gaussian envelope: centre and width [s]
+	double _width = 0; ///< Gaussian envelope: centre and width [s]
+	double _f_0 = 0; ///< Gaussian carriers [Hz], f_02: the second pulse of gaussian_alt, 0
+	double _f_02 = 0; ///< Gaussian carriers [Hz], f_02: the second pulse of gaussian_alt, 0
+	double _chirp = 0; ///< linear and quadratic chirp
+	double _chirp_2 = 0; ///< linear and quadratic chirp
+	double _fundamental = 0; ///< CW signals: frequency and settling periods
+	double _start_cw = 0; ///< CW signals: frequency and settling periods
 	int _cw_periods = 30;
 };
 

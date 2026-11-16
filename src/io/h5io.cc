@@ -354,7 +354,8 @@ void write<std::complex<double>>(File& file, const std::string& name, const Bloc
 	const size_t rank = block.global.size();
 	const std::vector<hsize_t>& local = block.local.empty() ? block.count : block.local;
 	std::vector<hsize_t> start = block.start.empty() ? std::vector<hsize_t>(rank, 0) : block.start;
-	std::vector<double> re(block.elements()), im(block.elements());
+	std::vector<double> re(block.elements());
+	std::vector<double> im(block.elements());
 	std::vector<hsize_t> idx(rank, 0);
 	for (hsize_t n = 0; n < re.size(); ++n)
 	{

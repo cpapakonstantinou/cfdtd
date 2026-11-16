@@ -16,7 +16,8 @@ Row unite(const Row& a, const Row& b)
 {
 	Row out;
 	out.reserve(a.size() + b.size());
-	size_t i = 0, j = 0;
+	size_t i = 0;
+	size_t j = 0;
 	while (i < a.size() || j < b.size())
 	{
 		const Run r = (j == b.size() || (i < a.size() && a[i].k0 <= b[j].k0)) ? a[i++] : b[j++];
@@ -53,10 +54,12 @@ Row subtract(const Row& a, const Row& b)
 Row intersect(const Row& a, const Row& b)
 {
 	Row out;
-	size_t i = 0, j = 0;
+	size_t i = 0;
+	size_t j = 0;
 	while (i < a.size() && j < b.size())
 	{
-		const int lo = std::max(a[i].k0, b[j].k0), hi = std::min(a[i].k1, b[j].k1);
+		const int lo = std::max(a[i].k0, b[j].k0);
+		const int hi = std::min(a[i].k1, b[j].k1);
 		if (lo < hi)
 			out.push_back({lo, hi});
 		(a[i].k1 < b[j].k1) ? ++i : ++j;
@@ -78,10 +81,16 @@ long Layer::cells() const
 struct Shape::Node
 {
 	enum Kind { Rect, Circle, Polygon, Union, Difference, Intersection } kind = Rect;
-	double x0 = 0, x1 = 0, z0 = 0, z1 = 0;            // rect: bounds
-	double cx = 0, cz = 0, r = 0;                     // circle: centre, radius
+	double x0 = 0;
+	double x1 = 0;
+	double z0 = 0;
+	double z1 = 0; // rect: bounds
+	double cx = 0;
+	double cz = 0;
+	double r = 0; // circle: centre, radius
 	std::vector<std::pair<double, double>> pts;        // polygon
-	Shape a, b;                                        // composites
+	Shape a;
+	Shape b; // composites
 };
 
 namespace
@@ -104,7 +113,8 @@ Shape make_shape(Shape::Node n) { return Shape(std::make_shared<const Shape::Nod
 
 std::pair<double, double> rotate(std::pair<double, double> p, double c, double s, double cx, double cz)
 {
-	const double x = p.first - cx, z = p.second - cz;
+	const double x = p.first - cx;
+	const double z = p.second - cz;
 	return {cx + c * x - s * z, cz + s * x + c * z};
 }
 } // namespace
@@ -123,7 +133,8 @@ Row Shape::row(double x, const Lattice& L) const
 		break;
 	case Node::Circle:
 	{
-		const double d = x - n.cx, h2 = n.r * n.r - d * d;
+		const double d = x - n.cx;
+		const double h2 = n.r * n.r - d * d;
 		if (h2 >= -EPS * L.dx * n.r)
 		{
 			const double h = std::sqrt(std::max(h2, 0.0));
@@ -175,7 +186,8 @@ Shape Shape::rotated(double theta, double cx, double cz) const
 	if (!_node || theta == 0)
 		return *this;
 	const Node& n = *_node;
-	const double c = std::cos(theta), s = std::sin(theta);
+	const double c = std::cos(theta);
+	const double s = std::sin(theta);
 	Node m = n;
 	switch (n.kind)
 	{
@@ -312,7 +324,8 @@ Shape rounded_rect(double cx, double cz, double width_x, double width_z, double 
 {
 	if (r <= 0)
 		return rect(cx, cz, width_x, width_z);
-	const double hx = 0.5 * width_x - r, hz = 0.5 * width_z - r;
+	const double hx = 0.5 * width_x - r;
+	const double hz = 0.5 * width_z - r;
 	return rect(cx, cz, width_x, 2 * hz) + rect(cx, cz, 2 * hx, width_z) + circle(cx - hx, cz - hz, r) +
 		   circle(cx + hx, cz - hz, r) + circle(cx - hx, cz + hz, r) + circle(cx + hx, cz + hz, r);
 }
@@ -328,13 +341,17 @@ Shape rounded_polygon(const std::vector<std::pair<double, double>>& p, double r)
 	{
 		const auto [vx, vz] = p[i];
 		auto unit = [&](std::pair<double, double> q) {
-			const double ux = q.first - vx, uz = q.second - vz, l = std::hypot(ux, uz);
+			const double ux = q.first - vx;
+			const double uz = q.second - vz;
+			const double l = std::hypot(ux, uz);
 			return std::pair{ux / l, uz / l};
 		};
 		const auto [ax, az] = unit(p[(i + n - 1) % n]);
 		const auto [bx, bz] = unit(p[(i + 1) % n]);
 		const double half = 0.5 * std::acos(std::clamp(ax * bx + az * bz, -1.0, 1.0));
-		const double t = r / std::tan(half), c = r / std::sin(half), bl = std::hypot(ax + bx, az + bz);
+		const double t = r / std::tan(half);
+		const double c = r / std::sin(half);
+		const double bl = std::hypot(ax + bx, az + bz);
 		cut.push_back({vx + t * ax, vz + t * az});
 		cut.push_back({vx + t * bx, vz + t * bz});
 		discs = discs + circle(vx + c * (ax + bx) / bl, vz + c * (az + bz) / bl, r);
@@ -352,7 +369,9 @@ Shape inflated_polygon(const std::vector<std::pair<double, double>>& p, double r
 		twice_area += p[i].first * p[(i + 1) % n].second - p[(i + 1) % n].first * p[i].second;
 	const double out = twice_area > 0 ? 1.0 : -1.0;
 	auto normal = [&](size_t e) { // outward unit normal of edge e = (p[e], p[e+1]), times r
-		const double ex = p[(e + 1) % n].first - p[e].first, ez = p[(e + 1) % n].second - p[e].second, l = std::hypot(ex, ez);
+		const double ex = p[(e + 1) % n].first - p[e].first;
+		const double ez = p[(e + 1) % n].second - p[e].second;
+		const double l = std::hypot(ex, ez);
 		return std::pair{out * r * ez / l, -out * r * ex / l};
 	};
 	std::vector<std::pair<double, double>> hull; // each vertex moved out along both of its edges' normals
@@ -409,10 +428,17 @@ struct Solid::Node
 	enum Kind { Extrusion, Sphere, CylinderZ, CylinderX, Sliced, Moved, Union, Difference, Intersection } kind = Extrusion;
 	std::function<Shape(double)> at;
 	Shape shape;
-	double y0 = 0, y1 = 0;                // extrusion; cylinders: axial extent
-	double cx = 0, cy = 0, cz = 0, r = 0; // sphere, cylinders; moved: shift (cx, cy, cz)
-	double theta = 0, ox = 0, oz = 0;     // moved: then turned by theta about (ox, oz)
-	Solid a, b;
+	double y0 = 0;
+	double y1 = 0; // extrusion; cylinders: axial extent
+	double cx = 0;
+	double cy = 0;
+	double cz = 0;
+	double r = 0; // sphere, cylinders; moved: shift (cx, cy, cz)
+	double theta = 0;
+	double ox = 0;
+	double oz = 0; // moved: then turned by theta about (ox, oz)
+	Solid a;
+	Solid b;
 };
 
 namespace

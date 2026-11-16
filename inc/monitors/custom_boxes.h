@@ -32,16 +32,22 @@ struct CustomBox
 {
 	std::string name;
 	int step = 1; ///< time boxes: frame period
-	int global_min[3] = {}, global_max[3] = {}, global_count[3] = {};
+	int global_min[3] = {};
+	int global_max[3] = {};
+	int global_count[3] = {};
 	bool here = false;
-	int local_min[3] = {}, local_max[3] = {}, local_count[3] = {}, relative_start[3] = {};
+	int local_min[3] = {};
+	int local_max[3] = {};
+	int local_count[3] = {};
+	int relative_start[3] = {};
 	MPI_Comm comm = MPI_COMM_NULL;
 	ctetrad<std::complex<double>> dft[3];
 };
 
 struct CustomBoxes
 {
-	std::vector<CustomBox> frequency, time; ///< in INI order
+	std::vector<CustomBox> frequency; ///< in INI order
+	std::vector<CustomBox> time; ///< in INI order
 
 	/// builds the boxes of the configuration, collective: one communicator per box
 	void build(const std::vector<MonitorBox> &boxes);

@@ -50,7 +50,8 @@ inline double inv_d(int b) { return b == 0 ? fdtd::grid::lattice().inv_d[0] : b 
 template <int A>
 struct Component
 {
-	static constexpr int B1 = (A + 1) % 3, B2 = (A + 2) % 3; ///< the other two axes, cyclic
+	static constexpr int B1 = (A + 1) % 3; ///< the other two axes, cyclic
+	static constexpr int B2 = (A + 2) % 3; ///< the other two axes, cyclic
 	static ComponentState &state() { return the_dispersive_state.c[A]; } ///< this component's model state
 
 	// field and its history

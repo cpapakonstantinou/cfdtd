@@ -77,9 +77,12 @@ bool fdtd::geometry::create_round_monopole(const int &centerx, const int &center
 	if (!sc.draw)
 		return true;
 	using namespace geom;
-	const double r_c = r, r_f = round_far, T = t;
+	const double r_c = r;
+	const double r_f = round_far;
+	const double T = t;
 	const double r_n = double(round_near);
-	const double ex = 0.5 * b - r_c, ez = 0.5 * h - r_c; // centres of the vertical edges
+	const double ex = 0.5 * b - r_c;
+	const double ez = 0.5 * h - r_c; // centres of the vertical edges
 
 	Solid block = extrude(rounded_rect(0, 0, b, h, r_c), -T + r_n, -r_f) + extrude(box(-ex, -ez, ex, ez), -T, 0);
 	for (auto [rad, yc] : {std::pair{r_f, -r_f}, std::pair{r_n, -T + r_n}}) // rounded edges of the top and bottom faces
@@ -224,7 +227,8 @@ bool fdtd::geometry::create_bowtie(const int &centerx, const int &centery_bulk, 
 		return true;
 	const double m = l / w; // |x| <= |z| / m
 	auto wing = [&](double sign) {
-		const double z0 = sign * 0.5 * g, z1 = sign * 0.5 * l;
+		const double z0 = sign * 0.5 * g;
+		const double z1 = sign * 0.5 * l;
 		return geom::polygon({{-0.5 * g / m, z0}, {0.5 * g / m, z0}, {0.5 * l / m, z1}, {-0.5 * l / m, z1}});
 	};
 	render_parts({{geom::extrude(wing(+1) + wing(-1), -0.5 * t, 0.5 * t), index}}, centerx, centery_bulk - int(antenna_shift / lat.d[1]), centerz,
@@ -297,8 +301,15 @@ bool fdtd::geometry::create_triangle(const int &centerx, const int &centery_bulk
  */
 bool fdtd::geometry::create_rotated_monopole(const int &centerx, const int &centery_bulk, const int &centerz, const double &w, const double &t, const double &l_t, const int &index, const double &/*middle_layer*/, const double &antenna_shift, const double &theta, const double &radius)
 {
-	int i, j, k;
-	double x, xf, y, yf, z, zf;
+	int i;
+	int j;
+	int k;
+	double x;
+	double xf;
+	double y;
+	double yf;
+	double z;
+	double zf;
 	int centery = centery_bulk - ceil(antenna_shift / lat.d[1]); //- int(t/DY/2)
 
 	for (i = subdomain.output_start[0]; i < subdomain.output_start[0] + subdomain.output_size[0]; ++i)
@@ -397,7 +408,9 @@ bool fdtd::geometry::create_rounded_triangle(const int &centerx, const int &cent
 {
 	if (!sc.draw)
 		return true;
-	const double r = radius, hw = 0.5 * w - r, hl = 0.5 * l - r; // inner triangle
+	const double r = radius;
+	const double hw = 0.5 * w - r;
+	const double hl = 0.5 * l - r; // inner triangle
 	const geom::Shape tri = geom::inflated_polygon({{-hw, -hl}, {hw, -hl}, {0, hl}}, r);
 	render_parts({{geom::extrude(tri.rotated(-theta, 0, 0), -0.5 * t, 0.5 * t), index}},
 				centerx, centery_bulk - int(antenna_shift / lat.d[1]), centerz, Staircase::CellCentre);
@@ -407,7 +420,8 @@ bool fdtd::geometry::create_rounded_triangle(const int &centerx, const int &cent
 /// area of CreateRoundedTriangle's drawing: inner area + inner perimeter * r + pi r^2
 double fdtd::geometry::rounded_triangle_area(double w, double l, double r)
 {
-	const double b = w - 2 * r, h = l - 2 * r;
+	const double b = w - 2 * r;
+	const double h = l - 2 * r;
 	return double(0.5) * b * h + (b + 2 * std::hypot(double(0.5) * b, h)) * r + PI * r * r;
 }
 
@@ -439,7 +453,9 @@ bool fdtd::geometry::create_layer(const int &start_y, const int &end_y, const in
  */
 bool fdtd::geometry::create_anisotropic_layer(const int &start_y, const int &end_y, const int &medium_x, const int &medium_y, const int &medium_z)
 {
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 
 	for (i = subdomain.output_start[0]; i < subdomain.output_start[0] + subdomain.output_size[0]; ++i)
 	{
@@ -512,7 +528,9 @@ void fdtd::geometry::create_blocks(const std::vector<Block>& blocks)
 	for (const auto& b : blocks)
 		for (int n = 0; n < b.count; ++n)
 		{
-			const double sx = n * b.pitch_x, sy = n * b.pitch_y, sz = n * b.pitch_z;
+			const double sx = n * b.pitch_x;
+			const double sy = n * b.pitch_y;
+			const double sz = n * b.pitch_z;
 			parts.push_back({geom::extrude(geom::box(b.x_min + sx, b.z_min + sz, b.x_max + sx, b.z_max + sz), b.y_min + sy, b.y_max + sy), b.material});
 		}
 	if (!parts.empty())

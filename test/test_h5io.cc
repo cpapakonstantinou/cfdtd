@@ -10,12 +10,14 @@
 
 namespace
 {
-int _rank = 0, _size = 1;
+int _rank = 0;
+int _size = 1;
 int failures = 0;
 
 void expect(bool ok, const char *what)
 {
-	int all = ok ? 1 : 0, global = 0;
+	int all = ok ? 1 : 0;
+	int global = 0;
 	MPI_Allreduce(&all, &global, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
 	if (!global)
 	{
@@ -37,10 +39,13 @@ std::string temp_path(const char *name)
 // with one ghost row/column and a one-cell margin before the data.
 void padded_plane_round_trip()
 {
-	const hsize_t n0 = 7, n1 = 5;
-	const hsize_t first = n0 * _rank / _size, last = n0 * (_rank + 1) / _size;
+	const hsize_t n0 = 7;
+	const hsize_t n1 = 5;
+	const hsize_t first = n0 * _rank / _size;
+	const hsize_t last = n0 * (_rank + 1) / _size;
 	const hsize_t rows = last - first; // may be 0 for some ranks when size > n0
-	const hsize_t lrows = rows + 2, lcols = n1 + 2;
+	const hsize_t lrows = rows + 2;
+	const hsize_t lcols = n1 + 2;
 	std::vector<double> local(lrows * lcols, -1.0);
 	for (hsize_t a = 0; a < rows; ++a)
 		for (hsize_t b = 0; b < n1; ++b)
@@ -73,9 +78,12 @@ void padded_plane_round_trip()
 void complex_volume()
 {
 	const hsize_t g[3] = {4, 3, 2};
-	const hsize_t first = g[0] * _rank / _size, last = g[0] * (_rank + 1) / _size;
-	const hsize_t off[3] = {first, 0, 0}, cnt[3] = {last - first, g[1], g[2]};
-	std::vector<double> re(cnt[0] * g[1] * g[2]), im(re.size());
+	const hsize_t first = g[0] * _rank / _size;
+	const hsize_t last = g[0] * (_rank + 1) / _size;
+	const hsize_t off[3] = {first, 0, 0};
+	const hsize_t cnt[3] = {last - first, g[1], g[2]};
+	std::vector<double> re(cnt[0] * g[1] * g[2]);
+	std::vector<double> im(re.size());
 	for (hsize_t i = 0; i < cnt[0]; ++i)
 		for (hsize_t j = 0; j < g[1]; ++j)
 			for (hsize_t k = 0; k < g[2]; ++k)
@@ -95,8 +103,10 @@ void complex_volume()
 	{
 		// independent serial read with the plain HDF5 API: z_re and z_im
 		hid_t file = H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-		std::vector<double> r(g[0] * g[1] * g[2]), q(g[0] * g[1] * g[2]);
-		hid_t dr = H5Dopen2(file, "z_re", H5P_DEFAULT), di = H5Dopen2(file, "z_im", H5P_DEFAULT);
+		std::vector<double> r(g[0] * g[1] * g[2]);
+		std::vector<double> q(g[0] * g[1] * g[2]);
+		hid_t dr = H5Dopen2(file, "z_re", H5P_DEFAULT);
+		hid_t di = H5Dopen2(file, "z_im", H5P_DEFAULT);
 		const bool opened = dr >= 0 && di >= 0;
 		if (opened)
 		{

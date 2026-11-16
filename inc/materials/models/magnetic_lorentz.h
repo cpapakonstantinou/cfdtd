@@ -30,7 +30,8 @@ struct MagneticLorentz
 	/// update coefficients of one material: the P recursion, c0..c3 on P, P_prev, P_prev_2, P_prev_3; b0..b3 of pole 0, and the E update
 	struct Coeffs : Poles
 	{
-		double ce1, ce2; ///< E update, DispersiveE
+		double ce1; ///< E update, DispersiveE
+		double ce2; ///< E update, DispersiveE
 	};
 
 	/// coefficients of dispersive material index mm, material code `code`, for time step dt
@@ -64,17 +65,23 @@ struct MagneticLorentz
 		using C = Component<A>;
 		using C1 = Component<C::B1>;
 		using C2 = Component<C::B2>;
-		const view3<double> e = C::e(), e_prev = C::e_prev(), e_prev_2 = C::e_prev_2();
+		const view3<double> e = C::e();
+		const view3<double> e_prev = C::e_prev();
+		const view3<double> e_prev_2 = C::e_prev_2();
 		auto &p = C::p();
 		auto &p_prev = C::p_prev();
 		auto &p_prev_2 = C::p_prev_2();
 		auto &p_prev_3 = C::p_prev_3();
-		const int mm = c.mm, i = c.i, j = c.j, k = c.k;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
+		const int k = c.k;
 		const Coeffs &cf = coeffs<MagneticLorentz>(mm);
 		const int x[3] = {i, j, k};
 		auto m_at_e = [&](const view3<double> &m) { return 0.5 * m[i][j][k] + 0.5 * shifted(m, x, A, 1); };
 		auto de = [&](const view3<double> &scratch, const view3<double> &prev_2) { return scratch[i][j][k] - prev_2[i][j][k]; };
-		const double M1 = m_at_e(C1::magnetization()), M2 = m_at_e(C2::magnetization());
+		const double M1 = m_at_e(C1::magnetization());
+		const double M2 = m_at_e(C2::magnetization());
 		const double cross = M1 * de(C2::e_scratch(), C2::e_prev_2()) - M2 * de(C1::e_scratch(), C1::e_prev_2());
 
 		const double p_new = cf.c0 * p[mm][i][j][k] + cf.c1 * p_prev[mm][i][j][k] + cf.c2 * p_prev_2[mm][i][j][k] + cf.c3 * p_prev_3[mm][i][j][k] +

@@ -17,11 +17,16 @@ struct Block
 {
 	std::string name;
 	int material = 0;                       ///< material code
-	double x_min = -1, x_max = 1;           ///< [m]
-	double y_min = -1, y_max = 1;           ///< [m]
-	double z_min = -1, z_max = 1;           ///< [m]
+	double x_min = -1; ///< [m]
+	double x_max = 1; ///< [m]
+	double y_min = -1; ///< [m]
+	double y_max = 1; ///< [m]
+	double z_min = -1; ///< [m]
+	double z_max = 1; ///< [m]
 	int count = 1;                          ///< copies
-	double pitch_x = 0, pitch_y = 0, pitch_z = 0; ///< [m] between copies
+	double pitch_x = 0; ///< [m] between copies
+	double pitch_y = 0; ///< [m] between copies
+	double pitch_z = 0; ///< [m] between copies
 };
 
 /// draw the blocks in order, a later block overwrites an earlier one, about the scene's centre cell

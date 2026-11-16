@@ -30,8 +30,12 @@ const fdtd::grid::Lattice &lat = fdtd::grid::lattice();          ///< the global
 
 void render_parts(const std::vector<geom::Part>& parts, int ci, int cj, int ck, Staircase staircase)
 {
-	const int si = int(subdomain.output_start[0]), sj = int(subdomain.output_start[1]), sk = int(subdomain.output_start[2]);
-	const int ni = int(subdomain.output_size[0]), nj = int(subdomain.output_size[1]), nk = int(subdomain.output_size[2]);
+	const int si = int(subdomain.output_start[0]);
+	const int sj = int(subdomain.output_start[1]);
+	const int sk = int(subdomain.output_start[2]);
+	const int ni = int(subdomain.output_size[0]);
+	const int nj = int(subdomain.output_size[1]);
+	const int nk = int(subdomain.output_size[2]);
 	// lattice of one component: sample offsets (x, z) in cells
 	auto lattice = [&](double ox, double oz) {
 		geom::Lattice L;
@@ -39,7 +43,10 @@ void render_parts(const std::vector<geom::Part>& parts, int ci, int cj, int ck, 
 		L.i0 = si, L.i1 = si + ni, L.k0 = sk, L.k1 = sk + nk;
 		return L;
 	};
-	const geom::Lattice Lx = lattice(0.5, 0), Ly = lattice(0, 0), Lz = lattice(0, 0.5), Lc = lattice(0.5, 0.5);
+	const geom::Lattice Lx = lattice(0.5, 0);
+	const geom::Lattice Ly = lattice(0, 0);
+	const geom::Lattice Lz = lattice(0, 0.5);
+	const geom::Lattice Lc = lattice(0.5, 0.5);
 	auto y_at = [&](int j, double off) { return (j - cj) * lat.d[1] + off * lat.d[1]; };
 	auto fill = [&](ctensor<int>& map, int i, int j, const geom::Row& row, int material) {
 		for (const auto& run : row)
@@ -81,14 +88,14 @@ void create_plasmonic_anapole(const geom::AnapoleSpec &a, int material, int ci, 
 	const auto parts = geom::anapole_parts(a, material, 0, 0, 0);
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
-		const double s_neck = (a.neck_half_length / a.patch_edge - a.lobe_x0) / a.lobe_a;
-		fdtd::io::log("geometry", "Plasmonic anapole: patch %.4g nm, thickness %.4g nm, corner radius %.4g nm, neck %.4g x %.4g nm, lobe tip %.4g nm, "
-					"neck-face lobe half-height %.4g nm\n",
-					a.patch_edge * 1e9, a.thickness * 1e9, a.corner_radius * 1e9, 2 * a.neck_half_length * 1e9, 2 * a.neck_half_height * 1e9,
-					a.patch_edge * (a.lobe_x0 + a.lobe_a) * 1e9,
-					a.patch_edge * a.lobe_b * std::pow(s_neck, a.lobe_p) * std::sqrt(1 - s_neck * s_neck) * 1e9);
-		if (a.dimer_material >= 0 && (a.dimer_radius < lat.d[0] || a.dimer_gap < lat.d[0]))
-			fdtd::io::log("geometry", "  warning: dimer features are below the grid step (%.3g nm)\n", lat.d[0] * 1e9);
+		const double s_gap = (0.5 * a.gap_length / a.patch_edge - a.lobe_offset) / a.lobe_length;
+		fdtd::io::log("geometry", "Plasmonic anapole: patch %.4g nm, thickness %.4g nm, corner radius %.4g nm, gap %.4g x %.4g nm, lobe tip %.4g nm, "
+					"lobe half-height at the gap %.4g nm\n",
+					a.patch_edge * 1e9, a.thickness * 1e9, a.corner_radius * 1e9, a.gap_length * 1e9, a.gap_width * 1e9,
+					a.patch_edge * (a.lobe_offset + a.lobe_length) * 1e9,
+					a.patch_edge * a.lobe_height * std::pow(s_gap, a.lobe_exponent) * std::sqrt(1 - s_gap * s_gap) * 1e9);
+		if (a.gap_length < 2 * lat.d[0] || a.gap_width < 2 * lat.d[2])
+			fdtd::io::log("geometry", "  warning: the gap is less than two cells wide, %.3g nm cells\n", lat.d[0] * 1e9);
 	}
 	render_parts(parts, ci, cj, ck, Staircase::CellCentre);
 }

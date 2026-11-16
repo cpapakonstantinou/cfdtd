@@ -61,7 +61,8 @@ int n_max;                                                  ///< Last time step,
  */
 int fdtd::sources::transform_pulse(int steps)
 {
-	int n, m;
+	int n;
+	int m;
 
 	// exactly the [spectrum] frequencies, fundamental band, then the harmonic band
 	for (m = 0; m < sp.nr_frequencies; ++m)

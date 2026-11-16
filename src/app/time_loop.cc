@@ -158,7 +158,9 @@ void Driver::print_trace()
 	const bool point = subdomain.plots_xy() && subdomain.plots_yz() && subdomain.plots_xz();
 	if (!point)
 		return;
-	const int I = subdomain.i_animation, J = subdomain.j_animation, K = subdomain.k_animation;
+	const int I = subdomain.i_animation;
+	const int J = subdomain.j_animation;
+	const int K = subdomain.k_animation;
 
 	if (_cfg.run.trace_interval <= 0 || fdtd::app::run_state().timestep % _cfg.run.trace_interval != 0)
 		return;
@@ -223,7 +225,9 @@ void Driver::write_time_domain_frames()
 void Driver::periodic_analysis()
 {
 	auto& c = *_ctx;
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 
 	const int frame_period = std::max({run_cfg.output.plot_xy, run_cfg.output.plot_yz, run_cfg.output.plot_xz, run_cfg.output.time_plot_3d});
 	if (run_cfg.thermal.save_output_temperature && frame_period != 0 && fdtd::app::run_state().timestep % frame_period == 0)
@@ -310,7 +314,8 @@ void Driver::save_state()
 	}
 	std::string why;
 	const bool written = fdtd::app::save_state(run_cfg.output.state_dir, fdtd::app::run_state().timestep, why);
-	int all = written, every = 0;
+	int all = written;
+	int every = 0;
 	MPI_Allreduce(&all, &every, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
 	_state_written = every != 0;
 	if (!written)

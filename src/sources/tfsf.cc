@@ -211,7 +211,8 @@ void tfsf_e_terms(int A, int i, int j, int k, double c, double &e_new)
 	if (!in)
 		return;
 	const double s = x ? -1 : 1; // Ex: - near, + far; Ez: + near, - far
-	const cvector<double> &h = x ? src.h[0] : src.h[1], &h_ref = x ? ref.h[0] : ref.h[1];
+	const cvector<double> &h = x ? src.h[0] : src.h[1];
+	const cvector<double> &h_ref = x ? ref.h[0] : ref.h[1];
 	if (subdomain.pw_nea_y && j == subdomain.jpw_1)
 	{
 		const double v = c * lat.inv_d[1] * (lat.periodic_x && lat.periodic_z ? h_ref[jpw_source_uni] : h[jpw_source_uni]);

@@ -27,8 +27,11 @@ namespace fdtd::fields
 /// array indices used by Fields
 namespace index
 {
-constexpr int x = 0, y = 1, z = 2;		 ///< field component
-constexpr int linear = 0, harmonic = 1; ///< field set
+constexpr int x = 0; ///< field component
+constexpr int y = 1; ///< field component
+constexpr int z = 2; ///< field component
+constexpr int linear = 0; ///< field set
+constexpr int harmonic = 1; ///< field set
 } // namespace index
 
 /// which optional arrays a run needs

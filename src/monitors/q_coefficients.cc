@@ -40,7 +40,8 @@ FILE *f_qcoeff = NULL;       ///< Output file of the linear Q coefficients.
 FILE *f_qcoeff_nl = NULL;    ///< Output file of the harmonic Q coefficients.
 /// power through each face [field/harmonic][box: scattering, total][normal axis][near/far][frequency]:
 /// this rank's part, and the sum over ranks, root
-double q_face_loc[2][2][3][2][fdtd::max_frequencies], q_face[2][2][3][2][fdtd::max_frequencies];
+double q_face_loc[2][2][3][2][fdtd::max_frequencies];
+double q_face[2][2][3][2][fdtd::max_frequencies];
 double qscattering[fdtd::max_frequencies];    ///< Total scattered power per frequency, outward flux through the scattering box.
 double qabsorption[fdtd::max_frequencies];    ///< Total absorbed power per frequency, inward flux through the absorption box.
 double qscattering_nl[fdtd::max_frequencies]; ///< Total harmonic scattered power per frequency.
@@ -57,12 +58,21 @@ double qabsorption_nl[fdtd::max_frequencies]; ///< Total harmonic absorbed power
 double face_flux(int set, int b, int n, int side, double Q[])
 {
 	const auto &F = fdtd::monitors::flux_boxes().box[b].face[n][side];
-	const int A = (n + 1) % 3, B = (n + 2) % 3, lo = A < B ? A : B, hi = A < B ? B : A;
+	const int A = (n + 1) % 3;
+	const int B = (n + 2) % 3;
+	const int lo = A < B ? A : B;
+	const int hi = A < B ? B : A;
 	const int range[2][3][2] = {{{subdomain.i_qsca_min, subdomain.i_qsca_max}, {subdomain.j_qsca_min, subdomain.j_qsca_max}, {subdomain.k_qsca_min, subdomain.k_qsca_max}},
 								{{subdomain.i_qtot_min, subdomain.i_qtot_max}, {subdomain.j_qtot_min, subdomain.j_qtot_max}, {subdomain.k_qtot_min, subdomain.k_qtot_max}}};
 	const double d[3] = {lat.d[0], lat.d[1], lat.d[2]};
-	const view4<double> reE_a = F.re[0][set][A], imE_a = F.im[0][set][A], reE_b = F.re[0][set][B], imE_b = F.im[0][set][B];
-	const view4<double> reH_a = F.re[1][set][A], imH_a = F.im[1][set][A], reH_b = F.re[1][set][B], imH_b = F.im[1][set][B];
+	const view4<double> reE_a = F.re[0][set][A];
+	const view4<double> imE_a = F.im[0][set][A];
+	const view4<double> reE_b = F.re[0][set][B];
+	const view4<double> imE_b = F.im[0][set][B];
+	const view4<double> reH_a = F.re[1][set][A];
+	const view4<double> imH_a = F.im[1][set][A];
+	const view4<double> reH_b = F.re[1][set][B];
+	const view4<double> imH_b = F.im[1][set][B];
 	double q_normalisation_area = 0;
 	for (int m = 0; m < sp.nr_frequencies; ++m)
 	{
@@ -75,8 +85,10 @@ double face_flux(int set, int b, int n, int side, double Q[])
 				int x[3];
 				x[n] = 0, x[lo] = p, x[hi] = q;
 				auto at = [&](const view4<double> &v) { return v[m][x[0]][x[1]][x[2]]; };
-				const std::complex<double> cEa = at(reE_a) + I_UNIT * at(imE_a), cEb = at(reE_b) + I_UNIT * at(imE_b);
-				const std::complex<double> ccHa = at(reH_a) - I_UNIT * at(imH_a), ccHb = at(reH_b) - I_UNIT * at(imH_b);
+				const std::complex<double> cEa = at(reE_a) + I_UNIT * at(imE_a);
+				const std::complex<double> cEb = at(reE_b) + I_UNIT * at(imE_b);
+				const std::complex<double> ccHa = at(reH_a) - I_UNIT * at(imH_a);
+				const std::complex<double> ccHb = at(reH_b) - I_UNIT * at(imH_b);
 				const std::complex<double> zz = cEa * ccHb - cEb * ccHa;
 				PowerFlux += zz.real() * d[lo] * d[hi];
 			}
@@ -305,7 +317,8 @@ void write_art_tfsf()
 	Area_inc = (lat.inner(2) - 2 * lat.tfsf_inset[2]) * (lat.inner(0) - 2 * lat.tfsf_inset[0]) * lat.d[0] * lat.d[2];
 
 	// R from the near y face of the scattering box, T from the far y face of the total box
-	double area_r_loc = 0, area_r = 0;
+	double area_r_loc = 0;
+	double area_r = 0;
 	area_loc = 0;
 	for (int set = 0; set < (sp.hydrodynamics ? 2 : 1); ++set)
 	{

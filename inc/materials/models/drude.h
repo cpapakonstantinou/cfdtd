@@ -28,8 +28,10 @@ struct Drude
 	/// update coefficients of one material
 	struct Coeffs
 	{
-		double alpha, beta; ///< omega_p^2 dt^2 and gamma dt
-		double ce1, ce2;    ///< E update, DispersiveE
+		double alpha; ///< omega_p^2 dt^2 and gamma dt
+		double beta; ///< omega_p^2 dt^2 and gamma dt
+		double ce1; ///< E update, DispersiveE
+		double ce2; ///< E update, DispersiveE
 	};
 
 	/// coefficients of dispersive material index mm, material code `code`, for time step dt
@@ -69,7 +71,9 @@ struct Drude
 	{
 		using C = Component<A>;
 		const view3<double> e = C::e();
-		const int mm = c.mm, i = c.i, j = c.j;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
 		point(coeffs<Drude>(mm), c.k, stretch::AdeRow{e[i][j], nullptr, C::p()[mm][i][j], C::p_prev()[mm][i][j], {}, {}}, c.curl);
 	}
 };

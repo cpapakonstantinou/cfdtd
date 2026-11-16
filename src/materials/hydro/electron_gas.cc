@@ -20,7 +20,9 @@ const fdtd::grid::Lattice &lat = fdtd::grid::lattice();          ///< the global
 using namespace fdtd::materials::hydro; // transitional: module state, hydro/state.h
 
 void fdtd::materials::hydro::update_nonlocal() {
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 
 
 	fdtd::grid::exchange_margins(px_nl, py_nl, pz_nl);
@@ -49,7 +51,12 @@ void fdtd::materials::hydro::update_nonlocal() {
 }
 
 void fdtd::materials::hydro::update_electron_density_local() {
-	int i, j, k, ii, jj, kk;
+	int i;
+	int j;
+	int k;
+	int ii;
+	int jj;
+	int kk;
 	for (i = 0; i <= subdomain.cells_x; i++) {
 		ii = i + 1;
 		for (j = 0; j <= subdomain.cells_y; j++) {

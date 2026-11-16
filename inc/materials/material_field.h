@@ -27,7 +27,10 @@
 /// rows (i, j) of a material's cells: [i0, i1] x [j0, j1], inclusive
 struct CellBox
 {
-	int i0, i1, j0, j1;
+	int i0;
+	int i1;
+	int j0;
+	int j1;
 };
 
 template <typename T, std::size_t M>

@@ -118,10 +118,14 @@ template <int P>
 void e_cell(AuxLine &L, int j, int m, double d, double K, bool in)
 {
 	const auto &mp = fdtd::materials::model_parameters();
-	cvector<double> &e = L.e[P], &e_prev = L.e_prev[P], &p = L.p[P], &p_prev = L.p_prev[P];
+	cvector<double> &e = L.e[P];
+	cvector<double> &e_prev = L.e_prev[P];
+	cvector<double> &p = L.p[P];
+	cvector<double> &p_prev = L.p_prev[P];
 	cvector<double>(&pc)[materials::NrMaxCP] = L.pc[P];
 	cvector<double>(&pc_prev)[materials::NrMaxCP] = L.pc_prev[P];
-	cvector<double> &psi_n = L.psi_e[P][0], &psi_f = L.psi_e[P][1];
+	cvector<double> &psi_n = L.psi_e[P][0];
+	cvector<double> &psi_f = L.psi_e[P][1];
 	const double rotdiff = P == 0 ? (in ? d : d * K) : (in ? -d : -d * K);
 	// CPML psi of the two ends, added to e_new scaled by c
 	auto psi_terms = [&](double c, double &e_new) {
@@ -132,7 +136,8 @@ void e_cell(AuxLine &L, int j, int m, double d, double K, bool in)
 		}
 		if (j >= nr_cell_par_uni)
 		{
-			const int s = sp.one_dim_cells - j, V = j - nr_cell_par_uni;
+			const int s = sp.one_dim_cells - j;
+			const int V = j - nr_cell_par_uni;
 			psi_f[V] = the_cpml.profile[1][1].b[0][s] * psi_f[V] + the_cpml.profile[1][1].c[0][s] * d;
 			add<P>(e_new, c * psi_f[V]);
 		}
@@ -172,7 +177,9 @@ void e_cell(AuxLine &L, int j, int m, double d, double K, bool in)
 template <int P>
 void h_cell(AuxLine &L, int j, double d, double K)
 {
-	cvector<double> &h = L.h[P], &psi_n = L.psi_h[P][0], &psi_f = L.psi_h[P][1];
+	cvector<double> &h = L.h[P];
+	cvector<double> &psi_n = L.psi_h[P][0];
+	cvector<double> &psi_f = L.psi_h[P][1];
 	add<P>(h[j], sp.coeff_h * K * d);
 	if (j < lat.cpml[1])
 	{
@@ -181,7 +188,8 @@ void h_cell(AuxLine &L, int j, double d, double K)
 	}
 	if (j >= nr_cell_par_uni)
 	{
-		const int V = j - nr_cell_par_uni, s = nr_cell_uni - j;
+		const int V = j - nr_cell_par_uni;
+		const int s = nr_cell_uni - j;
 		psi_f[V] = the_cpml.profile[1][1].b[1][s] * psi_f[V] + the_cpml.profile[1][1].c[1][s] * d;
 		add<P>(h[j], sp.coeff_h * psi_f[V]);
 	}

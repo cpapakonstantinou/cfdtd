@@ -15,7 +15,8 @@ struct FakeDriver
 {
 	std::vector<std::string> log;
 	std::string fail_in;      // name of the phase that fails
-	bool mesh = false, dummy = false;
+	bool mesh = false;
+	bool dummy = false;
 	int sweep = 0;
 	bool _ok = true;
 

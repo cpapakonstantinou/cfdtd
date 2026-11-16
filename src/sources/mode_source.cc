@@ -62,19 +62,26 @@ struct Component
 /// The transverse field of one MPB file on MPB's grid: x_i = -Lx/2 + i Lx/nx, likewise y
 struct MpbField
 {
-	int nx = 0, ny = 0;
-	double lx = 0, ly = 0; ///< cell size [m]
-	Component x, y;
+	int nx = 0;
+	int ny = 0;
+	double lx = 0; ///< cell size [m]
+	double ly = 0; ///< cell size [m]
+	Component x;
+	Component y;
 
 	/// bilinear interpolation of component c at (px, py) [m] from the cell centre; 0 outside the cell
 	double at(const std::vector<double> &c, double px, double py) const
 	{
-		const double fx = (px + 0.5 * lx) / lx * nx, fy = (py + 0.5 * ly) / ly * ny;
-		const int ix = int(std::floor(fx)), iy = int(std::floor(fy));
+		const double fx = (px + 0.5 * lx) / lx * nx;
+		const double fy = (py + 0.5 * ly) / ly * ny;
+		const int ix = int(std::floor(fx));
+		const int iy = int(std::floor(fy));
 		if (ix < 0 || iy < 0 || ix >= nx || iy >= ny)
 			return 0;
-		const int jx = std::min(ix + 1, nx - 1), jy = std::min(iy + 1, ny - 1);
-		const double ax = fx - ix, ay = fy - iy;
+		const int jx = std::min(ix + 1, nx - 1);
+		const int jy = std::min(iy + 1, ny - 1);
+		const double ax = fx - ix;
+		const double ay = fy - iy;
 		return (1 - ax) * ((1 - ay) * c[ix * ny + iy] + ay * c[ix * ny + jy]) + ax * ((1 - ay) * c[jx * ny + iy] + ay * c[jx * ny + jy]);
 	}
 };
@@ -174,12 +181,19 @@ bool e_factor(int m, double &c)
 
 struct Plane
 {
-	int n = 1, u = 2, v = 0;         ///< propagation axis and the transverse axes, cyclic
-	int e_local = -1, h_local = -1;  ///< local index of the E plane and of the H plane (p - 1/2), -1: not on this rank
-	int nu = 0, nv = 0;              ///< local extent of the plane, cells + 1
-	std::vector<double> eu, ev;      ///< E_u, E_v of the mode [V/m per unit signal]
-	std::vector<double> hu_c, hv_c;  ///< dt / (eps dn) * H_u, H_v: the E corrections
-	std::vector<double> eu_c, ev_c;  ///< dt / (mu0 dn) * E_u, E_v: the H corrections
+	int n = 1; ///< propagation axis and the transverse axes, cyclic
+	int u = 2; ///< propagation axis and the transverse axes, cyclic
+	int v = 0; ///< propagation axis and the transverse axes, cyclic
+	int e_local = -1; ///< local index of the E plane and of the H plane (p - 1/2), -1: not on this rank
+	int h_local = -1; ///< local index of the E plane and of the H plane (p - 1/2), -1: not on this rank
+	int nu = 0; ///< local extent of the plane, cells + 1
+	int nv = 0; ///< local extent of the plane, cells + 1
+	std::vector<double> eu; ///< E_u, E_v of the mode [V/m per unit signal]
+	std::vector<double> ev; ///< E_u, E_v of the mode [V/m per unit signal]
+	std::vector<double> hu_c; ///< dt / (eps dn) * H_u, H_v: the E corrections
+	std::vector<double> hv_c; ///< dt / (eps dn) * H_u, H_v: the E corrections
+	std::vector<double> eu_c; ///< dt / (mu0 dn) * E_u, E_v: the H corrections
+	std::vector<double> ev_c; ///< dt / (mu0 dn) * E_u, E_v: the H corrections
 	double delay = 0;                ///< [s] half a cell at n_eff: the H plane leads the E plane
 	bool active = false;
 } plane;
@@ -215,7 +229,8 @@ void fdtd::sources::setup_mode_source()
 	const auto &m = mode_input;
 	const std::string base = sp.input_dir;
 	auto path = [&](const std::string &f) { return f.empty() || f[0] == '/' ? f : base + "/" + f; };
-	MpbField e = read_mpb(path(m.efield), m.unit_length), h = read_mpb(path(m.hfield), m.unit_length);
+	MpbField e = read_mpb(path(m.efield), m.unit_length);
+	MpbField h = read_mpb(path(m.hfield), m.unit_length);
 	if (e.nx != h.nx || e.ny != h.ny)
 		throw std::runtime_error("mode source: the E and H files have different grids");
 
@@ -226,7 +241,10 @@ void fdtd::sources::setup_mode_source()
 	int ax = m.mpb_x_axis.empty() ? (P.n == 0 ? 2 : 0) : axis_index(m.mpb_x_axis);
 	int ay = m.mpb_y_axis.empty() ? (P.n == 1 ? 2 : 1) : axis_index(m.mpb_y_axis);
 
-	std::vector<double> ex, ey, hx, hy;
+	std::vector<double> ex;
+	std::vector<double> ey;
+	std::vector<double> hx;
+	std::vector<double> hy;
 	make_real(e, ex, ey);
 	make_real(h, hx, hy);
 	// scale: |E_t| peaks at 1; H in A/m, MPB's H is in units of E: H_SI = H / eta0
@@ -235,7 +253,8 @@ void fdtd::sources::setup_mode_source()
 		top = std::max(top, std::hypot(ex[n], ey[n]));
 	if (!(top > 0))
 		throw std::runtime_error("mode source: the E field of " + path(m.efield) + " is zero");
-	const double se = 1 / top, sh = fdtd::constants::INVVACIMP / top;
+	const double se = 1 / top;
+	const double sh = fdtd::constants::INVVACIMP / top;
 	// MPB component along FDTD axis a, at MPB sample n
 	auto mpb = [&](const std::vector<double> &cx, const std::vector<double> &cy, int a, size_t n) { return a == ax ? cx[n] : cy[n]; };
 	// power along +n decides the sign of H, the files' propagation direction and axis handedness drop out
@@ -250,7 +269,9 @@ void fdtd::sources::setup_mode_source()
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
 		// where the mode sits in MPB's cell: a quick check of the placement against the structure
-		double w = 0, cx = 0, cy = 0;
+		double w = 0;
+		double cx = 0;
+		double cy = 0;
 		for (int i = 0; i < e.nx; ++i)
 			for (int j = 0; j < e.ny; ++j)
 			{
@@ -264,7 +285,8 @@ void fdtd::sources::setup_mode_source()
 	}
 
 	const auto &S = subdomain;
-	const std::array<int, 3> start{S.start_x, S.start_y, S.start_z}, cells{S.cells_x, S.cells_y, S.cells_z};
+	const std::array<int, 3> start{S.start_x, S.start_y, S.start_z};
+	const std::array<int, 3> cells{S.cells_x, S.cells_y, S.cells_z};
 	const std::array<double, 3> d{lat.d[0], lat.d[1], lat.d[2]};
 	const std::array<int, 3> centre{sp.centre[0] + lat.cpml[0], sp.centre[1] + lat.cpml[1],
 									sp.centre[2] + lat.cpml[2]};
@@ -284,7 +306,8 @@ void fdtd::sources::setup_mode_source()
 	auto coord = [&](int A, int a, double s) { return (start[A] + a + s - centre[A]) * d[A] - offset[A]; };
 	// profile of field (cx, cy) along FDTD axis a at a point with FDTD transverse coordinates (cu, cv)
 	auto sample = [&](const MpbField &f, const std::vector<double> &cx, const std::vector<double> &cy, int a, double cu, double cv) {
-		const double px = ax == P.u ? cu : cv, py = ay == P.u ? cu : cv;
+		const double px = ax == P.u ? cu : cv;
+		const double py = ay == P.u ? cu : cv;
 		return f.at(a == ax ? cx : cy, px, py);
 	};
 	const double ch = sp.dt / (fdtd::constants::MU0 * d[P.n]);

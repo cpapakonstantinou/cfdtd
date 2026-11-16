@@ -87,7 +87,9 @@ double nonlinear_lorentz_beta;                                ///< Nonlinear Lor
 void fdtd::materials::set_parameters(const Inputs &in)
 {
 	auto &mp = fdtd::materials::model_parameters();
-	int m, mm, n;
+	int m;
+	int mm;
+	int n;
 
 	//-Izzat-
 	//D=Diag, O=Off diagonal

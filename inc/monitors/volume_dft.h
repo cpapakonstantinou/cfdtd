@@ -22,9 +22,11 @@ namespace fdtd::monitors
 {
 struct VolumeDft
 {
-	ctetrad<double> re[2][3], im[2][3];
+	ctetrad<double> re[2][3];
+	ctetrad<double> im[2][3];
 	ctetrad<std::complex<double>> field[2][3];
-	ctetrad<double> re_pnl[3], im_pnl[3];
+	ctetrad<double> re_pnl[3];
+	ctetrad<double> im_pnl[3];
 
 	/// allocates what the run needs, not on ranks that are all CPML; arrays already there are kept
 	void allocate();

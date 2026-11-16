@@ -20,14 +20,30 @@ struct Subdomain
 {
 	int rank = -1;
 	int position[3] = {};          ///< index in the rank grid along x, y, z
-	int start_x = 0, start_y = 0, start_z = 0; ///< first global cell, PML included
-	int end_x = 0, end_y = 0, end_z = 0;       ///< one past the last global cell
-	int cells_x = 0, cells_y = 0, cells_z = 0; ///< cells of this rank along each axis
-	int owned_cells_x = 0, owned_cells_y = 0, owned_cells_z = 0; ///< cells updated here: one less on the last rank of an axis, shared far face
-	double origin_x = 0, origin_y = 0, origin_z = 0; ///< [m] physical origin
-	double length_x = 0, length_y = 0, length_z = 0; ///< [m] physical size
-	int neighbours_x[2] = {}, neighbours_y[2] = {}, neighbours_z[2] = {};          ///< ranks before / after, MPI_PROC_NULL at a wall
-	int neighbours_nl_x[2] = {}, neighbours_nl_y[2] = {}, neighbours_nl_z[2] = {}; ///< same, restricted to the TF/SF region, nonlinear fields
+	int start_x = 0; ///< first global cell, PML included
+	int start_y = 0; ///< first global cell, PML included
+	int start_z = 0; ///< first global cell, PML included
+	int end_x = 0; ///< one past the last global cell
+	int end_y = 0; ///< one past the last global cell
+	int end_z = 0; ///< one past the last global cell
+	int cells_x = 0; ///< cells of this rank along each axis
+	int cells_y = 0; ///< cells of this rank along each axis
+	int cells_z = 0; ///< cells of this rank along each axis
+	int owned_cells_x = 0; ///< cells updated here: one less on the last rank of an axis, shared far face
+	int owned_cells_y = 0; ///< cells updated here: one less on the last rank of an axis, shared far face
+	int owned_cells_z = 0; ///< cells updated here: one less on the last rank of an axis, shared far face
+	double origin_x = 0; ///< [m] physical origin
+	double origin_y = 0; ///< [m] physical origin
+	double origin_z = 0; ///< [m] physical origin
+	double length_x = 0; ///< [m] physical size
+	double length_y = 0; ///< [m] physical size
+	double length_z = 0; ///< [m] physical size
+	int neighbours_x[2] = {}; ///< ranks before / after, MPI_PROC_NULL at a wall
+	int neighbours_y[2] = {}; ///< ranks before / after, MPI_PROC_NULL at a wall
+	int neighbours_z[2] = {}; ///< ranks before / after, MPI_PROC_NULL at a wall
+	int neighbours_nl_x[2] = {}; ///< same, restricted to the TF/SF region, nonlinear fields
+	int neighbours_nl_y[2] = {}; ///< same, restricted to the TF/SF region, nonlinear fields
+	int neighbours_nl_z[2] = {}; ///< same, restricted to the TF/SF region, nonlinear fields
 	bool cpml_only = {};
 	int i_cpml_min = {};
 	int j_cpml_min = {};

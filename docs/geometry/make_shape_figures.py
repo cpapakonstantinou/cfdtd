@@ -98,16 +98,20 @@ def round_hybrid(p):
 
 
 def anapole(p):
-    w, r, nl, nh = p["patch_edge"], p["corner_radius"], p["neck_half_length"], p["neck_half_height"]
-    tip = w * (LOBE_X0 + LOBE_A)
-    return [("xz", "patch_edge", (-w / 2, -w / 2 - 14), (w / 2, -w / 2 - 14)),
+    w = p["patch_edge"]
+    r = p["corner_radius"]
+    gl = p["gap_length"]
+    gw = p["gap_width"]
+    tip = w * (LOBE_OFFSET + LOBE_LENGTH)
+    return [("xz", "patch_edge", (-w / 2, -w / 2 - 8), (w / 2, -w / 2 - 8)),
             corner(-w / 2 + r, w / 2 - r, r, -1, 1),
-            ("xz", "patch_edge (lobe_x0 + lobe_a)", (0, -70), (tip, -70)),
-            ("xz:zoom", "neck_half_length", (0, -nh - 3), (nl, -nh - 3)),
-            ("xz:zoom", "neck_half_height", (-nl - 3, 0), (-nl - 3, nh))]
+            ("xz", "patch_edge (lobe_offset + lobe_length)", (0, -52), (tip, -52)),
+            ("xz:zoom", "gap_length", (-gl / 2, -gw / 2 - 3), (gl / 2, -gw / 2 - 3)),
+            ("xz:zoom", "gap_width", (-gl / 2 - 3, -gw / 2), (-gl / 2 - 3, gw / 2))]
 
 
-LOBE_A, LOBE_X0 = 0.433641, -0.120141  # the defaults of [anapole] lobe_a, lobe_x0
+LOBE_LENGTH = 0.433641  # the default of [anapole] lobe_length
+LOBE_OFFSET = -0.120141  # the default of [anapole] lobe_offset
 
 
 def u_shape(p):
@@ -251,8 +255,8 @@ SHAPES = {
     "round_butterfly": dict(p=dict(width=10, thickness=10, gap=8, length_z=30, length_x=22, corner_radius=3, rotation=0), dims=round_butterfly),
     "round_tripole": dict(p=dict(width=12, thickness=10, center_length=16, top_length=22, bottom_length=12, top_gap=8, bottom_gap=5, corner_radius=3, rotation=0), dims=round_tripole),
     "x_shape": dict(p=dict(thickness=10, fixed_length=64, fixed_width=12, rotated_length=44, rotated_width=8, corner_radius=3, angle=60), dims=x_shape),
-    "anapole": dict(p=dict(patch_edge=400, thickness=30, corner_radius=22, neck_half_length=6.0216, neck_half_height=7.957), cell=2, n=232, ny=48,
-                    views=("xz", ("xz", 30), "zy"), dims=anapole),
+    "anapole": dict(p=dict(patch_edge=200, thickness=30, corner_radius=11, gap_length=12.0432, gap_width=15.914), n=232, ny=48,
+                    views=("xz", ("xz", 20), "zy"), dims=anapole),
     "two_films_spacer": dict(p=dict(thickness=10), views=("zy",), geometry="middle_thickness = 8e-9\nmiddle_medium = 2\nlast_medium = 3\n[materials]\nn2 = 1.5\nn3 = 2.0", dims=lambda p: []),
 }
 

@@ -53,7 +53,8 @@ void exchange(Field field, int axis, view3<double> f1, view3<double> f2, int les
 	const bool periodic = axis == 0 ? lat.periodic_x : axis == 2 ? lat.periodic_z : false;
 	const int cpml = axis == 0 ? lat.cpml[0] : axis == 1 ? lat.cpml[1] : lat.cpml[2];
 	const int ranks = axis == 0 ? num_mpi_processes_x : axis == 1 ? num_mpi_processes_y : num_mpi_processes_z;
-	int lo = 0, hi = n;
+	int lo = 0;
+	int hi = n;
 	if (periodic)
 	{
 		if (ranks == 1)
@@ -92,12 +93,17 @@ void exchange(Field field, int axis, view3<double> f1, view3<double> f2, int les
  */
 void fdtd::grid::exchange_margins(view3<double> VecX, view3<double> VecY, view3<double> VecZ)
 {
-	int NX, NY, NZ;
+	int NX;
+	int NY;
+	int NZ;
 	int tag = 0;
 	MPI_Status status;
-	int moreX, lessX;
-	int moreZ, lessZ;
-	int moreY, lessY;
+	int moreX;
+	int lessX;
+	int moreZ;
+	int lessZ;
+	int moreY;
+	int lessY;
 	NX = subdomain.cells_x;
 	NY = subdomain.cells_y;
 	NZ = subdomain.cells_z;
@@ -489,12 +495,17 @@ void fdtd::grid::exchange_margins(view3<double> VecX, view3<double> VecY, view3<
  */
 void fdtd::grid::exchange_margin(view3<double> VecX)
 {
-	int NX, NY, NZ;
+	int NX;
+	int NY;
+	int NZ;
 	int tag = 0;
 	MPI_Status status;
-	int moreX, lessX;
-	int moreZ, lessZ;
-	int moreY, lessY;
+	int moreX;
+	int lessX;
+	int moreZ;
+	int lessZ;
+	int moreY;
+	int lessY;
 	NX = subdomain.cells_x;
 	NY = subdomain.cells_y;
 	NZ = subdomain.cells_z;

@@ -72,8 +72,10 @@ void TfsfSource::inject_h(const StepTime &time) const
 	const int j = jpw_source_uni;
 	if (xpol && zpol)
 	{
-		const double sx = sin(polarization_angle) * INVVACIMP, cz = cos(polarization_angle) * INVVACIMP;
-		const double sig_x = _signal->value(t + sp.circ_time_shift), sig_z = _signal->value(t);
+		const double sx = sin(polarization_angle) * INVVACIMP;
+		const double cz = cos(polarization_angle) * INVVACIMP;
+		const double sig_x = _signal->value(t + sp.circ_time_shift);
+		const double sig_z = _signal->value(t);
 		for (int l = 0; l < lines; ++l)
 		{
 			g.line[l].h[1][j] += sx * sig_x;

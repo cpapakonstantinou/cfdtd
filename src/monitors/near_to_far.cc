@@ -65,7 +65,8 @@ void write_near_to_far()
 
 	static const char *axis_name[3] = {"x", "y", "z"};
 	static const char *field_name[2][3] = {{"Ex", "Ey", "Ez"}, {"Hx", "Hy", "Hz"}};
-	const int box_min[3] = {subdomain.i_qsca_min, subdomain.j_qsca_min, subdomain.k_qsca_min}, box_max[3] = {subdomain.i_qsca_max, subdomain.j_qsca_max, subdomain.k_qsca_max};
+	const int box_min[3] = {subdomain.i_qsca_min, subdomain.j_qsca_min, subdomain.k_qsca_min};
+	const int box_max[3] = {subdomain.i_qsca_max, subdomain.j_qsca_max, subdomain.k_qsca_max};
 	const bool on_face[3][2] = {{subdomain.qsca_nea_x, subdomain.qsca_far_x},
 								{subdomain.qsca_nea_y, subdomain.qsca_far_y},
 								{subdomain.qsca_nea_z, subdomain.qsca_far_z}};
@@ -75,7 +76,8 @@ void write_near_to_far()
 
 	for (int n = 0; n < 3; ++n)
 	{
-		const int a = n == 0 ? 1 : 0, b = n == 2 ? 1 : 2; // the tangential axes, a < b
+		const int a = n == 0 ? 1 : 0;
+		const int b = n == 2 ? 1 : 2; // the tangential axes, a < b
 		if (!subdomain.cpml_only && box_min[a] != box_max[a] && box_min[b] != box_max[b])
 			for (int m = 0; m < sp.nr_frequencies; ++m)
 				for (int side = 0; side < 2; ++side)
@@ -94,7 +96,8 @@ void write_near_to_far()
 					for (int f = 0; f < 2; ++f)
 						for (int c : {a, b})
 						{
-							const view4<double> re = F.re[f][0][c], im = F.im[f][0][c];
+							const view4<double> re = F.re[f][0][c];
+							const view4<double> im = F.im[f][0][c];
 							h5io::write_complex(file, field_name[f][c], block, &re[m][0][0][0], &im[m][0][0][0]);
 						}
 				}

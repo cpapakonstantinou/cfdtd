@@ -72,7 +72,12 @@ namespace
  */
 
 void fdtd::materials::hydro::update_electron_density() {
-  int i, j, k, ii, jj, kk;
+  int i;
+  int j;
+  int k;
+  int ii;
+  int jj;
+  int kk;
   for (i = 0; i <= subdomain.cells_x; i++) {
     ii = i + 1;
     for (j = 0; j <= subdomain.cells_y; j++) {
@@ -160,7 +165,9 @@ void fdtd::materials::hydro::update_electron_density() {
 void fdtd::materials::hydro::update_hydrodynamics()
 {
 	auto &ds = fdtd::materials::dispersive_state();
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 	// Drude Update
 	fdtd::materials::hydro::update_px();
 	fdtd::materials::hydro::update_py();
@@ -253,8 +260,20 @@ void fdtd::materials::hydro::update_hydrodynamics()
 
 void fdtd::materials::hydro::setup_eps_inf_x() {
   const auto &mp = fdtd::materials::model_parameters();
-  int i, j, k, u, v, w, U, V, W, mx, mmx; //
-  int ii, jj, kk;
+  int i;
+  int j;
+  int k;
+  int u;
+  int v;
+  int w;
+  int U;
+  int V;
+  int W;
+  int mx;
+  int mmx; //
+  int ii;
+  int jj;
+  int kk;
   for (i = 0; i < subdomain.cells_x; ++i) {
     ii = i + 1;
 
@@ -389,8 +408,20 @@ void fdtd::materials::hydro::setup_eps_inf_x() {
 void fdtd::materials::hydro::setup_eps_inf_y()
 {
 	const auto &mp = fdtd::materials::model_parameters();
-	int i, j, k, u, v, w, U, V, W, my, mmy; //
-	int ii, jj, kk;
+	int i;
+	int j;
+	int k;
+	int u;
+	int v;
+	int w;
+	int U;
+	int V;
+	int W;
+	int my;
+	int mmy; //
+	int ii;
+	int jj;
+	int kk;
 
 	for (i = 1; i <= subdomain.owned_cells_x; ++i)
 	{
@@ -511,8 +542,20 @@ void fdtd::materials::hydro::setup_eps_inf_y()
 void fdtd::materials::hydro::setup_eps_inf_z()
 {
 	const auto &mp = fdtd::materials::model_parameters();
-	int i, j, k, u, v, w, U, V, W, mz, mmz; //
-	int ii, jj, kk;
+	int i;
+	int j;
+	int k;
+	int u;
+	int v;
+	int w;
+	int U;
+	int V;
+	int W;
+	int mz;
+	int mmz; //
+	int ii;
+	int jj;
+	int kk;
 
 	for (i = 1; i <= subdomain.owned_cells_x; ++i)
 	{
@@ -648,10 +691,24 @@ void fdtd::materials::hydro::setup_eps_inf_z()
 
 void fdtd::materials::hydro::update_px() {
   auto &ds = fdtd::materials::dispersive_state();
-  int i, j, k, u, v, w, U, V, W, mx, mmx; //
-  int ii, jj, kk;
-  double Grad_Div, Grad_Div2;
-  double ND1, powerapprox;
+  int i;
+  int j;
+  int k;
+  int u;
+  int v;
+  int w;
+  int U;
+  int V;
+  int W;
+  int mx;
+  int mmx; //
+  int ii;
+  int jj;
+  int kk;
+  double Grad_Div;
+  double Grad_Div2;
+  double ND1;
+  double powerapprox;
   double gamma;
 
   for (i = 0; i < subdomain.cells_x; ++i) {
@@ -777,13 +834,59 @@ void fdtd::materials::hydro::update_px() {
 
 void fdtd::materials::hydro::update_px_2() {
   auto &ds = fdtd::materials::dispersive_state();
-  int i, j, k, u, v, w, U, V, W, mx, mmx; //
-  int ii, jj, kk;
+  int i;
+  int j;
+  int k;
+  int u;
+  int v;
+  int w;
+  int U;
+  int V;
+  int W;
+  int mx;
+  int mmx; //
+  int ii;
+  int jj;
+  int kk;
   double Grad_Div;
-  double GradNY, GradNZ;
-  double Vx1, Vy1, Vz1, Hz1, Hy1, Hz2, Hy2, VdotGrad, VcrossH, ND1, DivJ, VdotGradN, VdotGradNeq;
-  double Px_this, Py_this, Pz_this, Px_this2, Py_this2, Pz_this2, Px_thisxp1, Py_thisxp1, Pz_thisxp1, Px_this2xp1, Py_this2xp1, Pz_this2xp1;
-  double Px_thisxm1, Px_this2xm1, Py_thisym1, Py_this2ym1, Py_thisym1xp1, Py_this2ym1xp1, Pz_thiszm1, Pz_this2zm1, Pz_thiszm1xp1, Pz_this2zm1xp1, TOTND1;
+  double GradNY;
+  double GradNZ;
+  double Vx1;
+  double Vy1;
+  double Vz1;
+  double Hz1;
+  double Hy1;
+  double Hz2;
+  double Hy2;
+  double VdotGrad;
+  double VcrossH;
+  double ND1;
+  double DivJ;
+  double VdotGradN;
+  double VdotGradNeq;
+  double Px_this;
+  double Py_this;
+  double Pz_this;
+  double Px_this2;
+  double Py_this2;
+  double Pz_this2;
+  double Px_thisxp1;
+  double Py_thisxp1;
+  double Pz_thisxp1;
+  double Px_this2xp1;
+  double Py_this2xp1;
+  double Pz_this2xp1;
+  double Px_thisxm1;
+  double Px_this2xm1;
+  double Py_thisym1;
+  double Py_this2ym1;
+  double Py_thisym1xp1;
+  double Py_this2ym1xp1;
+  double Pz_thiszm1;
+  double Pz_this2zm1;
+  double Pz_thiszm1xp1;
+  double Pz_this2zm1xp1;
+  double TOTND1;
   double NONLINDrude4TTM;
   for (i = 0; i < subdomain.cells_x; ++i) {
     ii = i + 1;
@@ -1118,10 +1221,24 @@ void fdtd::materials::hydro::update_px_2() {
 void fdtd::materials::hydro::update_py()
 {
 	auto &ds = fdtd::materials::dispersive_state();
-	int i, j, k, u, v, w, U, V, W, my, mmy; //
-	int ii, jj, kk;
-	double Grad_Div, Grad_Div2;
-	double ND1, powerapprox;
+	int i;
+	int j;
+	int k;
+	int u;
+	int v;
+	int w;
+	int U;
+	int V;
+	int W;
+	int my;
+	int mmy; //
+	int ii;
+	int jj;
+	int kk;
+	double Grad_Div;
+	double Grad_Div2;
+	double ND1;
+	double powerapprox;
 
 	double gamma;
 
@@ -1269,13 +1386,59 @@ void fdtd::materials::hydro::update_py()
  */
 void fdtd::materials::hydro::update_py_2() {
   auto &ds = fdtd::materials::dispersive_state();
-  int i, j, k, u, v, w, U, V, W, my, mmy; //
-  int ii, jj, kk;
+  int i;
+  int j;
+  int k;
+  int u;
+  int v;
+  int w;
+  int U;
+  int V;
+  int W;
+  int my;
+  int mmy; //
+  int ii;
+  int jj;
+  int kk;
   double Grad_Div;
-  double Vx1, Vy1, Vz1, Hx1, Hz1, Hx2, Hz2, VdotGrad, VcrossH, ND1, DivJ, VdotGradN, VdotGradNeq;
+  double Vx1;
+  double Vy1;
+  double Vz1;
+  double Hx1;
+  double Hz1;
+  double Hx2;
+  double Hz2;
+  double VdotGrad;
+  double VcrossH;
+  double ND1;
+  double DivJ;
+  double VdotGradN;
+  double VdotGradNeq;
   double TOTND1;
-  double GradNX, GradNZ;
-  double Px_this, Py_this, Pz_this, Px_this2, Py_this2, Pz_this2, Px_thisyp1, Py_thisyp1, Pz_thisyp1, Px_this2yp1, Py_this2yp1, Pz_this2yp1, Py_thisym1, Py_this2ym1, Px_thisxm1, Px_this2xm1, Px_thisxm1yp1, Px_this2xm1yp1, Pz_thiszm1, Pz_this2zm1, Pz_thiszm1yp1, Pz_this2zm1yp1;
+  double GradNX;
+  double GradNZ;
+  double Px_this;
+  double Py_this;
+  double Pz_this;
+  double Px_this2;
+  double Py_this2;
+  double Pz_this2;
+  double Px_thisyp1;
+  double Py_thisyp1;
+  double Pz_thisyp1;
+  double Px_this2yp1;
+  double Py_this2yp1;
+  double Pz_this2yp1;
+  double Py_thisym1;
+  double Py_this2ym1;
+  double Px_thisxm1;
+  double Px_this2xm1;
+  double Px_thisxm1yp1;
+  double Px_this2xm1yp1;
+  double Pz_thiszm1;
+  double Pz_this2zm1;
+  double Pz_thiszm1yp1;
+  double Pz_this2zm1yp1;
   double NONLINDrude4TTM;
 
   for (i = 1; i <= subdomain.owned_cells_x; ++i) {
@@ -1606,10 +1769,24 @@ void fdtd::materials::hydro::update_py_2() {
 void fdtd::materials::hydro::update_pz()
 {
 	auto &ds = fdtd::materials::dispersive_state();
-	int i, j, k, u, v, w, U, V, W, mz, mmz; //
-	int ii, jj, kk;
-	double Grad_Div, Grad_Div2;
-	double ND1, powerapprox;
+	int i;
+	int j;
+	int k;
+	int u;
+	int v;
+	int w;
+	int U;
+	int V;
+	int W;
+	int mz;
+	int mmz; //
+	int ii;
+	int jj;
+	int kk;
+	double Grad_Div;
+	double Grad_Div2;
+	double ND1;
+	double powerapprox;
 	double gamma;
 
 
@@ -1757,12 +1934,59 @@ void fdtd::materials::hydro::update_pz()
  */
 void fdtd::materials::hydro::update_pz_2() {
   auto &ds = fdtd::materials::dispersive_state();
-  int i, j, k, u, v, w, U, V, W, mz, mmz; //
-  int ii, jj, kk;
+  int i;
+  int j;
+  int k;
+  int u;
+  int v;
+  int w;
+  int U;
+  int V;
+  int W;
+  int mz;
+  int mmz; //
+  int ii;
+  int jj;
+  int kk;
   double Grad_Div;
-  double Vx1, Vy1, Vz1, Hx1, Hy1, Hx2, Hy2, VdotGrad, VcrossH, ND1, DivJ, VdotGradN, VdotGradNeq;
-  double GradNX, GradNY, TOTND1;
-  double Px_this, Py_this, Pz_this, Px_this2, Py_this2, Pz_this2, Px_thiszp1, Py_thiszp1, Pz_thiszp1, Px_this2zp1, Py_this2zp1, Pz_this2zp1, Pz_thiszm1, Pz_this2zm1, Px_thisxm1, Px_this2xm1, Px_thisxm1zp1, Px_this2xm1zp1, Py_thisym1, Py_this2ym1, Py_thisym1zp1, Py_this2ym1zp1;
+  double Vx1;
+  double Vy1;
+  double Vz1;
+  double Hx1;
+  double Hy1;
+  double Hx2;
+  double Hy2;
+  double VdotGrad;
+  double VcrossH;
+  double ND1;
+  double DivJ;
+  double VdotGradN;
+  double VdotGradNeq;
+  double GradNX;
+  double GradNY;
+  double TOTND1;
+  double Px_this;
+  double Py_this;
+  double Pz_this;
+  double Px_this2;
+  double Py_this2;
+  double Pz_this2;
+  double Px_thiszp1;
+  double Py_thiszp1;
+  double Pz_thiszp1;
+  double Px_this2zp1;
+  double Py_this2zp1;
+  double Pz_this2zp1;
+  double Pz_thiszm1;
+  double Pz_this2zm1;
+  double Px_thisxm1;
+  double Px_this2xm1;
+  double Px_thisxm1zp1;
+  double Px_this2xm1zp1;
+  double Py_thisym1;
+  double Py_this2ym1;
+  double Py_thisym1zp1;
+  double Py_this2ym1zp1;
 
   double NONLINDrude4TTM;
 

@@ -111,7 +111,8 @@ bool fdtd::app::initialise_run()
 {
 	auto &mp = fdtd::materials::model_parameters();
 	fdtd::app::RunConfig &run_cfg = fdtd::app::edit_run_config(); // configure phase
-	int m, i;
+	int m;
+	int i;
 	// INIZIALIZATION - START
 
 	subdomain.cells_x = fdtd::grid::cells_per_rank_x[subdomain.position[0]];
@@ -555,7 +556,11 @@ bool fdtd::app::allocate_fields()
 {
 	auto &ds = fdtd::materials::dispersive_state();
 	const auto &mp = fdtd::materials::model_parameters();
-	int m, n, i, j, k;
+	int m;
+	int n;
+	int i;
+	int j;
+	int k;
 	int checker = 0;
 
 	try

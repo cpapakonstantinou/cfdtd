@@ -23,7 +23,8 @@ namespace fdtd::monitors
 {
 struct FluxFace
 {
-	ctetrad<double> re[2][2][3], im[2][2][3]; ///< [E/H][field/harmonic][component]
+	ctetrad<double> re[2][2][3]; ///< [E/H][field/harmonic][component]
+	ctetrad<double> im[2][2][3]; ///< [E/H][field/harmonic][component]
 };
 
 struct FluxBox

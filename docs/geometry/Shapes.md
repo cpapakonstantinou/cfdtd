@@ -348,21 +348,18 @@ along y. Setting a key in the section of another shape is an error.
 
 | key | meaning |
 |---|---|
-| `patch_edge` | [m] edge of the square patch (shape = anapole) |
+| `patch_edge` | [m] edge of the square patch |
 | `thickness` | [m] film thickness along y |
 | `corner_radius` | [m] fillet radius of the patch corners |
-| `lobe_a` | lobe length / patch_edge |
-| `lobe_b` | lobe height / patch_edge |
-| `lobe_p` | lobe exponent |
-| `lobe_x0` | lobe start / patch_edge |
-| `neck_half_length` | [m] neck half-length along the lobe axis |
-| `neck_half_height` | [m] neck half-height across the lobe axis |
-| `rotation` | [deg] in-plane rotation (x-z) |
-| `lobe_material` | fill of the lobes; -1 = background |
-| `neck_material` | fill of the neck; -1 = background |
-| `dimer_material` | two cylinders in the neck; -1 = none |
-| `dimer_radius` | [m] |
-| `dimer_gap` | [m] |
+| `lobe_length` | length of the lobe curve, in units of patch_edge |
+| `lobe_height` | height coefficient of the lobe curve, in units of patch_edge |
+| `lobe_exponent` | exponent of the lobe curve |
+| `lobe_offset` | where the lobe curve starts, from the patch centre, in units of patch_edge |
+| `gap_length` | [m] gap between the lobes, along the lobe axis |
+| `gap_width` | [m] gap across the lobe axis |
+| `rotation` | [deg] in-plane rotation, x-z |
+| `aperture_material` | fill of the whole aperture, lobes and gap; -1 = background |
+| `gap_material` | fill of the gap alone; -1 = as the rest of the aperture |
 | `lobe_points` | polygon vertices per lobe edge |
 
 ## two_films_spacer

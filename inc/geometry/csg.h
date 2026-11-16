@@ -26,7 +26,8 @@ namespace geom
 /// one row of a raster: sorted, disjoint half-open runs [k0, k1)
 struct Run
 {
-	int k0, k1;
+	int k0;
+	int k1;
 	bool operator==(const Run& o) const { return k0 == o.k0 && k1 == o.k1; }
 };
 using Row = std::vector<Run>;
@@ -50,11 +51,16 @@ Row intersect(const Row& a, const Row& b);
 /// drawings are in metres relative to the origin cell; offsets are in cells
 struct Lattice
 {
-	double dx = 1, dz = 1;
-	double off_x = 0, off_z = 0;
-	int origin_i = 0, origin_k = 0;
-	int i0 = 0, i1 = 0; ///< rows rendered: [i0, i1)
-	int k0 = 0, k1 = 0; ///< runs are clipped to [k0, k1)
+	double dx = 1;
+	double dz = 1;
+	double off_x = 0;
+	double off_z = 0;
+	int origin_i = 0;
+	int origin_k = 0;
+	int i0 = 0; ///< rows rendered: [i0, i1)
+	int i1 = 0; ///< rows rendered: [i0, i1)
+	int k0 = 0; ///< runs are clipped to [k0, k1)
+	int k1 = 0; ///< runs are clipped to [k0, k1)
 	double x(int i) const { return (i - origin_i) * dx + off_x * dx; }
 	double z(int k) const { return (k - origin_k) * dz + off_z * dz; }
 };

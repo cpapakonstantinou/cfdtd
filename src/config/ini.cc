@@ -256,7 +256,8 @@ Config::parse(std::istream& strm, const std::string& filename)
 		}
 		else // key-value pair
 		{
-			std::string key, val;
+			std::string key;
+			std::string val;
 
 			if (cur_section.empty())
 				throw syntax_error{filename, line_num, "key-value pair outside of a [section]"};
@@ -283,7 +284,8 @@ Config::add_key_val(const std::string& sect, const std::string& key, const std::
 void
 Config::add_key_val(const std::string& sect, const std::string& key, const value_list& vals)
 {
-	const std::string lsect = lower(sect), lkey = lower(key);
+	const std::string lsect = lower(sect);
+	const std::string lkey = lower(key);
 	auto cur_sect = _sections.find(lsect);
 	if (cur_sect == _sections.end())
 	{

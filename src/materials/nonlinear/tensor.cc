@@ -90,7 +90,9 @@ void nonlinear_polarisation_scan(char c, int i0, int i1, int j0, int j1, int k0,
 			for (int j = j0; j < j1; ++j)
 				for (int k = k0; k < k1; ++k)
 				{
-					const int u = i - subdomain.inner_org_x, v = j - subdomain.inner_org_y, w = k - subdomain.inner_org_z;
+					const int u = i - subdomain.inner_org_x;
+					const int v = j - subdomain.inner_org_y;
+					const int w = k - subdomain.inner_org_z;
 					const int m = mat[u][v][w];
 					if (m < nl_code + DispMateOffsetD || m >= nl_code + NRMAXMATERIALS)
 						continue;
@@ -101,7 +103,9 @@ void nonlinear_polarisation_scan(char c, int i0, int i1, int j0, int j1, int k0,
 	});
 	for (const auto &[i, j, k, u, v, w, mm] : cells)
 	{
-		const int mx = matind_x[u][v][w], my = matind_y[u][v][w], mz = matind_z[u][v][w];
+		const int mx = matind_x[u][v][w];
+		const int my = matind_y[u][v][w];
+		const int mz = matind_z[u][v][w];
 		const double p_nl = fdtd::materials::nonlinear::polarisation_term(mm, i, j, k, c - 'x', mx, my, mz, false);
 		if (mm < Lorentz)
 			p[mm][i][j][k] -= p_nl;
@@ -116,7 +120,9 @@ void fdtd::materials::nonlinear::update_polarisation()
 {
 	auto &ds = fdtd::materials::dispersive_state();
 	const auto &S = subdomain;
-	static NonlinearCells lx, ly, lz;
+	static NonlinearCells lx;
+	static NonlinearCells ly;
+	static NonlinearCells lz;
 	// each component's owned range intersected with its inner, non-CPML, cells
 	nonlinear_polarisation_scan('x', std::max(0, S.i_cpml_min), std::min(S.cells_x, S.i_cpml_max), std::max(1, S.j_cpml_min), std::min(S.owned_cells_y, S.j_cpml_max) + 1,
 						  std::max(1, S.k_cpml_min), std::min(S.owned_cells_z, S.k_cpml_max) + 1, matind_x, ds.c[0].p, ds.c[0].pc, lx);
@@ -165,7 +171,8 @@ void fdtd::materials::nonlinear::update_field()
 	{
 		char c;
 		view3<int> mat;
-		view3<double> e, temp;
+		view3<double> e;
+		view3<double> temp;
 	};
 	const Component comps[3] = {{'x', matind_x, Ex, ex_temp}, {'y', matind_y, Ey, ey_temp}, {'z', matind_z, Ez, ez_temp}};
 	static NonlinearCells lists[3];
@@ -181,7 +188,9 @@ void fdtd::materials::nonlinear::update_field()
 			 }))
 		{
 			const double coeff = mm < DrudeCP ? double(fdtd::materials::coeffs<fdtd::materials::models::Drude2CP>(mm).c1) : mm < Lorentz ? double((mm < Drude ? fdtd::materials::coeffs<fdtd::materials::models::Drude>(mm).ce2 : fdtd::materials::coeffs<fdtd::materials::models::Lorentz>(mm).ce2) / fdtd::materials::model_spec().dt) : double(fdtd::materials::coeffs<fdtd::materials::models::ModifiedLorentz>(mm).ce3 / fdtd::materials::model_spec().dt);
-			const int mx = matind_x[u][v][w], my = matind_y[u][v][w], mz = matind_z[u][v][w];
+			const int mx = matind_x[u][v][w];
+			const int my = matind_y[u][v][w];
+			const int mz = matind_z[u][v][w];
 			const double dp = fdtd::materials::nonlinear::polarisation_term(mm, i, j, k, c.c - 'x', mx, my, mz, true);
 			c.temp[i][j][k] = c.e[i][j][k] - coeff * dp;
 		}
@@ -196,9 +205,11 @@ double fdtd::materials::nonlinear::polarisation_term(int mm, int i, int j, int k
 	const double e[3] = {Ex[i][j][k], Ey[i][j][k], Ez[i][j][k]};
 	const double ep[3] = {change ? double(ex_prev[i][j][k]) : double(0), change ? double(ey_prev[i][j][k]) : double(0), change ? double(ez_prev[i][j][k]) : double(0)};
 	const int mat[3] = {mx, my, mz};
-	const int b = a == 0 ? 1 : 0, c = a == 2 ? 1 : 2; // the other two axes, b < c
+	const int b = a == 0 ? 1 : 0;
+	const int c = a == 2 ? 1 : 2; // the other two axes, b < c
 	const bool full = fdtd::materials::model_spec().staircase && mx == my && mx == mz;
-	const bool with_b = mat[b] == mat[a], with_c = mat[c] == mat[a];
+	const bool with_b = mat[b] == mat[a];
+	const bool with_c = mat[c] == mat[a];
 	auto ee = [&](int p, int q) { return e[p] * e[q]; };
 	auto ee_prev = [&](int p, int q) { return ep[p] * ep[q]; };
 	// second-order product E_p E_q (p <= q), or its change over the step
@@ -206,11 +217,13 @@ double fdtd::materials::nonlinear::polarisation_term(int mm, int i, int j, int k
 	// third-order factor of axis q: E_q^2, or the change of E_a E_q^2
 	auto t = [&](int q) { return change ? e[a] * ee(q, q) - ep[a] * ee_prev(q, q) : ee(q, q); };
 	auto voigt = [](int p, int q) { return p == q ? p : 6 - p - q; }; // xx yy zz | yz xz xy
-	const double *d2 = chi_2[mm] + 6 * a, *c3 = chi_3[mm] + 7 * a;
+	const double *d2 = chi_2[mm] + 6 * a;
+	const double *c3 = chi_3[mm] + 7 * a;
 	double temp = 0;
 	if (fdtd::materials::model_spec().thg)
 	{
-		const double s_b = c3[1] + c3[2] + c3[3], s_c = c3[4] + c3[5] + c3[6];
+		const double s_b = c3[1] + c3[2] + c3[3];
+		const double s_c = c3[4] + c3[5] + c3[6];
 		if (full)
 			temp = change ? (c3[0] * t(a) + s_b * t(b) + s_c * t(c)) : e[a] * (c3[0] * t(a) + s_b * t(b) + s_c * t(c));
 		else

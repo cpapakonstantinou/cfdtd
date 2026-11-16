@@ -57,10 +57,15 @@ enum class Plane { YZ, XZ, XY };
 void plane_dft(double t, double harmonic, Plane plane, int pad, const std::array<view3<double>, 3> &f,
 			  const std::array<view4<double>, 3> &re, const std::array<view4<double>, 3> &im)
 {
-	const int ni = subdomain.inner_dim_x + 1, nj = subdomain.inner_dim_y + 1, nk = subdomain.inner_dim_z + 1;
-	const int i0 = subdomain.inner_org_x, j0 = subdomain.inner_org_y, k0 = subdomain.inner_org_z;
+	const int ni = subdomain.inner_dim_x + 1;
+	const int nj = subdomain.inner_dim_y + 1;
+	const int nk = subdomain.inner_dim_z + 1;
+	const int i0 = subdomain.inner_org_x;
+	const int j0 = subdomain.inner_org_y;
+	const int k0 = subdomain.inner_org_z;
 	// plane rows a and columns b, in the accumulators' order
-	const int na = plane == Plane::YZ ? nj : ni, nb = plane == Plane::XY ? nj : nk;
+	const int na = plane == Plane::YZ ? nj : ni;
+	const int nb = plane == Plane::XY ? nj : nk;
 	const std::size_t n = std::size_t(na) * nb;
 
 	static std::vector<double> buffer;
@@ -95,7 +100,8 @@ void plane_dft(double t, double harmonic, Plane plane, int pad, const std::array
 	for (int m = 0; m < sp.nr_frequencies; ++m)
 	{
 		const double s = double(harmonic * fdtd::sources::analysis_omega[m] * t);
-		const double u = double(std::cos(s)), v = double(std::sin(s));
+		const double u = double(std::cos(s));
+		const double v = double(std::sin(s));
 		for (int c = 0; c < 3; ++c)
 			if (re[c])
 				kernels::dft_accumulate(re[c][m].row(0, 0), im[c][m].row(0, 0), u, v, buffer.data() + c * n, n);
@@ -120,7 +126,8 @@ void normalize_plane(int normal, const ctetrad<double> (&re)[3], const ctetrad<d
 	const int nk = normal == 2 ? 0 : subdomain.inner_dim_z;
 	for (int c = 0; c < 3; ++c)
 	{
-		const view4<double> r = re[c], q = im[c];
+		const view4<double> r = re[c];
+		const view4<double> q = im[c];
 		if (!r || !q)
 			continue;
 		for (int m = 0; m < sp.nr_frequencies; ++m)

@@ -225,7 +225,8 @@ int main()
 
 	// spectrum: the solver gets exactly the requested frequencies
 	{
-		const double c0 = 299792458.0, pi2 = 6.283185307179586;
+		const double c0 = 299792458.0;
+		const double pi2 = 6.283185307179586;
 		auto close = [](double a, double b) { return std::fabs(a - b) <= 1e-12 * std::fabs(b); };
 		auto w = fdtd::config::spectrum_omegas(load(BASIC, {}).spectrum);                  // 41 points uniform in wavelength
 		auto s0 = load(BASIC, {}).spectrum;

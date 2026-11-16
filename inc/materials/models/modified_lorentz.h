@@ -26,10 +26,14 @@ struct ModifiedLorentz
 	/// update coefficients of one material
 	struct Coeffs
 	{
-		double a[NrMaxCP], b[NrMaxCP];             ///< pole recursion: on P_n and on P_n,prev
-		double alpha_p[NrMaxCP], alpha_m[NrMaxCP]; ///< pole drive: on E_new and on E_prev
+		double a[NrMaxCP]; ///< pole recursion: on P_n and on P_n,prev
+		double b[NrMaxCP]; ///< pole recursion: on P_n and on P_n,prev
+		double alpha_p[NrMaxCP]; ///< pole drive: on E_new and on E_prev
+		double alpha_m[NrMaxCP]; ///< pole drive: on E_new and on E_prev
 		double beta[NrMaxCP];                      ///< pole drive: on E
-		double ce1, ce2, ce3;                      ///< E update: on E_prev, on E, on the curl
+		double ce1; ///< E update: on E_prev, on E, on the curl
+		double ce2; ///< E update: on E_prev, on E, on the curl
+		double ce3; ///< E update: on E_prev, on E, on the curl
 	};
 
 	/// coefficients of dispersive material index mm, material code `code`, for time step dt
@@ -37,7 +41,8 @@ struct ModifiedLorentz
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
-		const int n = mm, m = code;
+		const int n = mm;
+		const int m = code;
 		Coeffs c{};
 		for (int s = 0; s < mp.nr_cp[n]; ++s)
 		{
@@ -81,7 +86,8 @@ struct ModifiedLorentz
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using C = Component<A>;
-		const view3<double> e = C::e(), e_prev = C::e_prev();
+		const view3<double> e = C::e();
+		const view3<double> e_prev = C::e_prev();
 		auto &pc = C::pc();
 		auto &pc_prev = C::pc_prev();
 		const int nr_cp = mp.nr_cp[mm];
@@ -98,10 +104,13 @@ struct ModifiedLorentz
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using C = Component<A>;
-		const view3<double> e = C::e(), e_prev = C::e_prev();
+		const view3<double> e = C::e();
+		const view3<double> e_prev = C::e_prev();
 		auto &pc = C::pc();
 		auto &pc_prev = C::pc_prev();
-		const int mm = c.mm, i = c.i, j = c.j;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
 		const int nr_cp = mp.nr_cp[mm];
 		stretch::AdeRow r{e[i][j], e_prev[i][j], nullptr, nullptr, {}, {}};
 		for (int n = 0; n < std::max(2, nr_cp); ++n) // the E update reads poles 0 and 1

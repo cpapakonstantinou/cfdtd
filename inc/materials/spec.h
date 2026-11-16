@@ -15,7 +15,8 @@ struct ModelSpec
 {
 	double dt = 0;                 ///< time step [s]
 	double fermi_velocity = 0;     ///< [m/s] hydrodynamic pressure term
-	bool shg = false, thg = false; ///< harmonic generation on, nonlinear material codes are shifted
+	bool shg = false; ///< harmonic generation on, nonlinear material codes are shifted
+	bool thg = false; ///< harmonic generation on, nonlinear material codes are shifted
 	bool harmonic = false;         ///< separate harmonic fields (*_nl)
 	bool cellwise = false;         ///< every cell's own material in the CPML, mode source
 	bool nonlocal = false;         ///< nonlocal electron model, hydrodynamic or GNOR
@@ -23,8 +24,12 @@ struct ModelSpec
 	bool gnor = false;             ///< GNOR diffusion
 	bool two_temperature = false;  ///< two-temperature model
 	bool load_temperature = false; ///< temperature read from file
-	bool pump = false, probe = false, pump_probe = false; ///< the pump-probe sequence of the two-temperature model
-	int antenna_material = 0, medium_first = 0, medium_second = 0; ///< the structure's and the background's material codes
+	bool pump = false; ///< the pump-probe sequence of the two-temperature model
+	bool probe = false; ///< the pump-probe sequence of the two-temperature model
+	bool pump_probe = false; ///< the pump-probe sequence of the two-temperature model
+	int antenna_material = 0; ///< the structure's and the background's material codes
+	int medium_first = 0; ///< the structure's and the background's material codes
+	int medium_second = 0; ///< the structure's and the background's material codes
 	bool staircase = false;        ///< one material per cell, [grid] staircase
 	int tfsf_y_shrink = 0;         ///< TF/SF box shrink along y [cells], the hydrodynamic density window
 };

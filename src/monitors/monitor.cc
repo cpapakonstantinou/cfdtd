@@ -77,7 +77,8 @@ public:
 	}
 
 private:
-	bool _inner, _with_h;
+	bool _inner;
+	bool _with_h;
 };
 
 class NonlinearPolarisation : public Monitor

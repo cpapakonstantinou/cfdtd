@@ -236,9 +236,22 @@ void sample_nonlinear_polarisation(double t)
 	if (!(sp.shg || sp.thg) || sp.nr_frequencies <= 2)
 		return;
 
-	int i, j, k, I, J, K, m;
-	int mx, my, mz, cx, cy, cz;
-	double pnlx, pnly, pnlz;
+	int i;
+	int j;
+	int k;
+	int I;
+	int J;
+	int K;
+	int m;
+	int mx;
+	int my;
+	int mz;
+	int cx;
+	int cy;
+	int cz;
+	double pnlx;
+	double pnly;
+	double pnlz;
 	double s;
 
 	const int mstart = sp.nr_frequencies / 2;
@@ -353,7 +366,10 @@ static inline void accumulate_moments(const std::complex<double> P[3], const dou
 
 	double r2 = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
 	double rr = double(sqrt(r2));
-	double j0v, f1, f2, f3;
+	double j0v;
+	double f1;
+	double f2;
+	double f3;
 	sph_bessel_weights(kmag * rr, j0v, f1, f2, f3);
 
 	double k2 = kmag * kmag;
@@ -365,7 +381,9 @@ static inline void accumulate_moments(const std::complex<double> P[3], const dou
 	cross[1] = r[2] * P[0] - r[0] * P[2];
 	cross[2] = r[0] * P[1] - r[1] * P[0];
 
-	int a, b, q;
+	int a;
+	int b;
+	int q;
 	std::complex<double> val;
 
 	// electric dipole (T2-1):  p_a = Int [ P_a j0 + (k^2/2)(3(r.P)r_a - r^2 P_a) j2/(kr)^2 ]
@@ -465,7 +483,10 @@ static void write_cross_section_file(const std::string &path, const double *M, i
 	for (int m = m0; m < m1; ++m)
 	{
 		double k = double(fdtd::sources::analysis_omega[m] / C0 * fdtd::materials::refractive_index(sp.medium_first, fdtd::sources::analysis_omega[m]).real());
-		double Cp, Cm, Cpq, Cmq;
+		double Cp;
+		double Cm;
+		double Cpq;
+		double Cmq;
 		multipole_cross_sections(M + m * STRIDE, k, Cp, Cm, Cpq, Cmq);
 		double Ctot = Cp + Cm + Cpq + Cmq;
 		double inv = (Ctot != double(0.)) ? double(1.) / Ctot : double(0.);
@@ -514,9 +535,13 @@ void write_exact_multipoles()
 	VolumeDft &V = volume_dft();
 	if (!multipoles_wanted())
 		return;
-	const bool exact = exact_multipoles, lwa = lwa_multipoles;
+	const bool exact = exact_multipoles;
+	const bool lwa = lwa_multipoles;
 
-	int i, j, k, m;
+	int i;
+	int j;
+	int k;
+	int m;
 
 	const int STRIDE = 2 * NR_MOMENTS; // 36 REALs per frequency
 	const int NTOT = sp.nr_frequencies * STRIDE;
@@ -553,8 +578,14 @@ void write_exact_multipoles()
 	}
 
 	// one set of moment rows per kind, exact, LWA, and current, contrast, contrast + nl polarisation
-	std::vector<double> loc(NTOT), tot(NTOT), locNL(nl_run ? NTOT : 0), totNL(nl_run ? NTOT : 0);
-	std::vector<double> locL(NTOT), totL(NTOT), locLNL(nl_run ? NTOT : 0), totLNL(nl_run ? NTOT : 0);
+	std::vector<double> loc(NTOT);
+	std::vector<double> tot(NTOT);
+	std::vector<double> locNL(nl_run ? NTOT : 0);
+	std::vector<double> totNL(nl_run ? NTOT : 0);
+	std::vector<double> locL(NTOT);
+	std::vector<double> totL(NTOT);
+	std::vector<double> locLNL(nl_run ? NTOT : 0);
+	std::vector<double> totLNL(nl_run ? NTOT : 0);
 
 	if (!subdomain.cpml_only)
 	{
@@ -566,9 +597,14 @@ void write_exact_multipoles()
 		const int cZ = sp.centre[2];
 
 		double r[3];
-		std::complex<double> P[3], Pt[3];
-		int mx, my, mz;
-		bool inx, iny, inz;
+		std::complex<double> P[3];
+		std::complex<double> Pt[3];
+		int mx;
+		int my;
+		int mz;
+		bool inx;
+		bool iny;
+		bool inz;
 
 		for (m = 0; m < sp.nr_frequencies; ++m)
 		{
@@ -576,8 +612,10 @@ void write_exact_multipoles()
 			const std::complex<double> eps_host = fdtd::materials::complex_permittivity(sp.medium_first, fdtd::sources::analysis_omega[m]);
 			const std::complex<double> miw = -I_UNIT * fdtd::sources::analysis_omega[m];
 
-			double *acc = loc.data() + m * STRIDE, *accL = locL.data() + m * STRIDE;
-			double *accNL = nl_run ? (locNL.data() + m * STRIDE) : NULL, *accLNL = nl_run ? (locLNL.data() + m * STRIDE) : NULL;
+			double *acc = loc.data() + m * STRIDE;
+			double *accL = locL.data() + m * STRIDE;
+			double *accNL = nl_run ? (locNL.data() + m * STRIDE) : NULL;
+			double *accLNL = nl_run ? (locLNL.data() + m * STRIDE) : NULL;
 			const bool do_nl = nl_run && (m >= mstart);
 
 			for (i = 0; i < subdomain.inner_dim_x; ++i)
@@ -674,7 +712,8 @@ void write_exact_multipoles()
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
-		const std::string dir = sp.reports_dir + "/", pol = fdtd::sources::pol;
+		const std::string dir = sp.reports_dir + "/";
+		const std::string pol = fdtd::sources::pol;
 		const int nf = sp.nr_frequencies;
 		if (exact)
 		{

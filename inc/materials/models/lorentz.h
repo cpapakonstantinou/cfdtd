@@ -29,8 +29,10 @@ struct Lorentz
 	/// update coefficients of one material
 	struct Coeffs
 	{
-		double alpha, beta; ///< omega_p^2 dt^2 and gamma dt
-		double ce1, ce2;    ///< E update, DispersiveE
+		double alpha; ///< omega_p^2 dt^2 and gamma dt
+		double beta; ///< omega_p^2 dt^2 and gamma dt
+		double ce1; ///< E update, DispersiveE
+		double ce2; ///< E update, DispersiveE
 	};
 
 	/// coefficients of dispersive material index mm, material code `code`, for time step dt
@@ -77,7 +79,10 @@ struct Lorentz
 	{
 		using C = Component<A>;
 		const view3<double> e = C::e();
-		const int mm = c.mm, i = c.i, j = c.j, k = c.k;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
+		const int k = c.k;
 		const stretch::AdeRow r{e[i][j], nullptr, C::p()[mm][i][j], C::p_prev()[mm][i][j], {}, {}};
 		point(coeffs<Lorentz>(mm), mm, k, r, c.curl);
 		if (fdtd::materials::model_spec().hydrodynamics)

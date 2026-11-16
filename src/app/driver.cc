@@ -138,7 +138,10 @@ double peak_rss_mib()
 void write_material_index(fdtd::grid::OutputLayout &layout, bool volume)
 {
 	const std::string base = run_cfg.output.materials_dir + "/MaterialIndex";
-	int *start = layout.start, *global = layout.global, *local = layout.local, *shift = layout.shift;
+	int *start = layout.start;
+	int *global = layout.global;
+	int *local = layout.local;
+	int *shift = layout.shift;
 	if (volume)
 		save_as_binary_3d(base + ".h5", matind_x, matind_y, matind_z, fdtd::grid::output_comm, start, global, local, shift, false, true, false);
 	if (subdomain.plots_xy())
@@ -161,7 +164,9 @@ Driver::~Driver() = default;
 
 bool Driver::agree(bool local_ok, const std::string& what)
 {
-	int mine = local_ok ? 1 : 0, all = 0, root_ok = mine;
+	int mine = local_ok ? 1 : 0;
+	int all = 0;
+	int root_ok = mine;
 	MPI_Allreduce(&mine, &all, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
 	MPI_Bcast(&root_ok, 1, MPI_INT, ROOTPROCESS, MPI_COMM_WORLD);
 	// a failure on rank 0 is reported once by report_error(); failures only on other
@@ -191,7 +196,8 @@ void Driver::load_configuration()
 {
 	fdtd::app::RunConfig &run_cfg = fdtd::app::edit_run_config(); // configure phase
 
-	std::string text, err;
+	std::string text;
+	std::string err;
 	if (!agree(broadcast_file(_opt.config_file, _rank, text, err), err))
 		return;
 
@@ -419,7 +425,8 @@ bool Driver::allocate_sweep_memory()
 		boundary::cpml().set_profiles(cells, du, run_cfg.time.dt);
 	}
 	const core::memory::Scope cpml_group(core::memory::cpml);
-	const bool cpml_near[3] = {subdomain.nea_cpml_x(), subdomain.nea_cpml_y(), subdomain.nea_cpml_z()}, cpml_far[3] = {subdomain.far_cpml_x(), subdomain.far_cpml_y(), subdomain.far_cpml_z()};
+	const bool cpml_near[3] = {subdomain.nea_cpml_x(), subdomain.nea_cpml_y(), subdomain.nea_cpml_z()};
+	const bool cpml_far[3] = {subdomain.far_cpml_x(), subdomain.far_cpml_y(), subdomain.far_cpml_z()};
 	if (!agree(boundary::cpml().allocate(subdomain, cpml_near, cpml_far, run_cfg.nonlinear.seperate_linear_nonlinear), "cannot allocate the CPML arrays"))
 		return false;
 	boundary::set_incident_e_terms(&fdtd::sources::tfsf_e_terms); // the TF/SF surface's incident field
@@ -587,8 +594,10 @@ void Driver::write_geometry_report()
 {
 	// material census over the interior (TF/SF) cells of every rank, per Yee component
 	const int ncodes = nl_code + NRMAXMATERIALS + 1;
-	std::vector<long long> local(3 * ncodes, 0), total(3 * ncodes, 0);
-	long long out_of_range = 0, out_of_range_all = 0;
+	std::vector<long long> local(3 * ncodes, 0);
+	std::vector<long long> total(3 * ncodes, 0);
+	long long out_of_range = 0;
+	long long out_of_range_all = 0;
 	if (!subdomain.cpml_only)
 	{
 		int*** comp[3] = {matind_x, matind_y, matind_z};
@@ -607,20 +616,25 @@ void Driver::write_geometry_report()
 	MPI_Reduce(local.data(), total.data(), 3 * ncodes, MPI_LONG_LONG, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Reduce(&out_of_range, &out_of_range_all, 1, MPI_LONG_LONG, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 
-	double rss = peak_rss_mib(), rss_max = 0, rss_sum = 0;
+	double rss = peak_rss_mib();
+	double rss_max = 0;
+	double rss_sum = 0;
 	MPI_Reduce(&rss, &rss_max, 1, MPI_DOUBLE, MPI_MAX, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Reduce(&rss, &rss_sum, 1, MPI_DOUBLE, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 
 	// the array tally, per group and in total, last entry
 	constexpr double GIB = 1024.0 * 1024.0 * 1024.0;
 	const int ng = core::memory::group_count + 1;
-	std::vector<unsigned long long> array_bytes(ng, 0), array_max(ng, 0), array_sum(ng, 0);
+	std::vector<unsigned long long> array_bytes(ng, 0);
+	std::vector<unsigned long long> array_max(ng, 0);
+	std::vector<unsigned long long> array_sum(ng, 0);
 	for (int g = 0; g < core::memory::group_count; ++g)
 		array_bytes[g] = core::memory::live[g], array_bytes[ng - 1] += core::memory::live[g];
 	MPI_Reduce(array_bytes.data(), array_max.data(), ng, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Reduce(array_bytes.data(), array_sum.data(), ng, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 
-	int cpml_only = subdomain.cpml_only ? 1 : 0, cpml_only_all = 0;
+	int cpml_only = subdomain.cpml_only ? 1 : 0;
+	int cpml_only_all = 0;
 	MPI_Reduce(&cpml_only, &cpml_only_all, 1, MPI_INT, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 
 	if (fdtd::grid::world_rank != ROOTPROCESS)
@@ -667,7 +681,9 @@ void Driver::write_geometry_report()
 	long long structure_cells = 0;
 	for (int m = 0; m < ncodes; ++m)
 	{
-		const long long x = total[m], y = total[ncodes + m], z = total[2 * ncodes + m];
+		const long long x = total[m];
+		const long long y = total[ncodes + m];
+		const long long z = total[2 * ncodes + m];
 		if (x + y + z == 0)
 			continue;
 		const int base = m >= nl_code ? m - nl_code : m;
@@ -757,7 +773,9 @@ void Driver::finalize()
 	if (!mesh_only() && !_state_written)
 		std::remove((run_cfg.output.state_dir + "/rank_" + std::to_string(_rank) + ".bin").c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
-	unsigned long long peak = core::memory::peak, peak_max = 0, peak_sum = 0;
+	unsigned long long peak = core::memory::peak;
+	unsigned long long peak_max = 0;
+	unsigned long long peak_sum = 0;
 	MPI_Reduce(&peak, &peak_max, 1, MPI_UNSIGNED_LONG_LONG, MPI_MAX, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Reduce(&peak, &peak_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 	if (fdtd::grid::world_rank == ROOTPROCESS)

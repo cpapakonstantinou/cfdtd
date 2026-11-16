@@ -14,8 +14,12 @@ const fdtd::grid::Lattice &lat = fdtd::grid::lattice();          ///< the global
 
 void fdtd::materials::read_magnetisation_field(const std::string &input_dir)
 {
-	int i, j, k;
-	double valx, valy, valz;
+	int i;
+	int j;
+	int k;
+	double valx;
+	double valy;
+	double valz;
 	std::string strS = input_dir + "/Magnetization_x.txt"; //files each must have Nx+2 x Ny+2 x Nz/2 values
 	std::fstream pfin;
 	pfin.open(strS.c_str(), std::ios::in);

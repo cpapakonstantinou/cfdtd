@@ -23,9 +23,13 @@ namespace fdtd::materials
 class MaterialMap
 {
 public:
-	ctensor<int> x, y, z;                ///< inner block, per E component
+	ctensor<int> x; ///< inner block, per E component
+	ctensor<int> y; ///< inner block, per E component
+	ctensor<int> z; ///< inner block, per E component
 	ctensor<int> centre;                 ///< cell centres
-	ctensor<int> full_x, full_y, full_z; ///< every rank cell, per E component
+	ctensor<int> full_x; ///< every rank cell, per E component
+	ctensor<int> full_y; ///< every rank cell, per E component
+	ctensor<int> full_z; ///< every rank cell, per E component
 
 	/// the inner maps and the cell-centre map of the rank, inner block size, rank cell counts
 	void allocate_inner(int ni, int nj, int nk, int cells_x, int cells_y, int cells_z);

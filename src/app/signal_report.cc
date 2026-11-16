@@ -164,7 +164,8 @@ int fdtd::app::signal_report(int argc, char *argv[])
 			return std::norm(sum);
 		};
 		auto floor_db = [&](int harmonic, int steps) {
-			const double p1 = power_at(f0, steps), ph = power_at(harmonic * f0, steps);
+			const double p1 = power_at(f0, steps);
+			const double ph = power_at(harmonic * f0, steps);
 			return p1 > 0 && ph > 0 ? 10 * std::log10(ph / p1) : -INFINITY;
 		};
 		auto show = [](double db) {

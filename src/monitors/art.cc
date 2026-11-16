@@ -229,7 +229,8 @@ void write_art_spectra(int step)
 void integrate_absorption(int material)
 {
 	const VolumeDft &V = volume_dft();
-	const view4<double> re[3] = {V.re[0][0], V.re[0][1], V.re[0][2]}, im[3] = {V.im[0][0], V.im[0][1], V.im[0][2]};
+	const view4<double> re[3] = {V.re[0][0], V.re[0][1], V.re[0][2]};
+	const view4<double> im[3] = {V.im[0][0], V.im[0][1], V.im[0][2]};
 	const ctensor<int> *map[3] = {&matind_x, &matind_y, &matind_z};
 	const double Vol = lat.d[0] * lat.d[1] * lat.d[2];
 	for (int m = 0; m < sp.nr_frequencies; ++m)

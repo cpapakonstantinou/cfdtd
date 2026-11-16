@@ -53,7 +53,8 @@ inline void psi_update(int i, int j, int k, double coeff, double d, double &e_ne
 	if (D == 2 && lat.periodic_z)
 		return;
 	const int n = D == 0 ? i : D == 1 ? j : k;
-	const bool nea = D == 0 ? subdomain.nea_cpml_x() : D == 1 ? subdomain.nea_cpml_y() : subdomain.nea_cpml_z(), far = D == 0 ? subdomain.far_cpml_x() : D == 1 ? subdomain.far_cpml_y() : subdomain.far_cpml_z();
+	const bool nea = D == 0 ? subdomain.nea_cpml_x() : D == 1 ? subdomain.nea_cpml_y() : subdomain.nea_cpml_z();
+	const bool far = D == 0 ? subdomain.far_cpml_x() : D == 1 ? subdomain.far_cpml_y() : subdomain.far_cpml_z();
 	const int nea_end = D == 0 ? sd.i_nea_cpml_end : D == 1 ? sd.j_nea_cpml_end : sd.k_nea_cpml_end;
 	const int far_start = D == 0 ? sd.i_far_cpml_start : D == 1 ? sd.j_far_cpml_start : sd.k_far_cpml_start;
 	const int pad_nea = D == 0 ? sd.cpml_pad_nea_x : D == 1 ? sd.cpml_pad_nea_y : sd.cpml_pad_nea_z;
@@ -84,7 +85,8 @@ inline void psi_update(int i, int j, int k, double coeff, double d, double &e_ne
 template <int A>
 void cpml_tfsf_terms(int i, int j, int k, double c, double p, double q, double &e_new)
 {
-	constexpr int B1 = (A + 1) % 3, B2 = (A + 2) % 3;
+	constexpr int B1 = (A + 1) % 3;
+	constexpr int B2 = (A + 2) % 3;
 	// curl = p - q: the B1 faces add, the B2 faces subtract; summed y first (Ex: y, z), else x first
 	// (Ey: x, z; Ez: x is B1, y is B2 -> y, x), the order of the previous code
 	if constexpr (A == 0)

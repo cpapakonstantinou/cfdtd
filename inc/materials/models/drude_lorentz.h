@@ -58,9 +58,12 @@ struct DrudeLorentz
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
-		const int n = mm, m = code;
+		const int n = mm;
+		const int m = code;
 		(void)m;
-		double NL1, cp1, cp2;
+		double NL1;
+		double cp1;
+		double cp2;
 		Coeffs c{};
 		NL1 = 1.0 / dt + 0.5 * mp.gam_plasma[n];
 		c.nl1 = (1.0 / dt - 0.5 * mp.gam_plasma[n]) / NL1;
@@ -97,13 +100,19 @@ struct DrudeLorentz
 	{
 		using namespace fdtd::constants; // EP0, MU0, ...
 		using C = Component<A>;
-		const view3<double> e = C::e(), e_prev = C::e_prev();
+		const view3<double> e = C::e();
+		const view3<double> e_prev = C::e_prev();
 		auto &jc = C::j();
 		auto &pc = C::pc();
 		auto &pc_prev = C::pc_prev();
-		const int mm = c.mm, i = c.i, j = c.j, k = c.k;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
+		const int k = c.k;
 		const Coeffs &cf = coeffs<DrudeLorentz>(mm);
-		const int ii = i + 1, jj = j + 1, kk = k + 1;
+		const int ii = i + 1;
+		const int jj = j + 1;
+		const int kk = k + 1;
 		double P_new;
 		if (!fdtd::materials::model_spec().hydrodynamics)
 		{

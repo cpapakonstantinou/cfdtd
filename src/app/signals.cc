@@ -11,7 +11,7 @@ namespace
 {
 volatile std::sig_atomic_t received = 0; ///< the last signal received, 0 if none
 
-extern "C" void on_signal(int sig)
+extern void on_signal(int sig)
 {
 	received = sig;
 	std::signal(sig, SIG_DFL); // a second signal ends the process at once
@@ -29,7 +29,8 @@ int pending_signal() noexcept { return received; }
 
 int agree_signal(MPI_Comm comm)
 {
-	int local = received, any = 0;
+	int local = received;
+	int any = 0;
 	MPI_Allreduce(&local, &any, 1, MPI_INT, MPI_MAX, comm);
 	return any;
 }

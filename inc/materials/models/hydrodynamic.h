@@ -39,9 +39,20 @@ struct Hydrodynamic
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
-		const int n = mm, m = code;
+		const int n = mm;
+		const int m = code;
 		(void)m;
-		double NL1, cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10;
+		double NL1;
+		double cp1;
+		double cp2;
+		double cp3;
+		double cp4;
+		double cp5;
+		double cp6;
+		double cp7;
+		double cp8;
+		double cp9;
+		double cp10;
 		Coeffs c{};
 		NL1 = 1.0 / dt + 0.5 * mp.gam_plasma[n];
 		c.nl1 = (1.0 / dt - 0.5 * mp.gam_plasma[n]) / NL1;
@@ -83,20 +94,31 @@ struct Hydrodynamic
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
 		using C = Component<A>;
-		const view3<double> e = C::e(), e_prev = C::e_prev(), e_nl = C::e_nl(), e_prev_nl = C::e_prev_nl();
-		const view3<double> pc_2 = C::pc_sum(), pc_2_nl = C::pc_sum_nl();
+		const view3<double> e = C::e();
+		const view3<double> e_prev = C::e_prev();
+		const view3<double> e_nl = C::e_nl();
+		const view3<double> e_prev_nl = C::e_prev_nl();
+		const view3<double> pc_2 = C::pc_sum();
+		const view3<double> pc_2_nl = C::pc_sum_nl();
 		auto &jc = C::j();
 		auto &jc_nl = C::j_nl();
 		auto &pc = C::pc();
 		auto &pc_prev = C::pc_prev();
 		auto &pc_nl = C::pc_nl();
 		auto &pc_prev_nl = C::pc_prev_nl();
-		const int mm = c.mm, i = c.i, j = c.j, k = c.k;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
+		const int k = c.k;
 		const Coeffs &cf = coeffs<Hydrodynamic>(mm);
-		const int ii = i + 1, jj = j + 1, kk = k + 1;
+		const int ii = i + 1;
+		const int jj = j + 1;
+		const int kk = k + 1;
 		const int nr_cp = mp.nr_cp[mm];
 		const bool nl = fdtd::materials::model_spec().harmonic;
-		double P_CP_new[NrMaxCP], P_CP_new_NL[NrMaxCP], E_new_NL = 0;
+		double P_CP_new[NrMaxCP];
+		double P_CP_new_NL[NrMaxCP];
+		double E_new_NL = 0;
 		const double P_new = -jc[mm][ii][jj][kk];
 		double E_new = cf.c0 * (c.curl + P_new) + cf.c2 * e_prev[i][j][k] + cf.c3 * e[i][j][k];
 		if (nl)

@@ -29,22 +29,35 @@ struct Spec
 	bool hydrodynamics = false;  ///< hydrodynamic electron gas, the dipole source reads the density
 	bool harmonic = false;       ///< separate harmonic fields (*_nl)
 	// band
-	bool shg = false, thg = false;   ///< harmonic generation: the upper half of the band is the harmonic
+	bool shg = false; ///< harmonic generation: the upper half of the band is the harmonic
+	bool thg = false; ///< harmonic generation: the upper half of the band is the harmonic
 	int nr_frequencies = 0;          ///< analysed frequencies
-	double fundamental_frequency = 0, highest_frequency = 0; ///< [Hz]
+	double fundamental_frequency = 0; ///< [Hz]
+	double highest_frequency = 0; ///< [Hz]
 	double start_cw = 0;             ///< CW turn-on [periods]
 	// which source and its parameters
-	bool tfsf = false, mode_source = false, dipole = false, gauss_beam = false, superposition = false;
+	bool tfsf = false;
+	bool mode_source = false;
+	bool dipole = false;
+	bool gauss_beam = false;
+	bool superposition = false;
 	bool oblique_with_medium = false; ///< oblique plane waves through the layered background
 	double circ_time_shift = 0;       ///< delay between the two components of a circular wave [s]
 	int signal_type = 0;              ///< pulse kind code
-	bool cw_pulse = false, continuous_wave = false; ///< the CW signals
-	int theta_intervals = 0, phi_intervals = 0;     ///< Gaussian beam: plane-wave samples
-	double theta_max_degrees = 0, phi_max_degrees = 0;
-	double waist_factor = 0, focal_factor = 0;      ///< Gaussian beam
+	bool cw_pulse = false; ///< the CW signals
+	bool continuous_wave = false; ///< the CW signals
+	int theta_intervals = 0; ///< Gaussian beam: plane-wave samples
+	int phi_intervals = 0; ///< Gaussian beam: plane-wave samples
+	double theta_max_degrees = 0;
+	double phi_max_degrees = 0;
+	double waist_factor = 0; ///< Gaussian beam
+	double focal_factor = 0; ///< Gaussian beam
 	// outputs
-	int plot_xy = 0, plot_xz = 0, plot_yz = 0;      ///< frame periods of the plot planes, 0 off
-	std::string reports_dir, input_dir;
+	int plot_xy = 0; ///< frame periods of the plot planes, 0 off
+	int plot_xz = 0; ///< frame periods of the plot planes, 0 off
+	int plot_yz = 0; ///< frame periods of the plot planes, 0 off
+	std::string reports_dir;
+	std::string input_dir;
 	clock_t log_start = 0;                          ///< program start, for log timestamps
 };
 extern Spec the_spec; ///< set by set_spec

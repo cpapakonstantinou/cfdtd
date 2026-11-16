@@ -37,7 +37,9 @@ void MaterialMap::extend_into_pml(int org_x, int org_y, int org_z, int ni, int n
 	for (int c = 0; c < 3; ++c)
 	{
 		const view3<int> f = *full[c];
-		const int cx = int(full[c]->extent(0)), cy = int(full[c]->extent(1)), cz = int(full[c]->extent(2));
+		const int cx = int(full[c]->extent(0));
+		const int cy = int(full[c]->extent(1));
+		const int cz = int(full[c]->extent(2));
 		for (int i = 0; i < cx; ++i)
 			for (int j = 0; j < cy; ++j)
 				for (int k = 0; k < cz; ++k)
@@ -72,7 +74,8 @@ std::vector<CellBox> MaterialMap::dispersive_boxes(int org_x, int org_y) const
 					if (mm < 0 || mm >= nr_disp_mat_d)
 						continue;
 					CellBox &b = box[mm];
-					const int i = int(u) + org_x, j = int(w) + org_y;
+					const int i = int(u) + org_x;
+					const int j = int(w) + org_y;
 					b.i0 = std::min(b.i0, i), b.i1 = std::max(b.i1, i), b.j0 = std::min(b.j0, j), b.j1 = std::max(b.j1, j);
 				}
 	}

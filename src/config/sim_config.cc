@@ -386,21 +386,18 @@ void visit_sim_config(C& c, V& v)
 	v.field("custom_material", "fermi_velocity", c.custom_material.fermi_velocity, "");
 	v.field("custom_material", "electron_density", c.custom_material.electron_density, "");
 
-	v.field("anapole", "patch_edge", c.anapole.patch_edge, "[m] edge of the square patch (shape = anapole)");
+	v.field("anapole", "patch_edge", c.anapole.patch_edge, "[m] edge of the square patch");
 	v.field("anapole", "thickness", c.anapole.thickness, "[m] film thickness along y");
 	v.field("anapole", "corner_radius", c.anapole.corner_radius, "[m] fillet radius of the patch corners");
-	v.field("anapole", "lobe_a", c.anapole.lobe_a, "lobe length / patch_edge");
-	v.field("anapole", "lobe_b", c.anapole.lobe_b, "lobe height / patch_edge");
-	v.field("anapole", "lobe_p", c.anapole.lobe_p, "lobe exponent");
-	v.field("anapole", "lobe_x0", c.anapole.lobe_x0, "lobe start / patch_edge");
-	v.field("anapole", "neck_half_length", c.anapole.neck_half_length, "[m] neck half-length along the lobe axis");
-	v.field("anapole", "neck_half_height", c.anapole.neck_half_height, "[m] neck half-height across the lobe axis");
-	v.field("anapole", "rotation", c.anapole.rotation, "[deg] in-plane rotation (x-z)");
-	v.field("anapole", "lobe_material", c.anapole.lobe_material, "fill of the lobes; -1 = background");
-	v.field("anapole", "neck_material", c.anapole.neck_material, "fill of the neck; -1 = background");
-	v.field("anapole", "dimer_material", c.anapole.dimer_material, "two cylinders in the neck; -1 = none");
-	v.field("anapole", "dimer_radius", c.anapole.dimer_radius, "[m]");
-	v.field("anapole", "dimer_gap", c.anapole.dimer_gap, "[m]");
+	v.field("anapole", "lobe_length", c.anapole.lobe_length, "length of the lobe curve, in units of patch_edge");
+	v.field("anapole", "lobe_height", c.anapole.lobe_height, "height coefficient of the lobe curve, in units of patch_edge");
+	v.field("anapole", "lobe_exponent", c.anapole.lobe_exponent, "exponent of the lobe curve");
+	v.field("anapole", "lobe_offset", c.anapole.lobe_offset, "where the lobe curve starts, from the patch centre, in units of patch_edge");
+	v.field("anapole", "gap_length", c.anapole.gap_length, "[m] gap between the lobes, along the lobe axis");
+	v.field("anapole", "gap_width", c.anapole.gap_width, "[m] gap across the lobe axis");
+	v.field("anapole", "rotation", c.anapole.rotation, "[deg] in-plane rotation, x-z");
+	v.field("anapole", "aperture_material", c.anapole.aperture_material, "fill of the whole aperture, lobes and gap; -1 = background");
+	v.field("anapole", "gap_material", c.anapole.gap_material, "fill of the gap alone; -1 = as the rest of the aperture");
 	v.field("anapole", "lobe_points", c.anapole.lobe_points, "polygon vertices per lobe edge");
 
 	v.choice("nonlinear", "shg", c.nonlinear.shg, HARMONIC_MODES, "second-harmonic generation: in the structure (antenna) or the layers (bulk)");
@@ -617,7 +614,8 @@ std::vector<int> rank_starts(const char* axis, int total, int ranks, const std::
 											"; move it by one cell (e.g. " + std::to_string(start[r] + 1) + ")");
 		return start;
 	}
-	const int base = total / ranks, extra = total % ranks;
+	const int base = total / ranks;
+	const int extra = total % ranks;
 	start.assign(ranks, 0);
 	for (int r = 1; r < ranks; ++r)
 		start[r] = start[r - 1] + base + (r - 1 < extra ? 1 : 0);
@@ -699,7 +697,8 @@ std::vector<double> spectrum_omegas(const SpectrumSection& s, double c0, double 
 			w.push_back(two_pi * (c0 / s.lambda_min));
 		else if (lower(s.spacing) == "frequency")
 		{
-			const double f0 = c0 / s.lambda_max, f1 = c0 / s.lambda_min;
+			const double f0 = c0 / s.lambda_max;
+			const double f1 = c0 / s.lambda_min;
 			w.push_back(two_pi * (f0 + m * (f1 - f0) / (n - 1)));
 		}
 		else // uniform in wavelength, ascending frequency
@@ -747,7 +746,9 @@ Config build_config(const std::string& ini_text, const std::string& name, const 
 	ini.load_string(ini_text, name.empty() ? "<config>" : name);
 	for (const auto& spec : overrides)
 	{
-		std::string s, k, v;
+		std::string s;
+		std::string k;
+		std::string v;
 		if (!split_override(spec, s, k, v))
 			throw std::invalid_argument("override expects SECTION.KEY=VALUE, got '" + spec + "'");
 		ini.override(s, {{k, v}});
@@ -920,7 +921,8 @@ void validate_sim_config(const SimConfig& c)
 		require(band == process, std::string("[nonlinear] ") + (process == 2 ? "shg" : "thg") +
 									 " computes the harmonic: set [spectrum] harmonic_band = " + (process == 2 ? "second" : "third"));
 	{
-		const std::string e = lower(c.electrons.model), t = lower(c.temperature.model);
+		const std::string e = lower(c.electrons.model);
+		const std::string t = lower(c.temperature.model);
 		auto unused = [&](bool untouched, const char* section, const std::string& selector) {
 			require(untouched, std::string("[") + section + "] has keys set, but " + selector + " does not use that section");
 		};
@@ -986,7 +988,7 @@ void validate_sim_config(const SimConfig& c)
 		constexpr int custom = fdtd::materials::DispMateOffsetD + fdtd::materials::ModLorentz + 2;
 		bool used = false;
 		for (int mat : {c.geometry.material, c.geometry.first_medium, c.geometry.middle_medium, c.geometry.last_medium, c.geometry.shell_material,
-						c.anapole.lobe_material, c.anapole.neck_material, c.anapole.dimer_material})
+						c.anapole.aperture_material, c.anapole.gap_material})
 			used = used || mat == custom;
 		for (const auto &b : c.blocks)
 			used = used || b.material == custom;
@@ -1042,19 +1044,21 @@ void validate_sim_config(const SimConfig& c)
 	if (lower(c.geometry.shape) == "anapole")
 	{
 		const auto& a = c.anapole;
-		const double s_neck = (a.neck_half_length / a.patch_edge - a.lobe_x0) / a.lobe_a;
+		const double s_gap = (0.5 * a.gap_length / a.patch_edge - a.lobe_offset) / a.lobe_length;
 		require(a.patch_edge > 0 && a.thickness > 0, "[anapole] patch_edge and thickness must be > 0");
 		require(a.corner_radius >= 0 && 2 * a.corner_radius <= a.patch_edge, "[anapole] corner_radius must be in [0, patch_edge / 2]");
-		require(a.lobe_a > 0 && a.lobe_b > 0 && a.lobe_p > 0, "[anapole] lobe_a, lobe_b and lobe_p must be > 0");
-		require(s_neck > 0 && s_neck < 1, "[anapole] the neck face |u| = neck_half_length must cut the lobes (0 < (neck_half_length / patch_edge - lobe_x0) / lobe_a < 1)");
-		require(a.neck_half_height > 0 && a.lobe_points >= 8, "[anapole] neck_half_height must be > 0 and lobe_points >= 8");
-		require((a.lobe_x0 + a.lobe_a) * a.patch_edge < 0.5 * a.patch_edge, "[anapole] the lobes must end inside the patch (lobe_x0 + lobe_a < 1/2)");
+		require(a.lobe_length > 0 && a.lobe_height > 0 && a.lobe_exponent > 0, "[anapole] lobe_length, lobe_height and lobe_exponent must be > 0");
+		require(a.gap_length > 0 && a.gap_width > 0, "[anapole] gap_length and gap_width must be > 0");
+		require(s_gap > 0 && s_gap < 1, "[anapole] the gap must end on the lobes: 0 < (gap_length / (2 patch_edge) - lobe_offset) / lobe_length < 1");
+		require(a.lobe_points >= 8, "[anapole] lobe_points must be >= 8");
+		require(a.lobe_offset + a.lobe_length < 0.5, "[anapole] the lobes must end inside the patch: lobe_offset + lobe_length < 1/2");
 	}
 	for (const auto& m : c.monitors)
 		require(m.size_x > 0 && m.size_y > 0 && m.size_z > 0 && m.step > 0,
 				"[monitor." + m.name + "] sizes and step must be > 0");
 	// source: one type and one signal; the sections of the others must be untouched
-	const std::string type = lower(c.source.type), signal = lower(c.source.signal);
+	const std::string type = lower(c.source.type);
+	const std::string signal = lower(c.source.signal);
 	auto only_for = [&](bool untouched, const std::string& section, const std::string& key, const std::string& value) {
 		require(untouched, "[" + section + "] has keys set, but [source] " + key + " = " + value + " does not use that section");
 	};
@@ -1074,7 +1078,9 @@ void validate_sim_config(const SimConfig& c)
 		require(m.unit_length > 0, "[mode] unit_length must be > 0");
 		require(signal != "raised_cosine" && signal != "raised_cosine_derivative" && signal != "rectangular" && signal != "sinc" && signal != "constant",
 				"[source] type = mode needs a signal with a carrier at the mode's wavelength (gaussian, gaussian_alt, continuous_wave, cw_pulse)");
-		const std::string n = lower(m.propagation_axis), a = lower(m.mpb_x_axis), b = lower(m.mpb_y_axis);
+		const std::string n = lower(m.propagation_axis);
+		const std::string a = lower(m.mpb_x_axis);
+		const std::string b = lower(m.mpb_y_axis);
 		for (const std::string& t : {a, b})
 			require(t.empty() || ((t == "x" || t == "y" || t == "z") && t != n), "[mode] mpb_x_axis and mpb_y_axis must be x, y or z, across the propagation axis");
 		require(a.empty() == b.empty() && (a.empty() || a != b), "[mode] set both mpb_x_axis and mpb_y_axis (different axes) or neither");

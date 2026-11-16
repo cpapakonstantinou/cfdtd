@@ -46,7 +46,8 @@ inline constexpr std::array<const char*, group_count> GROUP_NAMES = {
 
 inline std::array<std::size_t, group_count> live{}; ///< bytes held now, per group
 inline Group current = other;
-inline std::size_t held = 0, peak = 0;                ///< bytes held now in all groups, and their maximum so far
+inline std::size_t held = 0; ///< bytes held now in all groups, and their maximum so far
+inline std::size_t peak = 0; ///< bytes held now in all groups, and their maximum so far
 struct Block
 {
 	Group group;

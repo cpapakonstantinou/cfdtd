@@ -150,7 +150,8 @@ void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, cons
 	file.attribute("wavelength", double(PI2 * C0 / fdtd::sources::analysis_omega[m]));
 	for (int c = 0; c < 3; ++c)
 	{
-		const view4<double> r = re[c], q = im[c];
+		const view4<double> r = re[c];
+		const view4<double> q = im[c];
 		h5io::write_complex(file, std::string(1, "xyz"[c]), block, &r[m][0][0][0], &q[m][0][0][0]);
 	}
 }
@@ -167,7 +168,8 @@ void DftPlanes::write_maps()
 	// E, H and their harmonic sets of the plane with normal n, as before: E, H, E_nonlinear, H_nonlinear
 	auto full = [&](int n, int m, const std::string &wl) {
 		const std::string suffix = wl + "_" + tag[n] + ".h5";
-		const int a = axes[n][0], b = axes[n][1];
+		const int a = axes[n][0];
+		const int b = axes[n][1];
 		write_map(dir + "E_" + suffix, comm[n], a, b, m, plane[n].re[0][0], plane[n].im[0][0]);
 		if (dft_h)
 			write_map(dir + "H_" + suffix, comm[n], a, b, m, plane[n].re[1][0], plane[n].im[1][0]);

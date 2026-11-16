@@ -219,8 +219,12 @@ class carray
 		a._shape = shape_t(new size_t[N]);
 		for (size_t d = 0; d < N; ++d)
 			a._shape[d] = shape[d];
-		const size_t nt = N == 4 ? shape[0] : 1, ni = shape[N - 3], nj = shape[N - 2], nk = shape[N - 1];
-		const size_t bi = i1 - i0 + 1, bj = j1 - j0 + 1;
+		const size_t nt = N == 4 ? shape[0] : 1;
+		const size_t ni = shape[N - 3];
+		const size_t nj = shape[N - 2];
+		const size_t nk = shape[N - 1];
+		const size_t bi = i1 - i0 + 1;
+		const size_t bj = j1 - j0 + 1;
 		a._count = nt * bi * bj * nk + nk; // the box rows, then the zero row
 		a._buffer = make_shared_aarray<T>(A, a._count);
 		fdtd::core::memory::zero_fill(a._buffer.get(), a._count);

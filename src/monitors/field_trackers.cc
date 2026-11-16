@@ -48,8 +48,12 @@ void FieldTrackers::release()
 void FieldTrackers::setup(int center_x, int center_y, int center_z)
 {
 	release();
-	const int R = sphere_rad_multipole, Ntheta = ntheta_multipole, Nphi = nphi_multipole;
-	std::vector<int> X(Ntheta * Nphi), Y(Ntheta * Nphi), Z(Ntheta * Nphi);
+	const int R = sphere_rad_multipole;
+	const int Ntheta = ntheta_multipole;
+	const int Nphi = nphi_multipole;
+	std::vector<int> X(Ntheta * Nphi);
+	std::vector<int> Y(Ntheta * Nphi);
+	std::vector<int> Z(Ntheta * Nphi);
 	for (int i = 0, n = 0; i < Ntheta; i++)
 		for (int j = 0; j < Nphi; j++, n++)
 		{
@@ -69,7 +73,8 @@ void FieldTrackers::setup(int center_x, int center_y, int center_z)
 						point.push_back({int(i - subdomain.output_start[0]) + subdomain.inner_org_x, int(j - subdomain.output_start[1]) + subdomain.inner_org_y,
 										 int(k - subdomain.output_start[2]) + subdomain.inner_org_z, n});
 
-	int here = int(point.size()), total = 0;
+	int here = int(point.size());
+	int total = 0;
 	MPI_Reduce(&here, &total, 1, MPI_INT, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 		fdtd::io::log("monitors", "TOTAL POINTS = %d\n", total);
@@ -96,7 +101,8 @@ void FieldTrackers::sample(double t_e, double t_h)
 				const double w = s == 0 ? fdtd::sources::analysis_omega[m] : 2.0 * fdtd::sources::analysis_omega[m];
 				for (int c = 0; c < 3; ++c)
 				{
-					const double e = F.E[s][c][P.x][P.y][P.z], h = F.H[s][c][P.x][P.y][P.z];
+					const double e = F.E[s][c][P.x][P.y][P.z];
+					const double h = F.H[s][c][P.x][P.y][P.z];
 					dft[s][0][c][p][m][0] += std::cos(w * t_e) * e;
 					dft[s][1][c][p][m][0] += std::cos(w * t_h) * h;
 					dft[s][0][c][p][m][1] += std::sin(w * t_e) * e;

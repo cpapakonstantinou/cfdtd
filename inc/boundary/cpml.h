@@ -35,11 +35,17 @@ namespace fdtd::boundary
 /// array indices used by Cpml
 namespace index
 {
-constexpr int x = 0, y = 1, z = 2;	   ///< axis / field component
-constexpr int near = 0, far = 1;	   ///< face of an axis: low / high global index
-constexpr int integer = 0, half = 1;   ///< grading position: E samples (m) / H samples (m + 1/2)
-constexpr int e = 0, h = 1;			   ///< field
-constexpr int linear = 0, harmonic = 1; ///< field set, harmonic: the separate nonlinear fields
+constexpr int x = 0; ///< axis / field component
+constexpr int y = 1; ///< axis / field component
+constexpr int z = 2; ///< axis / field component
+constexpr int near = 0; ///< face of an axis: low / high global index
+constexpr int far = 1; ///< face of an axis: low / high global index
+constexpr int integer = 0; ///< grading position: E samples (m) / H samples (m + 1/2)
+constexpr int half = 1; ///< grading position: E samples (m) / H samples (m + 1/2)
+constexpr int e = 0; ///< field
+constexpr int h = 1; ///< field
+constexpr int linear = 0; ///< field set, harmonic: the separate nonlinear fields
+constexpr int harmonic = 1; ///< field set, harmonic: the separate nonlinear fields
 } // namespace index
 
 /// grading of one axis and face, m = 0, outer end .. N, interface, by grading position
@@ -73,7 +79,8 @@ public:
 	/// layer's medium, the 1D grid's, on the x and z faces, or each cell's own, cellwise
 	struct Background
 	{
-		int near_y = 0, far_y = 0; ///< material codes of the y faces
+		int near_y = 0; ///< material codes of the y faces
+		int far_y = 0; ///< material codes of the y faces
 		bool cellwise = false;     ///< each cell's material, the maps extend into the CPML: mode source
 	} background;
 

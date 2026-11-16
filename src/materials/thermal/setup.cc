@@ -17,7 +17,8 @@ using namespace fdtd::materials::thermal; // transitional: module state, thermal
 
 void fdtd::materials::thermal::load_probe_temperature_1d(){
 
-	int j, timestep;
+	int j;
+	int timestep;
 	sprintf(_cstring, "../OUTPUTPumpTemp_%d.txt", fdtd::grid::world_rank);
 	std::string strS = _cstring;
 	std::fstream pfin;
@@ -43,7 +44,9 @@ void fdtd::materials::thermal::load_probe_temperature_1d(){
 }
 
 void fdtd::materials::thermal::load_static_temperature(){
-	int i,j,k;
+	int i;
+	int j;
+	int k;
 	MPI_Barrier(MPI_COMM_WORLD);
 	fdtd::materials::thermal::read_temperature();
 	MPI_Barrier(MPI_COMM_WORLD);

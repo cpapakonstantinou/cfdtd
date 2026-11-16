@@ -108,7 +108,9 @@ std::vector<double> half_factors_z()
 /// the H arrays of one component: the field, the two E components of its curl, and its CPML auxiliary fields
 struct HSet
 {
-	view3<double> h, e1, e2;           ///< Hx: (Ey, Ez), Hy: (Ez, Ex), Hz: (Ex, Ey)
+	view3<double> h; ///< Hx: (Ey, Ez), Hy: (Ez, Ex), Hz: (Ex, Ey)
+	view3<double> e1; ///< Hx: (Ey, Ez), Hy: (Ez, Ex), Hz: (Ex, Ey)
+	view3<double> e2; ///< Hx: (Ey, Ez), Hy: (Ez, Ex), Hz: (Ex, Ey)
 	view3<double> psi[4];              ///< near/far CPML of the first, then the second transverse axis
 };
 
@@ -128,7 +130,9 @@ void update_hx(const HSet &f)
 		{
 			const double KY = half_factor(fdtd::grid::stretching().inv_kappa[1][0][1], j, subdomain.j_cpml_min, subdomain.j_cpml_max, subdomain.cells_y,
 										subdomain.cpml_pad_nea_y, subdomain.cpml_pad_far_y, lat.cpml[1]);
-			const double *ey = f.e1[i][j], *ez0 = f.e2[i][j], *ez1 = f.e2[i][j + 1];
+			const double *ey = f.e1[i][j];
+			const double *ez0 = f.e2[i][j];
+			const double *ez1 = f.e2[i][j + 1];
 			add_curl(f.h[i][j], 0, nk, [&](int k) { return kz[k] * ((ey[k + 1] - ey[k]) * lat.inv_d[2]) - KY * ((ez1[k] - ez0[k]) * lat.inv_d[1]); });
 		}
 	auto dEz_y = [&](int i, int j) { return [=](int k) { return (f.e2[i][j + 1][k] - f.e2[i][j][k]) * lat.inv_d[1]; }; };
@@ -176,7 +180,9 @@ void update_hy(const HSet &f)
 									subdomain.cpml_pad_nea_x, subdomain.cpml_pad_far_x, lat.cpml[0]);
 		for (int j = 0; j <= subdomain.cells_y; ++j)
 		{
-			const double *ez0 = f.e1[i][j], *ez1 = f.e1[i + 1][j], *ex = f.e2[i][j];
+			const double *ez0 = f.e1[i][j];
+			const double *ez1 = f.e1[i + 1][j];
+			const double *ex = f.e2[i][j];
 			add_curl(f.h[i][j], 0, nk, [&](int k) { return KX * ((ez1[k] - ez0[k]) * lat.inv_d[0]) - kz[k] * ((ex[k + 1] - ex[k]) * lat.inv_d[2]); });
 		}
 	}
@@ -226,7 +232,10 @@ void update_hz(const HSet &f)
 		{
 			const double KY = half_factor(fdtd::grid::stretching().inv_kappa[1][0][1], j, subdomain.j_cpml_min, subdomain.j_cpml_max, subdomain.cells_y,
 										subdomain.cpml_pad_nea_y, subdomain.cpml_pad_far_y, lat.cpml[1]);
-			const double *ex0 = f.e1[i][j], *ex1 = f.e1[i][j + 1], *ey0 = f.e2[i][j], *ey1 = f.e2[i + 1][j];
+			const double *ex0 = f.e1[i][j];
+			const double *ex1 = f.e1[i][j + 1];
+			const double *ey0 = f.e2[i][j];
+			const double *ey1 = f.e2[i + 1][j];
 			add_curl(f.h[i][j], 0, nk, [&](int k) { return KY * ((ex1[k] - ex0[k]) * lat.inv_d[1]) - KX * ((ey1[k] - ey0[k]) * lat.inv_d[0]); });
 		}
 	}

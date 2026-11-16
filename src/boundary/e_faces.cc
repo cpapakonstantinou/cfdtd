@@ -80,7 +80,8 @@ void e_face(Axis axis, bool far, int i0, int i1, int j0, int j1, int k0, int k1,
 			if (far && axis == Axis::Y && j == 0)
 				continue;
 			const int m = axis == Axis::Y ? (far ? the_cpml.background.far_y : the_cpml.background.near_y) : background_y[j + subdomain.j_for_uni];
-			const int pi = (far && axis == Axis::X) ? i - extra : i, pj = (far && axis == Axis::Y) ? j - extra : j;
+			const int pi = (far && axis == Axis::X) ? i - extra : i;
+			const int pj = (far && axis == Axis::Y) ? j - extra : j;
 			auto s = [&](int k) { const int n = axis == Axis::X ? i : axis == Axis::Y ? j : k; return far ? cells - n + pad : n + pad; };
 			auto row = [&](view3<double> f, view3<double> p, view3<double> hh, auto &&factor) {
 				fdtd::materials::stretch::psi_update(f[i][j], p[pi][pj], off, ka, k1, c1, c2, s, factor, [&](int k) { return d(hh, i, j, k); });

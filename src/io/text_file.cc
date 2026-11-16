@@ -16,7 +16,8 @@
  */
 std::string fdtd::io::read_text_entry(std::fstream& pf)
 {
-	std::string linestring, strd;
+	std::string linestring;
+	std::string strd;
 	size_t npos;
 
 	getline(pf, linestring);

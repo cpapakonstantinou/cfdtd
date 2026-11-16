@@ -116,7 +116,9 @@ public:
 private:
 	struct Dipole
 	{
-		int i, j, k;               ///< local cell
+		int i; ///< local cell
+		int j; ///< local cell
+		int k; ///< local cell
 		std::array<double, 3> e;   ///< E amplitudes
 	};
 	void add(const Dipole &d, const std::array<view3<double>, 3> &f, const std::array<double, 3> &amp, int step) const

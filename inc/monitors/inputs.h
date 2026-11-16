@@ -12,7 +12,9 @@ namespace fdtd::monitors
 struct ProbePoint
 {
 	std::string name;
-	int x = 0, y = 0, z = 0;
+	int x = 0;
+	int y = 0;
+	int z = 0;
 };
 
 /// one [monitor.<name>] section: a box of cells recorded in time or frequency
@@ -20,8 +22,12 @@ struct MonitorBox
 {
 	std::string name;
 	std::string type = "frequency";      ///< frequency, DFT of E | time, E every `step`
-	int center_x = 0, center_y = 0, center_z = 0; ///< [cells], inner domain, PML excluded
-	int size_x = 0, size_y = 0, size_z = 0;       ///< [cells]
+	int center_x = 0; ///< [cells], inner domain, PML excluded
+	int center_y = 0; ///< [cells], inner domain, PML excluded
+	int center_z = 0; ///< [cells], inner domain, PML excluded
+	int size_x = 0; ///< [cells]
+	int size_y = 0; ///< [cells]
+	int size_z = 0; ///< [cells]
 	int step = 1;                        ///< time monitors: record every N steps
 };
 } // namespace fdtd::monitors

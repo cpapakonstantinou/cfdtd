@@ -29,7 +29,8 @@ class PlaneWaveOneDimensionalSimulator
 	// plane wave struct that was used to initialize
 	PlaneWave pw;
 	// components of the vector defining the principal plane together with y
-	double mx, mz;
+	double mx;
+	double mz;
 	// incident angle with y axis
 	double theta;
 	// tangential phase velocity to media stack

@@ -34,7 +34,9 @@ struct Drude2CP
 	/// update coefficients of one material: the poles and the Drude pole (a0, a1, a2)
 	struct Coeffs : Poles
 	{
-		double a0, a1, a2; ///< P_new = a0 P_prev + a1 P + a2 (E_prev + 2 E + E_new)
+		double a0; ///< P_new = a0 P_prev + a1 P + a2 (E_prev + 2 E + E_new)
+		double a1; ///< P_new = a0 P_prev + a1 P + a2 (E_prev + 2 E + E_new)
+		double a2; ///< P_new = a0 P_prev + a1 P + a2 (E_prev + 2 E + E_new)
 	};
 
 	/// coefficients of dispersive material index mm, material code `code`, for time step dt;
@@ -44,8 +46,18 @@ struct Drude2CP
 		const auto &mp = fdtd::materials::model_parameters();
 		double acc[3] = {0, 0, 0};
 		using namespace fdtd::constants; // EP0, MU0, ...
-		const int n = mm, m = code;
-		double cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10;
+		const int n = mm;
+		const int m = code;
+		double cp1;
+		double cp2;
+		double cp3;
+		double cp4;
+		double cp5;
+		double cp6;
+		double cp7;
+		double cp8;
+		double cp9;
+		double cp10;
 		Coeffs c{};
 		const double alpha = mp.ome_plasma[n] * mp.ome_plasma[n] * dt * dt;
 		const double beta = mp.gam_plasma[n] * dt;
@@ -91,8 +103,11 @@ struct Drude2CP
 	template <int A>
 	static double grad_div(const int (&x)[3])
 	{
-		constexpr int F = A == 1 ? 0 : 1, S = 3 - A - F;
-		const view3<double> pa = Component<A>::p_nonlocal_2(), pf = Component<F>::p_nonlocal_2(), ps = Component<S>::p_nonlocal_2();
+		constexpr int F = A == 1 ? 0 : 1;
+		constexpr int S = 3 - A - F;
+		const view3<double> pa = Component<A>::p_nonlocal_2();
+		const view3<double> pf = Component<F>::p_nonlocal_2();
+		const view3<double> ps = Component<S>::p_nonlocal_2();
 		auto cross = [&](const view3<double> &pb, int B) {
 			return shifted(pb, x, A, 1) - shifted(pb, x, A, 0) - shifted(pb, x, A, 1, B, -1) + shifted(pb, x, B, -1);
 		};
@@ -132,8 +147,13 @@ struct Drude2CP
 	__attribute__((always_inline)) static void point(const Coeffs &cf, int mm, int k, const stretch::AdeRow &r, double rotdiff, Boundary &&boundary)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
-		const double c0 = cf.c0, c1 = cf.c1, c2 = cf.c2, c3 = cf.c3;
-		const double a0 = cf.a0, a1 = cf.a1, a2 = cf.a2;
+		const double c0 = cf.c0;
+		const double c1 = cf.c1;
+		const double c2 = cf.c2;
+		const double c3 = cf.c3;
+		const double a0 = cf.a0;
+		const double a1 = cf.a1;
+		const double a2 = cf.a2;
 		const int nr_cp = mp.nr_cp[mm];
 		double e_new = c0 * rotdiff + c1 * (-a0 * r.p_prev[k] + (1.0 - a1) * r.p[k]) +
 					  c2 * r.e_prev[k] +
@@ -177,11 +197,17 @@ struct Drude2CP
 		using namespace fdtd::constants; // EP0, MU0, ...
 		using fdtd::grid::subdomain;
 		using C = Component<A>;
-		const view3<double> e = C::e(), e_prev = C::e_prev();
+		const view3<double> e = C::e();
+		const view3<double> e_prev = C::e_prev();
 		auto &pc = C::pc();
 		auto &pc_prev = C::pc_prev();
-		const int mm = c.mm, i = c.i, j = c.j, k = c.k;
-		const int ii = i + 1, jj = j + 1, kk = k + 1;
+		const int mm = c.mm;
+		const int i = c.i;
+		const int j = c.j;
+		const int k = c.k;
+		const int ii = i + 1;
+		const int jj = j + 1;
+		const int kk = k + 1;
 		const int nr_cp = mp.nr_cp[mm];
 		const Coeffs &cf = coeffs<Drude2CP>(mm);
 		const bool nonlocal = fdtd::materials::model_spec().nonlocal && !fdtd::materials::model_spec().hydrodynamics;
@@ -192,8 +218,12 @@ struct Drude2CP
 			return;
 		}
 		// nonlocal model: P lives in the padded p_nonlocal, and grad(div P) enters both updates
-		const view3<double> p_nl = C::p_nonlocal(), p_nl_prev = C::p_nonlocal_prev(), p_nl_2 = C::p_nonlocal_2();
-		double Grad_Div = 0, GNOR_Correct = 0, P_CP_new[NrMaxCP];
+		const view3<double> p_nl = C::p_nonlocal();
+		const view3<double> p_nl_prev = C::p_nonlocal_prev();
+		const view3<double> p_nl_2 = C::p_nonlocal_2();
+		double Grad_Div = 0;
+		double GNOR_Correct = 0;
+		double P_CP_new[NrMaxCP];
 		const bool inner = c.J2 < fdtd::materials::hydro::nonlocal_barrier_int && (j >= subdomain.j_cpml_min && j <= subdomain.j_cpml_max) &&
 						   (i >= subdomain.i_cpml_min && i <= subdomain.i_cpml_max) && (k >= subdomain.k_cpml_min && k <= subdomain.k_cpml_max);
 		if (gradient_divergence && inner)

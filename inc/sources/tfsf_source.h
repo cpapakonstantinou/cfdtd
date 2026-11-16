@@ -36,7 +36,8 @@ public:
 
 private:
 	bool _active = false;
-	std::vector<Face> _h_faces, _e_faces; ///< this rank's faces, in injection order
+	std::vector<Face> _h_faces; ///< this rank's faces, in injection order
+	std::vector<Face> _e_faces; ///< this rank's faces, in injection order
 	const Signal *_signal = nullptr;      ///< the run's signal
 };
 } // namespace fdtd::sources

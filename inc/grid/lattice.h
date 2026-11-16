@@ -16,7 +16,8 @@ struct Lattice
 	int cells[3] = {};      ///< global cells along x, y, z, CPML included
 	int cpml[3] = {};       ///< CPML cells on each face along x, y, z
 	int tfsf_inset[3] = {}; ///< TF/SF box inset from the inner domain along x, y, z in cells
-	bool periodic_x = false, periodic_z = false; ///< periodic boundaries along x, z
+	bool periodic_x = false; ///< periodic boundaries along x, z
+	bool periodic_z = false; ///< periodic boundaries along x, z
 	double d[3] = {};       ///< cell size along x, y, z in m
 	double inv_d[3] = {};   ///< 1 / d in 1/m; set by set_lattice
 	int inner(int a) const { return cells[a] - 2 * cpml[a]; } ///< global cells along a without the CPML

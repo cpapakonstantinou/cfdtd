@@ -56,15 +56,20 @@ static long compare(const geom::Shape& s, const Pred& inside, const geom::Lattic
 // the original point-wise anapole predicate, src/anapoleGeometry.cc draft: material or -1
 static int draft_anapole(double u, double v, const geom::AnapoleSpec& a, int index)
 {
-	const double au = std::fabs(u), av = std::fabs(v), w = a.patch_edge, hw = 0.5 * w;
-	const double tx = a.neck_half_length, nh = a.neck_half_height, x_tip = w * (a.lobe_x0 + a.lobe_a);
+	const double au = std::fabs(u);
+	const double av = std::fabs(v);
+	const double w = a.patch_edge;
+	const double hw = 0.5 * w;
+	const double tx = 0.5 * a.gap_length;
+	const double nh = 0.5 * a.gap_width;
+	const double x_tip = w * (a.lobe_offset + a.lobe_length);
 	if (au <= tx && av <= nh)
-		return a.neck_material;
+		return a.gap_material;
 	if (au >= tx && au <= x_tip)
 	{
-		const double s = (au / w - a.lobe_x0) / a.lobe_a;
-		if (s > 0 && s <= 1 && av <= w * a.lobe_b * std::pow(s, a.lobe_p) * std::sqrt(1 - s * s))
-			return a.lobe_material;
+		const double s = (au / w - a.lobe_offset) / a.lobe_length;
+		if (s > 0 && s <= 1 && av <= w * a.lobe_height * std::pow(s, a.lobe_exponent) * std::sqrt(1 - s * s))
+			return a.aperture_material;
 	}
 	if (au <= hw && av <= hw)
 	{
@@ -95,7 +100,8 @@ int main()
 				std::vector<bool> bits(64, false);
 				for (int r = 0; r < 4; ++r)
 				{
-					int a = u(rng), b = a + u(rng) % 8;
+					int a = u(rng);
+					int b = a + u(rng) % 8;
 					for (int k = a; k < b && k < 64; ++k)
 						bits[k] = true;
 				}
@@ -139,14 +145,17 @@ int main()
 		for (double oz : {0.0, 0.5})
 		{
 			L.off_x = ox, L.off_z = oz;
-			const double cx = 33.3e-9, cz = 31.7e-9;
+			const double cx = 33.3e-9;
+			const double cz = 31.7e-9;
 			auto in_rect = [](double x, double z, double cx, double cz, double wx, double wz) {
 				return std::fabs(x - cx) <= 0.5 * wx && std::fabs(z - cz) <= 0.5 * wz;
 			};
 			auto in_circle = [](double x, double z, double cx, double cz, double r) {
 				return (x - cx) * (x - cx) + (z - cz) * (z - cz) <= r * r;
 			};
-			Shape arm1 = rect(cx, cz, 50.3e-9, 10.1e-9), arm2 = rect(cx, cz, 10.1e-9, 50.3e-9), hole = circle(cx, cz, 4.3e-9);
+			Shape arm1 = rect(cx, cz, 50.3e-9, 10.1e-9);
+			Shape arm2 = rect(cx, cz, 10.1e-9, 50.3e-9);
+			Shape hole = circle(cx, cz, 4.3e-9);
 			Pred p_arm1 = [&](double x, double z) { return in_rect(x, z, cx, cz, 50.3e-9, 10.1e-9); };
 			Pred p_arm2 = [&](double x, double z) { return in_rect(x, z, cx, cz, 10.1e-9, 50.3e-9); };
 			Pred p_hole = [&](double x, double z) { return in_circle(x, z, cx, cz, 4.3e-9); };
@@ -208,7 +217,10 @@ int main()
 	{
 		Lattice M;
 		M.dx = M.dz = 1e-9, M.i0 = -60, M.i1 = 60, M.k0 = -60, M.k1 = 60;
-		const double r = 5.3e-9, y = 1.3e-9, cy = 0.2e-9, h = std::sqrt(r * r - (y - cy) * (y - cy));
+		const double r = 5.3e-9;
+		const double y = 1.3e-9;
+		const double cy = 0.2e-9;
+		const double h = std::sqrt(r * r - (y - cy) * (y - cy));
 		CHECK(compare(cylinder_x(cy, 3.1e-9, r, -20.5e-9, 17.3e-9).slice(y), [&](double x, double z) {
 			return x >= -20.5e-9 && x <= 17.3e-9 && std::fabs(z - 3.1e-9) <= h;
 		}, M) == 0);
@@ -217,7 +229,11 @@ int main()
 		}, M) == 0);
 		CHECK(cylinder_x(cy, 0, r, -1e-9, 1e-9).slice(cy + 5.4e-9).empty());
 		// a ball moved by (5.3, 1.1, -7.7) nm, then turned by 0.6 rad about (2, 3) nm
-		const double R = 9.7e-9, th = 0.6, ox = 2e-9, oz = 3e-9, ys = 2.0e-9;
+		const double R = 9.7e-9;
+		const double th = 0.6;
+		const double ox = 2e-9;
+		const double oz = 3e-9;
+		const double ys = 2.0e-9;
 		const Solid moved = sphere(0, 0, 0, R).translated(5.3e-9, 1.1e-9, -7.7e-9).rotated(th, ox, oz);
 		CHECK(compare(moved.slice(ys), [&](double x, double z) {
 			const double c = std::cos(-th), s = std::sin(-th), u = ox + c * (x - ox) - s * (z - oz), v = oz + s * (x - ox) + c * (z - oz);
@@ -229,26 +245,31 @@ int main()
 	{
 		Lattice M;
 		M.dx = M.dz = 0.5e-9, M.i0 = -80, M.i1 = 80, M.k0 = -80, M.k1 = 80;
-		const double w = 40.3e-9, l = 50.7e-9, r = 4.1e-9;
+		const double w = 40.3e-9;
+		const double l = 50.7e-9;
+		const double r = 4.1e-9;
 		const std::vector<std::pair<double, double>> tri{{-0.5 * w, -0.5 * l}, {0.5 * w, -0.5 * l}, {0, 0.5 * l}};
 		// inner triangle: the three edges moved inward by r, intersected pairwise
 		std::vector<std::pair<double, double>> inner;
 		auto line = [&](int e) { // n . p = d with n the inward unit normal, shifted by r
 			const auto [ax, az] = tri[e];
 			const auto [bx, bz] = tri[(e + 1) % 3];
-			double nx = -(bz - az), nz = bx - ax; // left normal: inward for a counter-clockwise polygon
+			double nx = -(bz - az);
+			double nz = bx - ax; // left normal: inward for a counter-clockwise polygon
 			const double nl = std::hypot(nx, nz);
 			nx /= nl, nz /= nl;
 			return std::array<double, 3>{nx, nz, nx * ax + nz * az + r};
 		};
 		for (int v = 0; v < 3; ++v)
 		{
-			const auto p = line((v + 2) % 3), q = line(v);
+			const auto p = line((v + 2) % 3);
+			const auto q = line(v);
 			const double det = p[0] * q[1] - p[1] * q[0];
 			inner.push_back({(p[2] * q[1] - p[1] * q[2]) / det, (p[0] * q[2] - p[2] * q[0]) / det});
 		}
 		auto dist_seg = [](double x, double z, std::pair<double, double> a, std::pair<double, double> b) {
-			const double ux = b.first - a.first, uz = b.second - a.second;
+			const double ux = b.first - a.first;
+			const double uz = b.second - a.second;
 			const double t = std::clamp(((x - a.first) * ux + (z - a.second) * uz) / (ux * ux + uz * uz), 0.0, 1.0);
 			return std::hypot(x - a.first - t * ux, z - a.second - t * uz);
 		};
@@ -273,13 +294,19 @@ int main()
 	// anapole: drawing vs. the original point-wise predicate
 	{
 		geom::AnapoleSpec a;
-		const double cx = 300.3e-9, cz = 299.7e-9;
+		CHECK(a.patch_edge == 200e-9 && a.gap_length == 12.0432e-9 && a.gap_width == 15.914e-9);
+		// the 400 nm variant, corner radius scaled with the edge
+		a.patch_edge = 400e-9;
+		a.corner_radius = 22e-9;
+		const double cx = 300.3e-9;
+		const double cz = 299.7e-9;
 		const auto parts = anapole_parts(a, 7, cx, 0, cz);
 		CHECK(parts.size() == 1);
 		Lattice M;
 		M.dx = M.dz = 1e-9, M.off_x = 0.5, M.i0 = 80, M.i1 = 520, M.k0 = 80, M.k1 = 520;
 		const Layer layer = parts[0].body.slice(0).render(M);
-		long bad = 0, ag = 0;
+		long bad = 0;
+		long ag = 0;
 		for (int i = M.i0; i < M.i1; ++i)
 			for (int k = M.k0; k < M.k1; ++k)
 			{
@@ -295,8 +322,10 @@ int main()
 		CHECK(std::fabs(anapole_cross_section(a) / (ag * M.dx * M.dz) - 1) < 2e-3);
 		CHECK(ag > 100000 && bad <= 4); // lobe edge sampled with 512 vertices: chord error << 1 nm
 		CHECK(parts[0].body.slice(16e-9).empty() && !parts[0].body.slice(15e-9).empty());
-		a.lobe_material = 3, a.neck_material = 4, a.dimer_material = 5;
-		CHECK(anapole_parts(a, 7, cx, 0, cz).size() == 4);
+		a.aperture_material = 3;
+		CHECK(anapole_parts(a, 7, cx, 0, cz).size() == 2);
+		a.gap_material = 4;
+		CHECK(anapole_parts(a, 7, cx, 0, cz).size() == 3);
 	}
 
 	if (failures == 0)

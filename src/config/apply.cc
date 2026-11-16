@@ -74,7 +74,8 @@ std::string lower(std::string s)
 void apply_model(const SimConfig& c, bool frames_on)
 {
 	const HydrodynamicSection& m = c.hydrodynamic;
-	const std::string electrons = lower(c.electrons.model), temperature = lower(c.temperature.model);
+	const std::string electrons = lower(c.electrons.model);
+	const std::string temperature = lower(c.temperature.model);
 	const bool hydro = electrons == "hydrodynamic";
 	const bool thermal = temperature != "none";
 
@@ -229,7 +230,8 @@ void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 	// the solver uses exactly the [spectrum] frequencies, computed with its own C0 and PI2
 	{
 		const auto& s = c.spectrum;
-		const int n = s.points, k = harmonic_order(s.harmonic_band);
+		const int n = s.points;
+		const int k = harmonic_order(s.harmonic_band);
 		fdtd::sources::spectrum_omega.clear();
 		for (double w : spectrum_omegas(s, C0, PI2))
 			fdtd::sources::spectrum_omega.push_back(double(w));

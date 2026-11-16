@@ -26,7 +26,9 @@ namespace fdtd::monitors
 {
 struct TrackPoint
 {
-	int x, y, z; ///< local index, with the inner origin
+	int x; ///< local index, with the inner origin
+	int y; ///< local index, with the inner origin
+	int z; ///< local index, with the inner origin
 	int index;   ///< index on the sphere grid (N_theta x N_phi)
 };
 

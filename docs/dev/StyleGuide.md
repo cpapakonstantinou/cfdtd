@@ -41,6 +41,8 @@ if (a == 1)
 - Names should always be as descriptive as possible. Avoid abbreviating things. Long names are not a bad things since most editors will autocomplete anyway and it make the code much more readable. The only exception is for index variables like `i`, `j`, `k`. (Possibly symbols in equations too?)
 - Variables (global, local, struct members) are snake_case: `num_cells_this_process_x`.
 - Private members start with an underscore: `_rank`, not `rank_`.
+- One space between the type and the name, no padding to align declarations: `int x;`, not `int    x;`.
+- One declaration per line: `double x = 1;` and `double y = 2;` on two lines, not `double x = 1, y = 2;`.
 - Compile-time constants and macros stay UPPERCASE: `C0`, `PI2`, `NRMAXANFREQUENCIES`.
 - Field components keep their conventional capitals (`Ex`, `Hy`); everything else, including the grid and time steps (`dx`, `dt`), is snake_case.
 - Functions and methods are snake_case: `load_sim_config`, `Driver::prepare_run`. Types are PascalCase: `SimConfig`, `ChiTensor`. Before naming a function, check that no variable, parameter or C/C++ library function in scope has that name.

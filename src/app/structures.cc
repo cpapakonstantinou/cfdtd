@@ -192,7 +192,8 @@ void fdtd::app::create_structures()
 	else if (run_cfg.geometry.is(shape::v_shape))
 	{
 		double POINTRADIUS;
-		double DELTA, ANGLE;
+		double DELTA;
+		double ANGLE;
 		ANGLE = PI / 4.0;
 
 		POINTRADIUS = run_cfg.geometry.length_1_l;

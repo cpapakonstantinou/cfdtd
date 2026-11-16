@@ -7,7 +7,15 @@
 
 //              SOURCE STRUCTS
 /// one [dipole.*] section: position in cells and E amplitudes
-struct DipoleInput { int x, y, z; double e_x, e_y, e_z; };
+struct DipoleInput
+{
+	int x;
+	int y;
+	int z;
+	double e_x;
+	double e_y;
+	double e_z;
+};
 
 struct PlaneWave
 {
@@ -42,7 +50,8 @@ struct GaussianBeamData
 struct WaveFrame
 {
 	double focus[3] = {0, 0, 0};
-	double tfsf_n[3] = {0, 0, 0}, tfsf_f[3] = {0, 0, 0}; ///< near and far TF/SF faces
+	double tfsf_n[3] = {0, 0, 0}; ///< near and far TF/SF faces
+	double tfsf_f[3] = {0, 0, 0}; ///< near and far TF/SF faces
 	double offset_delay = 0;                             ///< [s]
 };
 

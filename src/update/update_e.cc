@@ -78,7 +78,9 @@ void ez_update_scan();
 
 void fdtd::update::update_e()
 {
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 
 	if ((up.shg || up.thg) && up.pnl_polarisation)
 	{
@@ -201,8 +203,10 @@ struct EAxis<2>
 double cpml_factor(int b, int n, bool in)
 {
 	const auto &S = subdomain;
-	const int cells[3] = {S.cells_x, S.cells_y, S.cells_z}, min[3] = {S.i_cpml_min, S.j_cpml_min, S.k_cpml_min};
-	const int pad_nea[3] = {S.cpml_pad_nea_x, S.cpml_pad_nea_y, S.cpml_pad_nea_z}, pad_far[3] = {S.cpml_pad_far_x, S.cpml_pad_far_y, S.cpml_pad_far_z};
+	const int cells[3] = {S.cells_x, S.cells_y, S.cells_z};
+	const int min[3] = {S.i_cpml_min, S.j_cpml_min, S.k_cpml_min};
+	const int pad_nea[3] = {S.cpml_pad_nea_x, S.cpml_pad_nea_y, S.cpml_pad_nea_z};
+	const int pad_far[3] = {S.cpml_pad_far_x, S.cpml_pad_far_y, S.cpml_pad_far_z};
 	const int cpml[3] = {lat.cpml[0], lat.cpml[1], lat.cpml[2]};
 	const cvector<double> &t = b == 0 ? fdtd::grid::stretching().inv_kappa[0][0][0] : b == 1 ? fdtd::grid::stretching().inv_kappa[1][0][0] : fdtd::grid::stretching().inv_kappa[2][0][0];
 	return t[in ? cpml[b] : n < min[b] ? n + pad_nea[b] : cells[b] - n + pad_far[b]];
@@ -242,11 +246,19 @@ void e_scan()
 	static fdtd::materials::stretch::StretchList list; // rows in the order of the loops below
 	const bool replay = list.ready();
 	const auto &S = subdomain;
-	const view3<double> E = T::e(), E_nl = T::e_nl(), h1 = T::h1(), h2 = T::h2(), h1_nl = T::h1_nl(), h2_nl = T::h2_nl();
-	constexpr int B1 = (A + 1) % 3, B2 = (A + 2) % 3; // the two derivative axes
+	const view3<double> E = T::e();
+	const view3<double> E_nl = T::e_nl();
+	const view3<double> h1 = T::h1();
+	const view3<double> h2 = T::h2();
+	const view3<double> h1_nl = T::h1_nl();
+	const view3<double> h2_nl = T::h2_nl();
+	constexpr int B1 = (A + 1) % 3;
+	constexpr int B2 = (A + 2) % 3; // the two derivative axes
 	int row = 0;
-	const int i_first = A == 0 ? 0 : 1, i_last = A == 0 ? S.cells_x : S.owned_cells_x;
-	const int j_first = A == 1 ? 0 : 1, j_last = A == 1 ? S.cells_y : S.owned_cells_y;
+	const int i_first = A == 0 ? 0 : 1;
+	const int i_last = A == 0 ? S.cells_x : S.owned_cells_x;
+	const int j_first = A == 1 ? 0 : 1;
+	const int j_last = A == 1 ? S.cells_y : S.owned_cells_y;
 	for (int i = i_first; i <= i_last; ++i)
 	{
 		const bool u_in = A == 0 ? (i >= S.i_cpml_min && i < S.i_cpml_max) : (i >= S.i_cpml_min && i <= S.i_cpml_max);
@@ -257,7 +269,8 @@ void e_scan()
 			const bool v_in = A == 1 ? (j >= S.j_cpml_min && j < S.j_cpml_max) : (j >= S.j_cpml_min && j <= S.j_cpml_max);
 			const int m_outer = v_in ? background_y[j + subdomain.j_for_uni] : j < S.j_cpml_min ? up.medium_near_y : up.medium_far_y;
 			// 1/kappa along the derivative axes: x and y once per row, z per cell
-			const double Kx = A != 0 ? cpml_factor(0, i, u_in) : 0, Ky = A != 1 ? cpml_factor(1, j, v_in) : 0;
+			const double Kx = A != 0 ? cpml_factor(0, i, u_in) : 0;
+			const double Ky = A != 1 ? cpml_factor(1, j, v_in) : 0;
 			auto Kz = [&](int k) {
 				return fdtd::grid::stretching().inv_kappa[2][0][0][(k >= S.k_cpml_min && k <= S.k_cpml_max) ? lat.cpml[2] : k < S.k_cpml_min ? k + S.cpml_pad_nea_z : S.cells_z - k + S.cpml_pad_far_z];
 			};
@@ -371,8 +384,10 @@ void e_scan()
 						cell(k, inner, m);
 			};
 			// inner cells along k: [k_cpml_min, k_cpml_max] across z, [k_cpml_min, k_cpml_max) along z (Ez)
-			const int k_first = A == 2 ? 0 : 1, k_end = A == 2 ? S.cells_z + 1 : S.owned_cells_z + 1;
-			const int k0 = S.k_cpml_min, k1 = A == 2 ? S.k_cpml_max : S.k_cpml_max + 1;
+			const int k_first = A == 2 ? 0 : 1;
+			const int k_end = A == 2 ? S.cells_z + 1 : S.owned_cells_z + 1;
+			const int k0 = S.k_cpml_min;
+			const int k1 = A == 2 ? S.k_cpml_max : S.k_cpml_max + 1;
 			const bool in = u_in && v_in && S.inner_dim_z > 0; // a rank that is all CPML along z has no matind
 			if (!replay)
 				list.add_row(k_first, k_end, in ? k0 : k_first, in ? k1 : k_first, in ? T::mat()[u][j - S.inner_org_y] : nullptr, S.inner_org_z, m_outer);

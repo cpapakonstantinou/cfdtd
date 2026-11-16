@@ -59,7 +59,9 @@ const fdtd::grid::Lattice &lat = fdtd::grid::lattice();          ///< the global
 bool fdtd::geometry::create_x_shaped(const int &centerx, const int &centery_bulk, const int &centerz,
 				   const double &w, const double &t, const double &l1_r, const double &g, const double &l2_t, const int &index, const double &middle_layer, const double &antenna_shift, const double &/*l1_l*/, const double &/*l2_b*/, const double &alpha, const double &r)
 {
-	double beta_loc, centre_x_loc, centre_z_loc;
+	double beta_loc;
+	double centre_x_loc;
+	double centre_z_loc;
 
 	double L1 = l2_t;
 	double w1 = w; // fixed monopole
@@ -101,8 +103,18 @@ bool fdtd::geometry::create_x_shaped(const int &centerx, const int &centery_bulk
  */
 bool fdtd::geometry::create_hole(const int &centerx, const int &centery_bulk, const int &centerz, const double &Radius, const double &t, const double &antenna_shift, const int &index)
 {
-	int i, j, k;
-	double x, xf, y, yf, z, zf, rEx, rEy, rEz;
+	int i;
+	int j;
+	int k;
+	double x;
+	double xf;
+	double y;
+	double yf;
+	double z;
+	double zf;
+	double rEx;
+	double rEy;
+	double rEz;
 	int centery = centery_bulk - int(antenna_shift / lat.d[1]);
 
 	for (i = subdomain.output_start[0]; i < subdomain.output_start[0] + subdomain.output_size[0]; ++i)
@@ -171,8 +183,18 @@ bool fdtd::geometry::create_hole(const int &centerx, const int &centery_bulk, co
 bool fdtd::geometry::create_lateral_dipole(const int &centerx, const int &centery_bulk, const int &centerz,
 						 const double &w, const double &t, const double &l_t, const double &g, const double &l_b, const int &index, const double &middle_layer, const double &antenna_shift, const double &l_g)
 {
-	int i, j, k;
-	double x, xf, y, yf, z, zf, rEx, rEy, rEz;
+	int i;
+	int j;
+	int k;
+	double x;
+	double xf;
+	double y;
+	double yf;
+	double z;
+	double zf;
+	double rEx;
+	double rEy;
+	double rEz;
 	int centery = centery_bulk - int(antenna_shift / lat.d[1]); //- int(t/DY/2)
 	int deep_y = centery_bulk - ceil(middle_layer / lat.d[1]);
 
@@ -365,9 +387,19 @@ bool fdtd::geometry::create_lateral_dipole(const int &centerx, const int &center
  */
 bool fdtd::geometry::create_nonlinear_cube(const int &centery_bulk, const double &middle_layer)
 {
-	int i, j, k;
+	int i;
+	int j;
+	int k;
 	int code;
-	double x, xf, y, yf, z, zf, x_lim, y_lim, z_lim; // y_lim_min, y_lim_max;
+	double x;
+	double xf;
+	double y;
+	double yf;
+	double z;
+	double zf;
+	double x_lim;
+	double y_lim;
+	double z_lim; // y_lim_min, y_lim_max;
 	int deep_y = centery_bulk - ceil(middle_layer / lat.d[1]);
 	x_lim = lat.d[0] * int((lat.cells[0] - 2 * lat.cpml[0] - 4 * lat.tfsf_inset[0]) / 2); //DX*lat.cells[0]; //
 	y_lim = lat.d[1] * int((lat.cells[1] - 2 * lat.cpml[1] - 4 * lat.tfsf_inset[1]) / 2); //DY*lat.cells[1]; //
@@ -446,8 +478,22 @@ bool fdtd::geometry::create_nonlinear_cube(const int &centery_bulk, const double
 bool fdtd::geometry::create_dipole_round(const int &centerx, const int &centery_bulk, const int &centerz,
 					   const double &w, const double &t, const double &l1_r, const double &g, const double &/*l2_t*/, const int &index, const double &/*middle_layer*/, const double &antenna_shift, const double &l1_l, const double &/*l2_b*/, const double &alpha)
 {
-	int i, j, k;
-	double x, xf, y, yf, z, zf, rEx, rEy, rEz, _x, _xf, _z, _zf;
+	int i;
+	int j;
+	int k;
+	double x;
+	double xf;
+	double y;
+	double yf;
+	double z;
+	double zf;
+	double rEx;
+	double rEy;
+	double rEz;
+	double _x;
+	double _xf;
+	double _z;
+	double _zf;
 	int centery = centery_bulk - int(antenna_shift / lat.d[1]); //- int(t/DY/2)
 	double theta_ref = double(0);
 	double beta = alpha - theta_ref;

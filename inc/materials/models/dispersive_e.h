@@ -13,7 +13,8 @@ namespace fdtd::materials::models
 /// E = ce1 E + ce2 curl - ce2 (P_new - P) / dt, from eps_inf and the conductivity
 struct DispersiveE
 {
-	double ce1, ce2;
+	double ce1;
+	double ce2;
 };
 
 /// the coefficients of dispersive material index mm, material code `code`, for time step dt

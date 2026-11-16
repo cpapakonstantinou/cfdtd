@@ -25,14 +25,25 @@ namespace fdtd::materials
  */
 struct Poles
 {
-	double b0[NrMaxCP], b1[NrMaxCP], b2[NrMaxCP], b3[NrMaxCP], b4[NrMaxCP];
-	double c0, c1, c2, c3;
+	double b0[NrMaxCP];
+	double b1[NrMaxCP];
+	double b2[NrMaxCP];
+	double b3[NrMaxCP];
+	double b4[NrMaxCP];
+	double c0;
+	double c1;
+	double c2;
+	double c3;
 };
 
 /// free-electron current J_new = nl1 J + nl2 E (+ nl3 n1 E, nl4 and nl5 terms of the hydrodynamic model)
 struct ElectronGas
 {
-	double nl1, nl2, nl3, nl4, nl5;
+	double nl1;
+	double nl2;
+	double nl3;
+	double nl4;
+	double nl5;
 };
 
 /// coefficients of model M per dispersive material index, code - DispMateOffsetD

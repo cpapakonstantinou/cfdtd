@@ -25,7 +25,9 @@ namespace fdtd::materials::models
 struct Cell
 {
 	int mm;         ///< dispersive material index, code - DispMateOffsetD
-	int i, j, k;    ///< local cell
+	int i; ///< local cell
+	int j; ///< local cell
+	int k; ///< local cell
 	int J2;         ///< global y index, nonlocal barrier
 	double curl;    ///< curl H of the field, CPML-stretched outside the inner region
 	double curl_nl; ///< curl H of the harmonic field, separate linear / nonlinear fields, else 0

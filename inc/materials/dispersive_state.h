@@ -27,17 +27,29 @@ namespace fdtd::materials
 struct ComponentState
 {
 	using Field = material_field<double, nr_disp_mat_d>;
-	Field p, p_prev, p_prev_2, p_prev_3; ///< P and its history, p_prev_2/3: magnetic Lorentz
-	Field j, j_nl;                       ///< current density, linear, harmonic
-	Field j_prev, j_extra;               ///< hydrodynamic current history and extra term
+	Field p; ///< P and its history, p_prev_2/3: magnetic Lorentz
+	Field p_prev; ///< P and its history, p_prev_2/3: magnetic Lorentz
+	Field p_prev_2; ///< P and its history, p_prev_2/3: magnetic Lorentz
+	Field p_prev_3; ///< P and its history, p_prev_2/3: magnetic Lorentz
+	Field j; ///< current density, linear, harmonic
+	Field j_nl; ///< current density, linear, harmonic
+	Field j_prev; ///< hydrodynamic current history and extra term
+	Field j_extra; ///< hydrodynamic current history and extra term
 	ctensor<double> p_nl_prev;           ///< harmonic P one step back, one array for all materials
-	ctetrad<double> pc[nr_disp_mat_d], pc_prev[nr_disp_mat_d];       ///< critical-point poles and one step back
-	ctetrad<double> pc_nl[nr_disp_mat_d], pc_prev_nl[nr_disp_mat_d]; ///< the same for the harmonic fields
+	ctetrad<double> pc[nr_disp_mat_d]; ///< critical-point poles and one step back
+	ctetrad<double> pc_prev[nr_disp_mat_d]; ///< critical-point poles and one step back
+	ctetrad<double> pc_nl[nr_disp_mat_d]; ///< the same for the harmonic fields
+	ctetrad<double> pc_prev_nl[nr_disp_mat_d]; ///< the same for the harmonic fields
 	// the nonlocal and hydrodynamic models, all materials in one padded array, [i+1][j+1][k+1]
-	ctensor<double> pc_sum, pc_sum_nl;            ///< sum over the poles, or P for hydrodynamics
-	ctensor<double> p_nonlocal, p_nonlocal_2;     ///< nonlocal P and its second-pass copy
-	ctensor<double> grad_div, grad_div_n, grad_div_n_1; ///< grad(div P) now and two steps back, GNOR; unpadded
-	ctensor<double> e_padded, e_padded_nl;        ///< E copied into the padded layout
+	ctensor<double> pc_sum; ///< sum over the poles, or P for hydrodynamics
+	ctensor<double> pc_sum_nl; ///< sum over the poles, or P for hydrodynamics
+	ctensor<double> p_nonlocal; ///< nonlocal P and its second-pass copy
+	ctensor<double> p_nonlocal_2; ///< nonlocal P and its second-pass copy
+	ctensor<double> grad_div; ///< grad(div P) now and two steps back, GNOR; unpadded
+	ctensor<double> grad_div_n; ///< grad(div P) now and two steps back, GNOR; unpadded
+	ctensor<double> grad_div_n_1; ///< grad(div P) now and two steps back, GNOR; unpadded
+	ctensor<double> e_padded; ///< E copied into the padded layout
+	ctensor<double> e_padded_nl; ///< E copied into the padded layout
 	ctensor<double> electron_density;             ///< hydrodynamic electron density n along this component
 	ctensor<double> eps_inf;                      ///< background permittivity per cell, hydrodynamic, padded
 
@@ -113,17 +125,27 @@ struct ModelParameters
 	double n_refr[100];                  ///< refractive index per dielectric code, epre = n_refr^2
 	double n_refr_index[NRMAXMATERIALS]; ///< real refractive index per code, source delays
 	double nr_cp[nr_disp_mat_d];         ///< critical points per slot
-	double epre_inf[nr_disp_mat_d], epre_sta[nr_disp_mat_d]; ///< eps_inf, static eps
-	double ome_plasma[nr_disp_mat_d], gam_plasma[nr_disp_mat_d]; ///< Drude plasma frequency and damping [rad/s]
+	double epre_inf[nr_disp_mat_d]; ///< eps_inf, static eps
+	double epre_sta[nr_disp_mat_d]; ///< eps_inf, static eps
+	double ome_plasma[nr_disp_mat_d]; ///< Drude plasma frequency and damping [rad/s]
+	double gam_plasma[nr_disp_mat_d]; ///< Drude plasma frequency and damping [rad/s]
 	double a_3[nr_disp_mat_d];           ///< modified-Lorentz term
-	double big_omega_cp[nr_disp_mat_d][NrMaxCP], big_gamma_cp[nr_disp_mat_d][NrMaxCP]; ///< pole frequency and damping
-	double a_coeff_cp[nr_disp_mat_d][NrMaxCP], phi_cp[nr_disp_mat_d][NrMaxCP];         ///< pole amplitude and phase
+	double big_omega_cp[nr_disp_mat_d][NrMaxCP]; ///< pole frequency and damping
+	double big_gamma_cp[nr_disp_mat_d][NrMaxCP]; ///< pole frequency and damping
+	double a_coeff_cp[nr_disp_mat_d][NrMaxCP]; ///< pole amplitude and phase
+	double phi_cp[nr_disp_mat_d][NrMaxCP]; ///< pole amplitude and phase
 	double plasma_freq_add_term;         ///< ITO: plasma frequency minus its two-temperature value at rest
 	// the nonlocal and hydrodynamic models, per slot / code
-	double non_loc[nr_disp_mat_d], beta_nl[nr_disp_mat_d], diff_coeff[nr_disp_mat_d]; ///< nonlocal coefficient, beta, GNOR diffusion
-	double gnor_1[nr_disp_mat_d], gnor_2[nr_disp_mat_d];                              ///< GNOR update coefficients
-	double equilibrium_electron_density[nr_disp_mat_d], effective_electron_mass[nr_disp_mat_d];
-	double powerterm[NRMAXMATERIALS], inverse_edens[NRMAXMATERIALS], inverse_chargedens[NRMAXMATERIALS];
+	double non_loc[nr_disp_mat_d]; ///< nonlocal coefficient, beta, GNOR diffusion
+	double beta_nl[nr_disp_mat_d]; ///< nonlocal coefficient, beta, GNOR diffusion
+	double diff_coeff[nr_disp_mat_d]; ///< nonlocal coefficient, beta, GNOR diffusion
+	double gnor_1[nr_disp_mat_d]; ///< GNOR update coefficients
+	double gnor_2[nr_disp_mat_d]; ///< GNOR update coefficients
+	double equilibrium_electron_density[nr_disp_mat_d];
+	double effective_electron_mass[nr_disp_mat_d];
+	double powerterm[NRMAXMATERIALS];
+	double inverse_edens[NRMAXMATERIALS];
+	double inverse_chargedens[NRMAXMATERIALS];
 };
 
 extern DispersiveState the_dispersive_state; ///< this rank's model state

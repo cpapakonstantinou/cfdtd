@@ -44,7 +44,12 @@ void fdtd::sources::set_run_signal(const Signal &s) { the_signal = s; }
  */
 double envelopes(int type, const double &t, const double &parameter1, const double &parameter2, const double &ePeak )
 {
-	double x, y, tt, period, t_0, delta_t;
+	double x;
+	double y;
+	double tt;
+	double period;
+	double t_0;
+	double delta_t;
 
 	switch (type) {
 		// Raised Cosine Source
@@ -171,7 +176,8 @@ std::complex<double> complex_carriers(int type, const double& t, const double& w
  */
 double fdtd::sources::Signal::value(double t) const
 {
-	double period, k_period;
+	double period;
+	double k_period;
 
 	// Raised Cosine, no carrier
 	if (_shape == Shape::raised_cosine)
@@ -221,7 +227,8 @@ double fdtd::sources::Signal::value(double t) const
 	// Modulated Gaussian 2, cannot be chirped
 	else if (_shape == Shape::gaussian_alt)
 	{
-		double pulse, pulse2;
+		double pulse;
+		double pulse2;
 		if (t < 3 * (_delay + 2 * _width))
 		{
 			pulse = envelopes(envelope::gaussian, t, _delay, _width, _e_peak) * carriers(carrier::cosine, t, _f_0, double(0));
@@ -287,7 +294,13 @@ double fdtd::sources::Signal::value(double t) const
  */
 double d_envelopes(int type, const double &t, const double &parameter1, const double &parameter2,const double &ePeak )
 {
-	double x, y, tt, period, t_0, delta_t, exponent;
+	double x;
+	double y;
+	double tt;
+	double period;
+	double t_0;
+	double delta_t;
+	double exponent;
 
 	switch (type) {
 		// Raised Cosine Analytical Derivative
@@ -387,7 +400,10 @@ double d_carriers(int type, const double& t, const double& wavelength, const dou
  * @brief the derivative of the Complex Carrier function
  */ 
 std::complex<double> d_complex_carriers(int type, const double& t, const double& wavelength, const double& chirp1, const double& chirp2, const std::complex<double>& iUnit, const double& delay, const double& width) {
-	std::complex<double> carrier, exponent1, exponent2, exponent3;
+	std::complex<double> carrier;
+	std::complex<double> exponent1;
+	std::complex<double> exponent2;
+	std::complex<double> exponent3;
 	switch (type)
 	{
 	case carrier::chirped:
@@ -422,7 +438,8 @@ std::complex<double> d_complex_carriers(int type, const double& t, const double&
  */
 double fdtd::sources::Signal::derivative(double t) const
 {
-	double period, k_period;
+	double period;
+	double k_period;
 
 	if (_shape == Shape::raised_cosine)
 	{
@@ -475,7 +492,8 @@ double fdtd::sources::Signal::derivative(double t) const
 	}
 	else if (_shape == Shape::gaussian_alt)
 	{
-		double pulse, pulse2;
+		double pulse;
+		double pulse2;
 		if (t < 3 * (_delay + 2 * _width))
 		{
 			pulse = (d_envelopes(envelope::gaussian, t, _delay, _width, _e_peak) * carriers(carrier::cosine, t, _f_0, double(0))

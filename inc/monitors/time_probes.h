@@ -22,14 +22,19 @@ namespace fdtd::monitors
 {
 struct ProbeCell
 {
-	int x, y, z;          ///< local index
-	int gx, gy, gz;       ///< global index, as given in the INI
+	int x; ///< local index
+	int y; ///< local index
+	int z; ///< local index
+	int gx; ///< global index, as given in the INI
+	int gy; ///< global index, as given in the INI
+	int gz; ///< global index, as given in the INI
 };
 
 struct TimeProbes
 {
 	std::vector<ProbeCell> point;
-	cmatrix<double> E[3], H[3];
+	cmatrix<double> E[3];
+	cmatrix<double> H[3];
 
 	/// keeps the probes of this rank, none on ranks that are all CPML, and allocates their traces
 	void setup(const std::vector<ProbePoint> &probes);

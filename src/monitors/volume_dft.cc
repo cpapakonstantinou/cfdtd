@@ -38,7 +38,8 @@ void accumulate_volume_dft(double t, const std::array<view3<double>, 3> &f, cons
 	for (int m = 0; m < sp.nr_frequencies; ++m)
 	{
 		const double s = double(fdtd::sources::analysis_omega[m] * t);
-		const double u = double(cos(s)), v = double(sin(s));
+		const double u = double(cos(s));
+		const double v = double(sin(s));
 		for (int c = 0; c < 3; ++c)
 			for (int i = 0; i <= subdomain.inner_dim_x; ++i)
 				for (int j = 0; j <= subdomain.inner_dim_y; ++j)
@@ -58,7 +59,10 @@ void VolumeDft::allocate()
 {
 	if (subdomain.cpml_only || !(sp.save_output || sp.abs_sigma || multipoles_wanted()))
 		return;
-	const int n = sp.nr_frequencies, nx = subdomain.inner_dim_x, ny = subdomain.inner_dim_y, nz = subdomain.inner_dim_z;
+	const int n = sp.nr_frequencies;
+	const int nx = subdomain.inner_dim_x;
+	const int ny = subdomain.inner_dim_y;
+	const int nz = subdomain.inner_dim_z;
 	auto real = [&](ctetrad<double> &a) {
 		if (!a)
 			a = field4<double>(n, nx, ny, nz);
@@ -111,7 +115,8 @@ void VolumeDft::normalize(int f)
 {
 	for (int c = 0; c < 3; ++c)
 	{
-		const view4<double> r = re[f][c], q = im[f][c];
+		const view4<double> r = re[f][c];
+		const view4<double> q = im[f][c];
 		const view4<std::complex<double>> F = field[f][c];
 		for (int m = 0; m < sp.nr_frequencies; ++m)
 			for (int i = 0; i <= subdomain.inner_dim_x; ++i)
@@ -133,7 +138,8 @@ void VolumeDft::normalize_pnl()
 		return;
 	for (int c = 0; c < 3; ++c)
 	{
-		const view4<double> r = re_pnl[c], q = im_pnl[c];
+		const view4<double> r = re_pnl[c];
+		const view4<double> q = im_pnl[c];
 		for (int m = sp.nr_frequencies / 2; m < sp.nr_frequencies; ++m)
 			for (int i = 0; i < subdomain.inner_dim_x; ++i)
 				for (int j = 0; j < subdomain.inner_dim_y; ++j)

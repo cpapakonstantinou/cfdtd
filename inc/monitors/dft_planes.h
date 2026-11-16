@@ -20,13 +20,16 @@ namespace fdtd::monitors
 {
 struct DftPlane
 {
-	ctetrad<double> re[2][2][3], im[2][2][3]; ///< [E/H][field/harmonic][component]
+	ctetrad<double> re[2][2][3]; ///< [E/H][field/harmonic][component]
+	ctetrad<double> im[2][2][3]; ///< [E/H][field/harmonic][component]
 };
 
 struct DftPlanes
 {
 	DftPlane plane[3];               ///< normal x (yz), y (xz), z (xy)
-	DftPlane xz_1, xz_2, graphene;   ///< E only (re/im[0][0][c])
+	DftPlane xz_1; ///< E only (re/im[0][0][c])
+	DftPlane xz_2; ///< E only (re/im[0][0][c])
+	DftPlane graphene; ///< E only (re/im[0][0][c])
 
 	/// allocates the planes this rank has, not on ranks that are all CPML
 	void allocate();

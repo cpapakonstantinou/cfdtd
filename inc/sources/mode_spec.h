@@ -23,7 +23,9 @@ struct ModeSpec
 	double position = 0;                ///< [m] injection plane along the propagation axis, from the structure centre
 	std::string mpb_x_axis;             ///< FDTD axis of MPB's x, "": z for propagation x, x for y and z
 	std::string mpb_y_axis;             ///< FDTD axis of MPB's y, "": y for x, z for y, y for z
-	double offset_x = 0, offset_y = 0, offset_z = 0; ///< [m] MPB cell centre from the structure centre
+	double offset_x = 0; ///< [m] MPB cell centre from the structure centre
+	double offset_y = 0; ///< [m] MPB cell centre from the structure centre
+	double offset_z = 0; ///< [m] MPB cell centre from the structure centre
 	bool operator==(const ModeSpec&) const = default;
 };
 } // namespace fdtd::sources

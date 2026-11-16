@@ -77,7 +77,8 @@ CustomBox make_box(const MonitorBox &in)
 	bool member = true;
 	for (int a = 0; a < 3; a++)
 		member = member && size[a] > 0 && B.global_min[a] < start[a] + size[a] && B.global_max[a] >= start[a];
-	int any = 0, mine = member ? 1 : 0;
+	int any = 0;
+	int mine = member ? 1 : 0;
 	MPI_Allreduce(&mine, &any, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
 	if (!any && fdtd::grid::world_rank == ROOTPROCESS)
 		fdtd::io::log("monitors", "Custom Monitor outside of domain, ignoring...");
@@ -138,8 +139,12 @@ void CustomBoxes::sample(double t, int step)
 				for (int j = B.local_min[1]; j < B.local_max[1]; j++)
 					for (int k = B.local_min[2]; k < B.local_max[2]; k++)
 					{
-						const int I = i + subdomain.inner_org_x, J = j + subdomain.inner_org_y, K = k + subdomain.inner_org_z;
-						const int II = i - B.local_min[0], JJ = j - B.local_min[1], KK = k - B.local_min[2];
+						const int I = i + subdomain.inner_org_x;
+						const int J = j + subdomain.inner_org_y;
+						const int K = k + subdomain.inner_org_z;
+						const int II = i - B.local_min[0];
+						const int JJ = j - B.local_min[1];
+						const int KK = k - B.local_min[2];
 						for (int c = 0; c < 3; ++c)
 							B.dft[c][m][II][JJ][KK] += F.E[0][c][I][J][K] * phase;
 					}

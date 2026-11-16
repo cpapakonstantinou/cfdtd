@@ -68,7 +68,9 @@ inline void for_each_stretch(int k0, int k1, int ia, int ib, const int *row, int
 /// one stretch of a row: cells [k0, k1) of material m, inner = no CPML stretching in the curl
 struct Stretch
 {
-	int k0, k1, m;
+	int k0;
+	int k1;
+	int m;
 	bool inner;
 };
 
@@ -117,9 +119,12 @@ public:
 /// the arrays of one E component's row (i, j) for a dispersive material
 struct AdeRow
 {
-	double *e, *e_prev; ///< E and E one step back
-	double *p, *p_prev; ///< Drude polarisation and one step back
-	double *pc[NrMaxCP], *pc_prev[NrMaxCP]; ///< critical-point polarisations and one step back
+	double *e; ///< E and E one step back
+	double *e_prev; ///< E and E one step back
+	double *p; ///< Drude polarisation and one step back
+	double *p_prev; ///< Drude polarisation and one step back
+	double *pc[NrMaxCP]; ///< critical-point polarisations and one step back
+	double *pc_prev[NrMaxCP]; ///< critical-point polarisations and one step back
 };
 
 /// the AdeRow of row (i, j) of material mm for the arrays of one component

@@ -20,10 +20,18 @@ using namespace fdtd::materials::thermal; // transitional: module state, thermal
 
 void fdtd::materials::thermal::update_ttm_rk(){
   auto &ds = fdtd::materials::dispersive_state();
-  int i, j, k;
-  int ii,jj,kk;
-  double Ce, EP_Coup, Cl;
-  double Te, Tl, P;
+  int i;
+  int j;
+  int k;
+  int ii;
+  int jj;
+  int kk;
+  double Ce;
+  double EP_Coup;
+  double Cl;
+  double Te;
+  double Tl;
+  double P;
   int nrk;
   double y_vec[4][3];
   double Func[4][3];
@@ -101,7 +109,12 @@ bool fdtd::materials::thermal::update_ttm(int step)
 {
     auto &ds = fdtd::materials::dispersive_state();
     bool OUTPUT_PUMP_DATA2 = false;
-    int i, j, k, ii, jj, kk;
+    int i;
+    int j;
+    int k;
+    int ii;
+    int jj;
+    int kk;
     for (i = 0; i <= subdomain.cells_x; i++) {
         ii = i + 1;
         for (j = 0; j <= subdomain.cells_y; j++) {
@@ -174,7 +187,7 @@ double fdtd::materials::thermal::lattice_heat_capacity([[maybe_unused]] double T
 
 double fdtd::materials::thermal::plasma_frequency(double Te){
   const auto &mp = fdtd::materials::model_parameters();
-  return  2.16439846e-08*Te*Te*Te*Te*Te - 2.76226816e-03*Te*Te*Te*Te + 1.12417870e+02*Te*Te*Te - 6.94572643e+05*Te*Te -6.94024494e+10*Te + 2.71693490e+15 + mp.plasma_freq_add_term;
+  return 2.16439846e-08*Te*Te*Te*Te*Te - 2.76226816e-03*Te*Te*Te*Te + 1.12417870e+02*Te*Te*Te - 6.94572643e+05*Te*Te -6.94024494e+10*Te + 2.71693490e+15 + mp.plasma_freq_add_term;
 
 }
 

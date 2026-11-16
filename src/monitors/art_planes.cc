@@ -84,8 +84,14 @@ void ArtPlanes::normalize()
 double ArtPlanes::flux(int side, double out[]) const
 {
 	const DftPlane &P = plane[side];
-	const view4<double> reEx = P.re[0][0][0], imEx = P.im[0][0][0], reEz = P.re[0][0][2], imEz = P.im[0][0][2];
-	const view4<double> reHx = P.re[1][0][0], imHx = P.im[1][0][0], reHz = P.re[1][0][2], imHz = P.im[1][0][2];
+	const view4<double> reEx = P.re[0][0][0];
+	const view4<double> imEx = P.im[0][0][0];
+	const view4<double> reEz = P.re[0][0][2];
+	const view4<double> imEz = P.im[0][0][2];
+	const view4<double> reHx = P.re[1][0][0];
+	const view4<double> imHx = P.im[1][0][0];
+	const view4<double> reHz = P.re[1][0][2];
+	const view4<double> imHz = P.im[1][0][2];
 	double q_normalisation_area = 0;
 	for (int m = 0; m < sp.nr_frequencies; ++m)
 	{

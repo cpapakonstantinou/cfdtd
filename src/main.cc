@@ -118,7 +118,8 @@ int check_configuration(const fdtd::CliOptions &opt)
 /// Resident memory of this process now [MiB], 0 if /proc is not available.
 double resident_mib()
 {
-	long pages = 0, resident = 0;
+	long pages = 0;
+	long resident = 0;
 	if (std::FILE *f = std::fopen("/proc/self/statm", "r"))
 	{
 		if (std::fscanf(f, "%ld %ld", &pages, &resident) != 2)
@@ -144,9 +145,13 @@ int estimate_memory(const fdtd::CliOptions &opt)
 	}
 	constexpr double GIB = 1073741824.0;
 	const auto &c = driver.config();
-	std::array<double, memory::group_count> largest{}, total{};
-	double rank_max = 0, rank_min = 1e300, all = 0;
-	unsigned long long bytes_max = 0, bytes_all = 0;
+	std::array<double, memory::group_count> largest{};
+	std::array<double, memory::group_count> total{};
+	double rank_max = 0;
+	double rank_min = 1e300;
+	double all = 0;
+	unsigned long long bytes_max = 0;
+	unsigned long long bytes_all = 0;
 	for (const auto &rank : per_rank)
 	{
 		unsigned long long bytes = 0;

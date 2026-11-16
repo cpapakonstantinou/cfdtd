@@ -112,7 +112,8 @@ private:
 	MPI_Comm _comm = MPI_COMM_NULL;
 	bool _writing = false;
 	std::vector<Dataset> _datasets;
-	std::string _plane, _face; ///< the "plane" / "face" attributes, 2D axes
+	std::string _plane; ///< the "plane" / "face" attributes, 2D axes
+	std::string _face; ///< the "plane" / "face" attributes, 2D axes
 	friend struct Writer;
 };
 

@@ -46,11 +46,13 @@ void for_face(const Box &X, const FaceAxes &F, const PlaneWave &w, Cell &&cell)
 	for (int va = X.min[F.a]; va <= X.max[F.a]; ++va)
 	{
 		const int G = X.global(F.a, va);
-		const double To_a = (G * X.d[F.a] - X.focus[F.a]) * direction_component(w, F.a), Tm_a = ((G + 0.5) * X.d[F.a] - X.focus[F.a]) * direction_component(w, F.a);
+		const double To_a = (G * X.d[F.a] - X.focus[F.a]) * direction_component(w, F.a);
+		const double Tm_a = ((G + 0.5) * X.d[F.a] - X.focus[F.a]) * direction_component(w, F.a);
 		for (int vb = X.min[F.b]; vb <= X.max[F.b]; ++vb)
 		{
 			const int K = X.global(F.b, vb);
-			const double To_b = (K * X.d[F.b] - X.focus[F.b]) * direction_component(w, F.b), Tm_b = ((K + 0.5) * X.d[F.b] - X.focus[F.b]) * direction_component(w, F.b);
+			const double To_b = (K * X.d[F.b] - X.focus[F.b]) * direction_component(w, F.b);
+			const double Tm_b = ((K + 0.5) * X.d[F.b] - X.focus[F.b]) * direction_component(w, F.b);
 			cell(va, vb, To_a, Tm_a, To_b, Tm_b);
 		}
 	}
@@ -71,7 +73,8 @@ void face_h(const Signal &signal, const Box &X, const FaceAxes &F, bool far, con
 	const int p = far ? X.plane_f[F.n] : X.h_plane_n[F.n];
 	const double T_n = ((far ? X.tfsf_f[F.n] : X.tfsf_n[F.n]) - X.focus[F.n]) * direction_component(w, F.n);
 	for_face(X, F, w, [&](int va, int vb, double To_a, double Tm_a, double To_b, double Tm_b) {
-		double Tb[3], Ta[3];
+		double Tb[3];
+		double Ta[3];
 		Tb[F.n] = Ta[F.n] = T_n;
 		Tb[F.a] = To_a, Tb[F.b] = Tm_b; // E_b at the half-integer point along b
 		Ta[F.a] = Tm_a, Ta[F.b] = To_b; // E_a at the half-integer point along a
@@ -93,7 +96,8 @@ void face_e(const Signal &signal, const Box &X, const FaceAxes &F, bool far, con
 	// H half a cell outside the face
 	const double T_n = ((far ? X.tfsf_f[F.n] + 0.5 * X.d[F.n] : X.tfsf_n[F.n] - 0.5 * X.d[F.n]) - X.focus[F.n]) * direction_component(w, F.n);
 	for_face(X, F, w, [&](int va, int vb, double To_a, double Tm_a, double To_b, double Tm_b) {
-		double Tb[3], Ta[3];
+		double Tb[3];
+		double Ta[3];
 		Tb[F.n] = Ta[F.n] = T_n;
 		Tb[F.a] = Tm_a, Tb[F.b] = To_b; // H_b at the half-integer point along a
 		Ta[F.a] = To_a, Ta[F.b] = Tm_b; // H_a at the half-integer point along b

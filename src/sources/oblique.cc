@@ -63,7 +63,8 @@ void oblique_h(OneDimensionalSimulator &ods, double t)
 		const double c = (far ? -F.s : F.s) * X.ch[F.n];
 		const int p = far ? X.plane_f[F.n] : X.h_plane_n[F.n];
 		for_face(X, F, far ? X.tfsf_f[F.n] : X.tfsf_n[F.n], [&](int va, int vb, const double (&x)[3]) {
-			double pa[3] = {x[0], x[1], x[2]}, pb[3] = {x[0], x[1], x[2]};
+			double pa[3] = {x[0], x[1], x[2]};
+			double pb[3] = {x[0], x[1], x[2]};
 			pa[F.a] = x[F.a] + 0.5 * X.d[F.a]; // E_a
 			pb[F.b] = x[F.b] + 0.5 * X.d[F.b]; // E_b
 			const double e_a = incident_fields(ods, pa, t)[F.a];
@@ -86,7 +87,8 @@ void oblique_e(OneDimensionalSimulator &ods, double t)
 		const int p = far ? X.plane_f[F.n] : X.e_plane_n[F.n];
 		const double face = far ? X.tfsf_f[F.n] : X.tfsf_n[F.n];
 		for_face(X, F, face, [&](int va, int vb, const double (&x)[3]) {
-			double pb[3] = {x[0], x[1], x[2]}, pa[3] = {x[0], x[1], x[2]};
+			double pb[3] = {x[0], x[1], x[2]};
+			double pa[3] = {x[0], x[1], x[2]};
 			pb[F.n] = pa[F.n] = far ? face + 0.5 * X.d[F.n] : face - 0.5 * X.d[F.n];
 			pb[F.a] = x[F.a] + 0.5 * X.d[F.a]; // H_b
 			pa[F.b] = x[F.b] + 0.5 * X.d[F.b]; // H_a

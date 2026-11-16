@@ -73,7 +73,8 @@ bool check_file_exists(const std::string &fileName) {
 void get_time(clock_t startTime, clock_t endTime, float &hours, float &minutes, float &seconds)
 {
 	float secselapsed = (endTime - startTime) / CLOCKS_PER_SEC;
-	float r1, r2;
+	float r1;
+	float r2;
 
 	r1 = 3600. * modf(secselapsed / 3600., &hours);
 	r2 = modf(r1 / 60., &minutes);
@@ -166,7 +167,9 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 	const int na = nrInnerThis[idx_coord_A];
 	const int nb = nrInnerThis[idx_coord_B];
 	const int normal = 3 - idx_coord_A - idx_coord_B;
-	std::vector<T> plane_x(size_t(na) * nb), plane_y(plane_x.size()), plane_z(plane_x.size());
+	std::vector<T> plane_x(size_t(na) * nb);
+	std::vector<T> plane_y(plane_x.size());
+	std::vector<T> plane_z(plane_x.size());
 
 	for (int a = 0; a < na; ++a)
 		for (int b = 0; b < nb; ++b)
@@ -232,14 +235,20 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 		for (int d = 0; d < 3; ++d)
 			idxShift[d] += nrShift[d];
 
-	const int nx = nrInnerThis[0], ny = nrInnerThis[1], nz = nrInnerThis[2];
-	std::vector<T> vol_x(size_t(nx) * ny * nz), vol_y(vol_x.size()), vol_z(vol_x.size());
+	const int nx = nrInnerThis[0];
+	const int ny = nrInnerThis[1];
+	const int nz = nrInnerThis[2];
+	std::vector<T> vol_x(size_t(nx) * ny * nz);
+	std::vector<T> vol_y(vol_x.size());
+	std::vector<T> vol_z(vol_x.size());
 	for (int i = 0; i < nx; ++i)
 		for (int j = 0; j < ny; ++j)
 			for (int k = 0; k < nz; ++k)
 			{
 				const size_t n = (size_t(i) * ny + j) * nz + k;
-				const int I = i + idxShift[0], J = j + idxShift[1], K = k + idxShift[2];
+				const int I = i + idxShift[0];
+				const int J = j + idxShift[1];
+				const int K = k + idxShift[2];
 				if (ijk_order)
 				{
 					vol_x[n] = arr_x[I][J][K];
@@ -281,7 +290,9 @@ void fdtd::io::log(const char *key, const char *format, ...)
 {
 	if (log_muted)
 		return;
-	int rank = 0, mpi_on = 0, mpi_off = 0; // this process, 0 outside MPI
+	int rank = 0;
+	int mpi_on = 0;
+	int mpi_off = 0; // this process, 0 outside MPI
 	MPI_Initialized(&mpi_on);
 	MPI_Finalized(&mpi_off);
 	if (mpi_on && !mpi_off)
@@ -316,7 +327,8 @@ void fdtd::io::log(const char *key, const char *format, ...)
 		for (char &ch : line)
 			if (ch == '\t' || ch == '\r')
 				ch = ' ';
-		const std::size_t first = line.find_first_not_of(' '), last = line.find_last_not_of(' ');
+		const std::size_t first = line.find_first_not_of(' ');
+		const std::size_t last = line.find_last_not_of(' ');
 		if (first == std::string::npos)
 			continue;
 		line = line.substr(first, last - first + 1);

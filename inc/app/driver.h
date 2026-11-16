@@ -79,15 +79,15 @@ class Driver
 		struct Context; ///< legacy-typed per-run state, defined in driver.cpp
 		std::unique_ptr<Context> _ctx;
 
-		CliOptions  _opt;
-		config::SimConfig   _cfg;
-		int         _rank;
-		int         _size;
-		bool        _ok = true;
-		bool        _dummy_run = false;
-		int         _signal = 0; ///< see interrupted()
-		bool        _state_written = false; ///< this run ended with a state dump
-		int         _completed_steps = 0; ///< steps done before this time loop, restart
+		CliOptions _opt;
+		config::SimConfig _cfg;
+		int _rank;
+		int _size;
+		bool _ok = true;
+		bool _dummy_run = false;
+		int _signal = 0; ///< see interrupted()
+		bool _state_written = false; ///< this run ended with a state dump
+		int _completed_steps = 0; ///< steps done before this time loop, restart
 		void save_state();         ///< dump the state after an interrupted time loop
 		std::string _error;
 };

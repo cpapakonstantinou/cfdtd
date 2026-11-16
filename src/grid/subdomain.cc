@@ -12,7 +12,8 @@ Subdomain &this_rank()
 
 MPI_Comm member_comm(bool member)
 {
-	int mine = member ? 1 : 0, all = 0;
+	int mine = member ? 1 : 0;
+	int all = 0;
 	MPI_Allreduce(&mine, &all, 1, MPI_INT, MPI_LAND, MPI_COMM_WORLD);
 	if (all)
 		return MPI_COMM_WORLD;

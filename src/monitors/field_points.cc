@@ -40,7 +40,10 @@ void write_point(const std::string &name, const DftPlane &P, int i, int j, int k
 		return;
 	const char *p = fdtd::sources::pol.c_str();
 	std::fprintf(f, "LAMBDA[nm]\t |Ex|_%s\t |Ez|_%s\t |Ex|/|Ez|_%s \t Ex_ph_%s \t Ez_ph_%s \t Ex-Ez_ph_%s\n", p, p, p, p, p, p);
-	const view4<double> rex = P.re[0][0][0], iex = P.im[0][0][0], rez = P.re[0][0][2], iez = P.im[0][0][2];
+	const view4<double> rex = P.re[0][0][0];
+	const view4<double> iex = P.im[0][0][0];
+	const view4<double> rez = P.re[0][0][2];
+	const view4<double> iez = P.im[0][0][2];
 	for (int m = 0; m < sp.nr_frequencies; ++m)
 	{
 		const double Ex_mod = std::sqrt(rex[m][i][j][k] * rex[m][i][j][k] + iex[m][i][j][k] * iex[m][i][j][k]);
@@ -66,7 +69,9 @@ void write_field_points()
 	const bool antenna_family = (sp.shape == fdtd::geometry::shape::dipole) || (sp.shape == fdtd::geometry::shape::lateral_dipole) || (sp.shape == fdtd::geometry::shape::l_antenna) || (sp.shape == fdtd::geometry::shape::cylinder) || (sp.shape == fdtd::geometry::shape::x_shape) || (sp.shape == fdtd::geometry::shape::round_butterfly) ||
 								(sp.shape == fdtd::geometry::shape::round_dipole) || (sp.shape == fdtd::geometry::shape::round_tripole) || (sp.shape == fdtd::geometry::shape::round_hybrid) || (sp.shape == fdtd::geometry::shape::one_side_round_dipole);
 	const bool both_planes = subdomain.plots_xy() && subdomain.plots_yz();
-	const int i = subdomain.i_animation, j = subdomain.j_animation, k = subdomain.k_animation;
+	const int i = subdomain.i_animation;
+	const int j = subdomain.j_animation;
+	const int k = subdomain.k_animation;
 	const ArtPlanes &art = art_planes();
 	const DftPlanes &planes = dft_planes();
 
