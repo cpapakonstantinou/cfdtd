@@ -65,7 +65,7 @@ if (a == 1)
   Include the `<cxxx>` form of C headers and call the `std::` names; `::` is then rarely needed.
 - Never `using namespace std;`, in headers or implementation files: write `std::string`, `std::vector`, `std::abs`.
 - No type aliases for standard or built-in types: `double`, `std::complex<double>`, `MPI_DOUBLE` are written as they are. Field precision is `double`; single precision or complex fields will come back as a template parameter of the field and update types, not as a global typedef.
-- Physical constants are in `inc/core/constants.h` (`fdtd::constants`), material codes in `inc/materials/codes.h` (`fdtd::materials`).
+- Physical constants are in `inc/core/constants.h` (`fdtd::constants`), the material slots in `inc/materials/slots.h` (`fdtd::materials`).
 - No `using namespace` in headers. An implementation file names what it reads from another module with using-declarations (`using fdtd::fields::Ex;`).
 
 ### Compiler hints

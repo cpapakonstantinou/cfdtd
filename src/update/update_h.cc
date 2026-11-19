@@ -89,7 +89,7 @@ inline void add_curl(double *h, int k0, int k1, Curl &&curl)
 
 /// a CPML face row of an H component: the shared update with the factor sign * coeff_h
 template <class S, class D>
-inline void psi_update(double *h, double *psi, int off, int k0, int k1, const cvector<double> &c1, const cvector<double> &c2, S &&s, double sign, D &&dE)
+inline void psi_update(double *h, double *psi, int off, int k0, int k1, const fdtd::array1<double> &c1, const fdtd::array1<double> &c2, S &&s, double sign, D &&dE)
 {
 	const double sc = sign * up.coeff_h;
 	fdtd::materials::stretch::psi_update(h, psi, off, k0, k1, c1, c2, std::forward<S>(s), [=](int) { return sc; }, std::forward<D>(dE));

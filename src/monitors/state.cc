@@ -45,7 +45,7 @@ bool lwa_multipoles = false;
 MPI_Comm output_comm_plot_xz_1;
 int count_art;
 double geometric_cross_section = -1;
-ctensor<double> energy_density;
+fdtd::array3<double> energy_density;
 } // namespace fdtd::monitors
 
 fdtd::monitors::Spec fdtd::monitors::the_spec;

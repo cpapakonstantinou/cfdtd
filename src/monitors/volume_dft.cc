@@ -63,7 +63,7 @@ void VolumeDft::allocate()
 	const int nx = subdomain.inner_dim_x;
 	const int ny = subdomain.inner_dim_y;
 	const int nz = subdomain.inner_dim_z;
-	auto real = [&](ctetrad<double> &a) {
+	auto real = [&](array4<double> &a) {
 		if (!a)
 			a = field4<double>(n, nx, ny, nz);
 	};

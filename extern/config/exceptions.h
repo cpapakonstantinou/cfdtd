@@ -1,15 +1,17 @@
 #ifndef __EXCEPTIONS_H__
 #define __EXCEPTIONS_H__
 
-/** \file   config/exceptions.h
- *  \brief  exception types thrown by the configuration utilities, Config
- *          and by the typed simulation-configuration layer, SimConfig.
+/** \file   exceptions.h
+ *  \brief  exception types thrown by the configuration utilities, cfg::Config
+ *
+ *  Reconstructed: config.h includes this header but it was not among the files received.
+ *  It declares what config.cc throws; replace it with the upstream copy.
  **/
 #include <stdexcept>
 #include <string>
 #include <cstring>
 
-namespace fdtd::config
+namespace cfg
 {
 	/// A file could not be opened / read.
 	class file_error : public std::runtime_error
@@ -17,14 +19,14 @@ namespace fdtd::config
 		public:
 			file_error(const std::string& filename, int err)
 			: std::runtime_error("cannot open '" + filename + "': " + std::strerror(err)),
-			  _filename(filename), _errno(err) {}
+			  filename_(filename), errno_(err) {}
 
-			const std::string& filename() const { return _filename; }
-			int error_number() const { return _errno; }
+			const std::string& filename() const { return filename_; }
+			int error_number() const { return errno_; }
 
 		private:
-			std::string _filename;
-			int _errno;
+			std::string filename_;
+			int errno_;
 	};
 
 	/// A configuration file or value is malformed.
@@ -40,12 +42,6 @@ namespace fdtd::config
 			: std::runtime_error("[" + sect + "] " + key + ": " + msg) {}
 	};
 
-	/// The configuration is syntactically valid but physically / logically inconsistent.
-	class validation_error : public std::runtime_error
-	{
-		public:
-			explicit validation_error(const std::string& msg) : std::runtime_error(msg) {}
-	};
-} // namespace fdtd::config
+} // namespace cfg
 
 #endif // __EXCEPTIONS_H__

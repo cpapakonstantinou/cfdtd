@@ -34,20 +34,37 @@ using fdtd::fields::ey_temp;
 using fdtd::fields::ez_prev;
 using fdtd::fields::ez_temp;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::Drude;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
-using fdtd::materials::ModLorentz;
-using fdtd::materials::NRMAXMATERIALS;
+using fdtd::materials::coeffs;
+using fdtd::materials::dispersive;
+using fdtd::materials::kind;
+using fdtd::materials::Kind;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
-using fdtd::materials::nr_disp_mat_d;
+using fdtd::materials::max_slots;
 
 namespace
 {
+/// a nonlinear slot of a model that takes the nonlinear polarisation: drude_cp, drude, lorentz, modified_lorentz
+bool nonlinear_model(int m)
+{
+	return fdtd::materials::nonlinear::nl[m] && dispersive(m) && kind(m) < Kind::hydrodynamic;
+}
+
+/// the factor of dP_NL in the E update of slot mm, E approach
+double field_coefficient(int mm)
+{
+	using namespace fdtd::materials::models;
+	const double dt = fdtd::materials::model_spec().dt;
+	switch (kind(mm))
+	{
+	case Kind::drude_cp: return double(coeffs<Drude2CP>(mm).c1);
+	case Kind::drude: return double(coeffs<Drude>(mm).ce2 / dt);
+	case Kind::lorentz: return double(coeffs<Lorentz>(mm).ce2 / dt);
+	default: return double(coeffs<ModifiedLorentz>(mm).ce3 / dt);
+	}
+}
+
 } // namespace
 
 namespace
@@ -73,17 +90,17 @@ struct NonlinearCells
 
 /**
  * @brief Nonlinear polarisation of one component, subtracted into the dispersive state of the
- *        nonlinear materials, code shifted by nl_code, of the inner region
+ *        nonlinear materials of the inner region
  * @verbatim
-      Drude-type, index < Lorentz:          P[mm]      -= P_NL
-      modified Lorentz, Lorentz .. ModLor:  P_cp[mm][0] -= P_NL / dt
+      drude_cp, drude, lorentz:  P[mm]      -= P_NL
+      modified_lorentz:          P_cp[mm][0] -= P_NL / dt
       P_NL = polarisation_term (inc/materials/nonlinear/nonlinear.h)
    @endverbatim
  * The loops cover the component's owned cells [i0, i1) x [j0, j1) x [k0, k1); only the inner
  * non-CPML, cells take part, as before. The nonlinear cells are listed once per mesh.
  */
 void nonlinear_polarisation_scan(char c, int i0, int i1, int j0, int j1, int k0, int k1, view3<int> mat,
-						   material_field<double, nr_disp_mat_d> &p, ctetrad<double> *pc, NonlinearCells &list)
+						   material_field<double, max_slots> &p, fdtd::array4<double> *pc, NonlinearCells &list)
 {
 	const auto &cells = list.get([&](auto &&add) {
 		for (int i = i0; i < i1; ++i)
@@ -94,11 +111,8 @@ void nonlinear_polarisation_scan(char c, int i0, int i1, int j0, int j1, int k0,
 					const int v = j - subdomain.inner_org_y;
 					const int w = k - subdomain.inner_org_z;
 					const int m = mat[u][v][w];
-					if (m < nl_code + DispMateOffsetD || m >= nl_code + NRMAXMATERIALS)
-						continue;
-					const int mm = m - DispMateOffsetD - nl_code;
-					if (fdtd::materials::nonlinear::nl[mm] && mm < ModLorentz)
-						add(i, j, k, u, v, w, mm);
+					if (nonlinear_model(m))
+						add(i, j, k, u, v, w, m);
 				}
 	});
 	for (const auto &[i, j, k, u, v, w, mm] : cells)
@@ -107,7 +121,7 @@ void nonlinear_polarisation_scan(char c, int i0, int i1, int j0, int j1, int k0,
 		const int my = matind_y[u][v][w];
 		const int mz = matind_z[u][v][w];
 		const double p_nl = fdtd::materials::nonlinear::polarisation_term(mm, i, j, k, c - 'x', mx, my, mz, false);
-		if (mm < Lorentz)
+		if (kind(mm) != Kind::modified_lorentz)
 			p[mm][i][j][k] -= p_nl;
 		else
 			pc[mm][0][i][j][k] -= p_nl / fdtd::materials::model_spec().dt;
@@ -145,15 +159,6 @@ void inner_cells(F &&f)
 				f(i, j, k, i - S.inner_org_x, j - S.inner_org_y, k - S.inner_org_z);
 }
 
-/// model index of a nonlinear material that takes the E-approach update, code shifted by nl_code,
-/// nonlinear, below the modified Lorentz range, or -1
-int nonlinear_index(int m)
-{
-	if (m < nl_code + DispMateOffsetD || m >= nl_code + NRMAXMATERIALS)
-		return -1;
-	const int mm = m - DispMateOffsetD - nl_code;
-	return (fdtd::materials::nonlinear::nl[mm] && mm < ModLorentz) ? mm : -1;
-}
 } // namespace
 
 /**
@@ -181,13 +186,13 @@ void fdtd::materials::nonlinear::update_field()
 		const Component &c = comps[a];
 		for (const auto &[i, j, k, u, v, w, mm] : lists[a].get([&](auto &&add) {
 				 inner_cells([&](int i, int j, int k, int u, int v, int w) {
-					 const int mm = nonlinear_index(c.mat[u][v][w]);
-					 if (mm >= 0)
-						 add(i, j, k, u, v, w, mm);
+					 const int m = c.mat[u][v][w];
+					 if (nonlinear_model(m))
+						 add(i, j, k, u, v, w, m);
 				 });
 			 }))
 		{
-			const double coeff = mm < DrudeCP ? double(fdtd::materials::coeffs<fdtd::materials::models::Drude2CP>(mm).c1) : mm < Lorentz ? double((mm < Drude ? fdtd::materials::coeffs<fdtd::materials::models::Drude>(mm).ce2 : fdtd::materials::coeffs<fdtd::materials::models::Lorentz>(mm).ce2) / fdtd::materials::model_spec().dt) : double(fdtd::materials::coeffs<fdtd::materials::models::ModifiedLorentz>(mm).ce3 / fdtd::materials::model_spec().dt);
+			const double coeff = field_coefficient(mm);
 			const int mx = matind_x[u][v][w];
 			const int my = matind_y[u][v][w];
 			const int mz = matind_z[u][v][w];

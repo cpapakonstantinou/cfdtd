@@ -19,7 +19,7 @@
 #ifndef FDTD_MONITORS_CUSTOM_BOXES_H
 #define FDTD_MONITORS_CUSTOM_BOXES_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "mpi.h"
 #include "monitors/inputs.h"
 #include <complex>
@@ -41,7 +41,7 @@ struct CustomBox
 	int local_count[3] = {};
 	int relative_start[3] = {};
 	MPI_Comm comm = MPI_COMM_NULL;
-	ctetrad<std::complex<double>> dft[3];
+	array4<std::complex<double>> dft[3];
 };
 
 struct CustomBoxes

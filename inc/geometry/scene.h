@@ -15,9 +15,9 @@ struct Scene
 	int shape = 0;              ///< the [geometry] shape, shape codes, geometry/shapes.h; a few builders draw variants by it
 	bool draw = false;          ///< a shape is configured, shape != none; the antenna builders draw nothing otherwise
 	bool staircase = false;     ///< one material for the three components of a cell, [grid] staircase
-	int medium[3] = {};         ///< background media below, in and above the middle layer, material codes
+	int medium[3] = {};         ///< background media below, in and above the middle layer, material slots
 	int centre[3] = {};         ///< the structure's centre cell
-	int gap_material = 0;       ///< the gap fill of round_hybrid, material code, nonlinear offset included
+	int gap_material = 0;       ///< the gap fill of round_hybrid, material slot
 };
 const Scene &scene();
 void set_scene(const Scene &s);

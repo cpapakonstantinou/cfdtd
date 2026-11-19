@@ -15,7 +15,7 @@
 
 #include "grid/subdomain.h"
 #include "core/views.h"
-#include "core/carray.h"
+#include "core/array.h"
 #include "fields/fields.h"
 #include "materials/hydro/state.h"
 #include "materials/state.h"

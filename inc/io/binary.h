@@ -3,7 +3,7 @@
 
 #include <string>
 #include <utility>
-#include "core/carray.h"
+#include "core/array.h"
 #include "mpi.h"
 
 // Saving Binary Files
@@ -15,12 +15,12 @@ int* const &, int* const &, bool const &, bool const &, bool const&);
 
 /// carray owners: forward their views
 template <typename T, typename... Rest>
-void save_as_binary_2d(std::string const &f, ctensor<T> &x, ctensor<T> &y, ctensor<T> &z, Rest &&...rest)
+void save_as_binary_2d(std::string const &f, fdtd::array3<T> &x, fdtd::array3<T> &y, fdtd::array3<T> &z, Rest &&...rest)
 {
 	save_as_binary_2d<T>(f, x.get(), y.get(), z.get(), std::forward<Rest>(rest)...);
 }
 template <typename T, typename... Rest>
-void save_as_binary_3d(std::string const &f, ctensor<T> &x, ctensor<T> &y, ctensor<T> &z, Rest &&...rest)
+void save_as_binary_3d(std::string const &f, fdtd::array3<T> &x, fdtd::array3<T> &y, fdtd::array3<T> &z, Rest &&...rest)
 {
 	save_as_binary_3d<T>(f, x.get(), y.get(), z.get(), std::forward<Rest>(rest)...);
 }

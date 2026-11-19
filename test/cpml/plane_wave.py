@@ -18,7 +18,7 @@ The alpha grading fix (integer m / N at the E positions) changed none of these b
 import sys
 
 def ini(ny, y_sheet, y_probe, pml, n):
-    medium = '' if n == 1 else f'first_medium = 4\nmiddle_medium = 4\nlast_medium = 4\n[materials]\nn4 = {n}\n'
+    medium = '' if n == 1 else f'first_medium = dense\nmiddle_medium = dense\nlast_medium = dense\n[material.dense]\nmodel = dielectric\nn = {n}\n'
     s = f"""[grid]
 nx = 4
 ny = {ny}

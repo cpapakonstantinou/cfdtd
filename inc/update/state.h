@@ -8,10 +8,10 @@
 #ifndef FDTD_UPDATE_STATE_H
 #define FDTD_UPDATE_STATE_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "core/constants.h"
 #include "materials/material_field.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include <complex>
 #include <mpi.h>
 #include <string>

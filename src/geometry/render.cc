@@ -3,11 +3,11 @@
  * @brief Render geometry-layer drawings into the material maps; the plasmonic anapole
  */
 #include "grid/subdomain.h"
-#include "core/carray.h"
+#include "core/array.h"
 #include "geometry/csg.h"
 #include "materials/component.h"
 #include "materials/material_map.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include "core/constants.h"
 #include "io/text.h"
 #include "geometry/render.h"
@@ -20,7 +20,6 @@ using fdtd::grid::subdomain;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
 
 namespace
 {
@@ -48,7 +47,7 @@ void render_parts(const std::vector<geom::Part>& parts, int ci, int cj, int ck, 
 	const geom::Lattice Lz = lattice(0, 0.5);
 	const geom::Lattice Lc = lattice(0.5, 0.5);
 	auto y_at = [&](int j, double off) { return (j - cj) * lat.d[1] + off * lat.d[1]; };
-	auto fill = [&](ctensor<int>& map, int i, int j, const geom::Row& row, int material) {
+	auto fill = [&](fdtd::array3<int>& map, int i, int j, const geom::Row& row, int material) {
 		for (const auto& run : row)
 		{
 			int* p = &map[i - si][j - sj][run.k0 - sk];

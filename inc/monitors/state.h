@@ -8,10 +8,10 @@
 #ifndef FDTD_MONITORS_STATE_H
 #define FDTD_MONITORS_STATE_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "core/constants.h"
 #include "materials/material_field.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include <complex>
 #include <mpi.h>
 #include <string>
@@ -58,7 +58,7 @@ inline bool multipoles_wanted() { return exact_multipoles || lwa_multipoles; } /
 extern MPI_Comm output_comm_plot_xz_1;                      ///< Communicator of the ranks that cut xz output plane 1.
 extern int count_art;                                       ///< Counter of ART evaluations; output is written every 10th.
 extern double geometric_cross_section;                        ///< Geometric cross section of the drawn shape in m^2; -1 if the shape does not set it.
-extern ctensor<double> energy_density;                        ///< Electromagnetic energy density per cell in J/m^3.
+extern array3<double> energy_density;                        ///< Electromagnetic energy density per cell in J/m^3.
 } // namespace fdtd::monitors
 
 #endif

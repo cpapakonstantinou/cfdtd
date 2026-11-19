@@ -12,7 +12,7 @@ namespace fdtd::boundary
 namespace
 {
 /// fills entry m of a profile's table at grading position p (m or m + 1/2) of an N-cell slab
-void grade(Profile &pr, cvector<double> (&inv_kappa)[2], int st, int m, double p, int N, double sigma_max, double dt, const Grading &g)
+void grade(Profile &pr, array1<double> (&inv_kappa)[2], int st, int m, double p, int N, double sigma_max, double dt, const Grading &g)
 {
 	const double u = double(N - p) / double(N);
 	const double v = double(std::pow(u, g.exponent));

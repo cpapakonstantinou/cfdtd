@@ -100,16 +100,17 @@ periodic_z = true
 
 [geometry]
 shape = none            ; no structure, only the layers
-middle_medium = 1       ; material 1 fills the middle layer
+middle_medium = film    ; the material film fills the middle layer
 middle_thickness = 100e-9
 
-[materials]
-n1 = 2.46               ; refractive index of material 1
+[material.film]
+model = dielectric
+n = 2.46                ; refractive index of the film
 ```
 
 The domain along y is three layers: the first medium where the wave enters, the middle layer of
-`middle_thickness` ending at the structure origin, and the last medium. Materials 0 to 99 are
-dielectrics with the refractive index `n<i>` of `[materials]`; 0 is vacuum.
+`middle_thickness` ending at the structure origin, and the last medium. A material is named and
+defined in a `[material.<name>]` section or a catalog file; `vacuum` is built in and is the default.
 
 ```sh
 mpirun -n 8 ./fdtd simulate test/regression/ThinFilm/run.ini -o out/film
@@ -119,16 +120,16 @@ python3 test/regression/ThinFilm/check.py out/film
 `check.py` plots the transmission and reflection of `reports/ART_90pol_4000.txt` against the
 analytical thin-film result and prints the deviations (about 0.2 % in T).
 
-To explore: change `middle_thickness` or `n1` from the command line, without editing the file,
+To explore: change `middle_thickness` or the film's `n` from the command line, without editing the file,
 
 ```sh
-mpirun -n 8 ./fdtd simulate test/regression/ThinFilm/run.ini -o out/film2 -s materials.n1=1.5
+mpirun -n 8 ./fdtd simulate test/regression/ThinFilm/run.ini -o out/film2 -s material.film.n=1.5
 ```
 
 ## Next steps
 
 - A nanoparticle: `test/regression/MieScattering/run.ini` (a 20 nm gold sphere, `shape = sphere`,
-  `material = 100`). [Shapes](../geometry/Shapes.md) lists the structures and their keys.
+  `material = gold_d2cp`). [Shapes](../geometry/Shapes.md) lists the structures and their keys.
 - Look at the mesh before running: `mpirun -n 8 ./fdtd mesh run.ini -o out` writes
   `materials/MaterialIndex_*.h5` and `materials/geometry_report.txt` in a few seconds.
 - Choose the number of time steps: [Signal and Time Steps](SignalSettings.md).

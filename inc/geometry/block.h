@@ -16,7 +16,7 @@ namespace fdtd::geometry
 struct Block
 {
 	std::string name;
-	int material = 0;                       ///< material code
+	int material = 0;                       ///< material slot
 	double x_min = -1; ///< [m]
 	double x_max = 1; ///< [m]
 	double y_min = -1; ///< [m]

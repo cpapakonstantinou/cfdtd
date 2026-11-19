@@ -8,8 +8,17 @@
 #ifndef FDTD_MATERIALS_THERMAL_THERMAL_H
 #define FDTD_MATERIALS_THERMAL_THERMAL_H
 
+#include "materials/slots.h"
+
 namespace fdtd::materials::thermal
 {
+/// the material the two-temperature model heats: the first Drude-Lorentz slot, else slot 0
+inline int heated_slot()
+{
+	const int s = first_slot(Kind::drude_lorentz);
+	return s < 0 ? 0 : s;
+}
+
 /// setup.cc
 void load_probe_temperature_1d();
 void load_static_temperature();

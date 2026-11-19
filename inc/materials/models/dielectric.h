@@ -1,11 +1,11 @@
 /**
  * @file materials/models/dielectric.h
- * @brief A dispersionless material, codes 0-99: E = c1 E + c2 curl, over whole stretches of a row
+ * @brief A dispersionless material, model dielectric: E = c1 E + c2 curl, over whole stretches of a row
  */
 #ifndef FDTD_MATERIALS_MODELS_DIELECTRIC_H
 #define FDTD_MATERIALS_MODELS_DIELECTRIC_H
 
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include "materials/nonlinear/state.h"
 #include "materials/spec.h"
 
@@ -17,8 +17,8 @@ struct Dielectric
 	/// keep the per-cell path, which also updates the nonlinear field / uses the full material map
 	static bool applies(int m)
 	{
-		return !fdtd::materials::model_spec().cellwise && !fdtd::materials::model_spec().harmonic && m < DispMateOffsetD && !(m >= nl_code && (fdtd::materials::model_spec().shg || fdtd::materials::model_spec().thg)) &&
-			   !(fdtd::materials::nonlinear::nl_dl[m] && (fdtd::materials::nonlinear::iso_chi_2_dl[m] || fdtd::materials::nonlinear::iso_chi_3_dl[m]));
+		return !fdtd::materials::model_spec().cellwise && !fdtd::materials::model_spec().harmonic && !dispersive(m) &&
+			   !(fdtd::materials::nonlinear::nl[m] && (fdtd::materials::nonlinear::iso_chi_2[m] || fdtd::materials::nonlinear::iso_chi_3[m]));
 	}
 
 	/// e = c1 e + c2 curl(k) over [k0, k1)

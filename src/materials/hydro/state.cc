@@ -7,7 +7,7 @@
 namespace fdtd::materials::hydro
 {
 using namespace fdtd::materials;
-ctensor<double> nd_z_prev;
+fdtd::array3<double> nd_z_prev;
 bool with_pressure;
 bool with_mag_field;
 bool with_convection;

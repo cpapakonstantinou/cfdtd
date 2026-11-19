@@ -20,11 +20,7 @@ using fdtd::fields::hx_nl;
 using fdtd::fields::hy_nl;
 using fdtd::fields::hz_nl;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::Drude;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
-using fdtd::materials::NRMAXMATERIALS;
+using fdtd::materials::max_slots;
 using fdtd::materials::matind_x_full;
 using fdtd::materials::matind_y_full;
 using fdtd::materials::matind_z_full;
@@ -52,7 +48,7 @@ enum class Axis { X, Y, Z };
       rows (i, j) in [i0, i1) x [j0, j1), cells k in [k0, k1)
       grading index s:  near face  n + pad_nea      far face  cells - n + pad_far    (n = i, j or k)
       far faces store psi from the face start, i, j or k minus *_far_cpml_start, and skip index 0
-      factor: sign * ce_2_d of a Drude-type background, DrudeCP .. Lorentz; other dispersive: none,
+      factor: sign * ce_2_d of a Drude or Lorentz background; other dispersive: none,
               sign * ce_2 of a dielectric background, or of the cell's material with mode_source
       background: first / second medium for the y faces, the y layer's medium otherwise
    @endverbatim
@@ -61,7 +57,7 @@ enum class Axis { X, Y, Z };
 template <class D>
 void e_face(Axis axis, bool far, int i0, int i1, int j0, int j1, int k0, int k1, double sign,
 		   view3<double> e, view3<double> e_nl, view3<int> full, view3<double> psi, view3<double> psi_nl,
-		   const cvector<double> &c1, const cvector<double> &c2, view3<double> h, view3<double> h_nl, D &&d)
+		   const array1<double> &c1, const array1<double> &c2, view3<double> h, view3<double> h_nl, D &&d)
 {
 	const auto &mp = fdtd::materials::model_parameters();
 	const int cells = axis == Axis::X ? subdomain.cells_x : axis == Axis::Y ? subdomain.cells_y : subdomain.cells_z;
@@ -86,12 +82,11 @@ void e_face(Axis axis, bool far, int i0, int i1, int j0, int j1, int k0, int k1,
 			auto row = [&](view3<double> f, view3<double> p, view3<double> hh, auto &&factor) {
 				fdtd::materials::stretch::psi_update(f[i][j], p[pi][pj], off, ka, k1, c1, c2, s, factor, [&](int k) { return d(hh, i, j, k); });
 			};
-			if (m >= DispMateOffsetD && m < NRMAXMATERIALS)
+			if (fdtd::materials::dispersive(m))
 			{
-				const int mm = m - DispMateOffsetD;
-				if (mm >= DrudeCP && mm < Lorentz)
+				if (fdtd::materials::adds_terms_after(m))
 				{
-					const double factor = sign * (mm < Drude ? fdtd::materials::coeffs<fdtd::materials::models::Drude>(mm).ce2 : fdtd::materials::coeffs<fdtd::materials::models::Lorentz>(mm).ce2);
+					const double factor = sign * fdtd::materials::after_terms_ce2(m);
 					row(e, psi, h, [=](int) { return factor; });
 				}
 			}

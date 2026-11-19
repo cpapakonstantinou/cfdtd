@@ -20,14 +20,18 @@ The media are the three layers of `[geometry]`, stacked along y:
 
 ```ini
 [geometry]
-first_medium = 0
-middle_medium = 1
+first_medium = vacuum
+middle_medium = film
 middle_thickness = 200e-9
-last_medium = 2
+last_medium = glass
 
-[materials]
-n1 = 2.0
-n2 = 1.45
+[material.film]
+model = dielectric
+n = 2.0
+
+[material.glass]
+model = dielectric
+n = 1.45
 ```
 
 ### When the 1D simulations run

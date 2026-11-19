@@ -89,13 +89,9 @@ using fdtd::constants::I_UNIT;
 using fdtd::constants::PI2;
 using fdtd::constants::ROOTPROCESS;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::NRMAXMATERIALS;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
-using fdtd::materials::nr_disp_mat_d;
 
 namespace
 {
@@ -153,17 +149,6 @@ static inline void sph_bessel_weights(const double &x, double &j0v, double &f1, 
 // Material helpers
 
 /**
- * @brief Maps a, possibly nonlinearity-tagged, material code to its underlying
- * linear material code, for use with fdtd::materials::complex_permittivity().
- */
-static inline int strip_nl_code(const int &mat)
-{
-	if ((sp.shg || sp.thg) && mat >= nl_code && mat < nl_code + NRMAXMATERIALS)
-		return mat - nl_code;
-	return mat;
-}
-
-/**
  * @brief Decides whether a cell/component belongs to the multipole
  * integration volume.
  *
@@ -174,14 +159,14 @@ static inline int strip_nl_code(const int &mat)
  */
 static inline bool include_in_multipole_volume(const int &mat)
 {
-	int base = strip_nl_code(mat);
+	const int base = mat;
 
 	if (base == sp.antenna_material)
 		return true;
 
 	if (sp.shg || sp.thg) // dfg_optim == 3,4, THG, or 5,6, SHG
 	{
-		if (base == strip_nl_code(sp.gap_material))
+		if (base == sp.gap_material)
 			return true;
 		if (base == sp.shell_material)
 			return true;
@@ -190,29 +175,12 @@ static inline bool include_in_multipole_volume(const int &mat)
 }
 
 /**
- * @brief Returns the chi-tensor index for a nonlinearity-tagged material code,
- * mirroring the index arithmetic of nonlinear::update_polarisation(), dispersive branch,
- * CHI checked through nl[], and of the dispersionless exact updates in
- * updateE.cpp, CHI checked through nl_dl[]. Returns -1 when the cell carries
- * no nonlinear response.
+ * @brief The slot of a nonlinear material, whose chi tensor the nonlinear updates use,
+ *        nonlinear::update_polarisation and the exact dielectric update; -1 for a linear one
  */
 static inline int nl_chi_index(const int &mat)
 {
-	if (mat >= nl_code + DispMateOffsetD && mat < nl_code + NRMAXMATERIALS)
-	{
-		int mm = mat - DispMateOffsetD - nl_code;
-		if (mm >= 0 && mm < nr_disp_mat_d && fdtd::materials::nonlinear::nl[mm])
-			return mm;
-		return -1;
-	}
-	if (mat >= nl_code && mat < nl_code + DispMateOffsetD)
-	{
-		int mm = mat - nl_code;
-		if (fdtd::materials::nonlinear::nl_dl[mm])
-			return mm;
-		return -1;
-	}
-	return -1;
+	return fdtd::materials::nonlinear::nl[mat] ? mat : -1;
 }
 
 // Running dft of the nonlinear polarization
@@ -652,13 +620,13 @@ void write_exact_multipoles()
 						P[2] = std::complex<double>(0.);
 
 						if (inx)
-							P[0] = EP0 * (fdtd::materials::complex_permittivity(strip_nl_code(mx), fdtd::sources::analysis_omega[m]) - eps_host) *
+							P[0] = EP0 * (fdtd::materials::complex_permittivity(mx, fdtd::sources::analysis_omega[m]) - eps_host) *
 								   std::complex<double>(V.re[0][0][m][i][j][k], V.im[0][0][m][i][j][k]);
 						if (iny)
-							P[1] = EP0 * (fdtd::materials::complex_permittivity(strip_nl_code(my), fdtd::sources::analysis_omega[m]) - eps_host) *
+							P[1] = EP0 * (fdtd::materials::complex_permittivity(my, fdtd::sources::analysis_omega[m]) - eps_host) *
 								   std::complex<double>(V.re[0][1][m][i][j][k], V.im[0][1][m][i][j][k]);
 						if (inz)
-							P[2] = EP0 * (fdtd::materials::complex_permittivity(strip_nl_code(mz), fdtd::sources::analysis_omega[m]) - eps_host) *
+							P[2] = EP0 * (fdtd::materials::complex_permittivity(mz, fdtd::sources::analysis_omega[m]) - eps_host) *
 								   std::complex<double>(V.re[0][2][m][i][j][k], V.im[0][2][m][i][j][k]);
 
 						if (inx || iny || inz)

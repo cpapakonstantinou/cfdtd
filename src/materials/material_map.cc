@@ -3,7 +3,7 @@
  * @brief The material maps of this rank, materials/material_map.h
  */
 #include "materials/material_map.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include "core/views.h"
 #include <algorithm>
 
@@ -32,8 +32,8 @@ void MaterialMap::allocate_full(int cells_x, int cells_y, int cells_z)
 
 void MaterialMap::extend_into_pml(int org_x, int org_y, int org_z, int ni, int nj, int nk, bool no_inner, const std::vector<int> &background)
 {
-	ctensor<int> *inner[3] = {&x, &y, &z};
-	ctensor<int> *full[3] = {&full_x, &full_y, &full_z};
+	array3<int> *inner[3] = {&x, &y, &z};
+	array3<int> *full[3] = {&full_x, &full_y, &full_z};
 	for (int c = 0; c < 3; ++c)
 	{
 		const view3<int> f = *full[c];
@@ -57,21 +57,18 @@ void MaterialMap::extend_into_pml(int org_x, int org_y, int org_z, int ni, int n
 
 std::vector<CellBox> MaterialMap::dispersive_boxes(int org_x, int org_y) const
 {
-	std::vector<CellBox> box(nr_disp_mat_d, CellBox{1 << 30, -1, 1 << 30, -1});
-	for (const ctensor<int> *map : {&x, &y, &z})
+	std::vector<CellBox> box(max_slots, CellBox{1 << 30, -1, 1 << 30, -1});
+	for (const array3<int> *map : {&x, &y, &z})
 	{
-		const view3<int> v = *const_cast<ctensor<int> *>(map);
+		const view3<int> v = *const_cast<array3<int> *>(map);
 		if (!v)
 			continue;
 		for (size_t u = 0; u < map->extent(0); ++u)
 			for (size_t w = 0; w < map->extent(1); ++w)
 				for (size_t k = 0; k < map->extent(2); ++k)
 				{
-					int code = v[u][w][k];
-					if (code >= nl_code)
-						code -= nl_code;
-					const int mm = code - DispMateOffsetD;
-					if (mm < 0 || mm >= nr_disp_mat_d)
+					const int mm = v[u][w][k];
+					if (!dispersive(mm))
 						continue;
 					CellBox &b = box[mm];
 					const int i = int(u) + org_x;
@@ -84,7 +81,7 @@ std::vector<CellBox> MaterialMap::dispersive_boxes(int org_x, int org_y) const
 
 void MaterialMap::release()
 {
-	for (ctensor<int> *m : {&x, &y, &z, &centre, &full_x, &full_y, &full_z})
+	for (array3<int> *m : {&x, &y, &z, &centre, &full_x, &full_y, &full_z})
 		m->reset();
 }
 } // namespace fdtd::materials

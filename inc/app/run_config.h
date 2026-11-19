@@ -9,7 +9,9 @@
 #ifndef FDTD_APP_RUN_CONFIG_H
 #define FDTD_APP_RUN_CONFIG_H
 
+#include "materials/definition.h"
 #include <string>
+#include <vector>
 #include "geometry/shapes.h"
 #include "sources/kinds.h"
 
@@ -88,36 +90,16 @@ struct RunConfig
 	/// Materials and electron models
 	struct Materials
 	{
-		double read_in_epre_inf;                                   ///< epre_inf of the user material, read from the material file.
-		double read_in_ome_plasma;                                 ///< ome_plasma of the user material, read from the material file.
-		double read_in_gam_plasma;                                 ///< gam_plasma of the user material, read from the material file.
-		double read_in_big_omega_cp;                               ///< First critical-point frequency in rad/s read from the material file.
-		double read_in_big_omega_cp_2;                             ///< Second critical-point frequency in rad/s read from the material file.
-		double read_in_big_gamma_cp;                               ///< First critical-point damping in rad/s read from the material file.
-		double read_in_big_gamma_cp_2;                             ///< Second critical-point damping in rad/s read from the material file.
-		double read_in_a_coeff_cp;                                 ///< First critical-point amplitude read from the material file.
-		double read_in_a_coeff_cp_2;                               ///< Second critical-point amplitude read from the material file.
-		double read_in_phi_cp;                                     ///< First critical-point phase in rad read from the material file.
-		double read_in_phi_cp_2;                                   ///< Second critical-point phase in rad read from the material file.
-		double read_in_electron_density;                           ///< Free-electron density in m^-3 read from the material file.
-		double read_in_fermi_velocity;                             ///< Fermi velocity in m/s read from the material file.
-		bool magnetic_lorentz;                                     ///< The antenna uses the magnetic Lorentz model, material code 400.
-		int first_medium;                                          ///< Material code of the background on the source side, low y.
-		int middle_medium;                                         ///< Material code of the middle layer between first_medium and second_medium.
-		int second_medium;                                         ///< Material code of the background on the far side, high y.
-		int antenna_material;                                      ///< Material code of the antenna.
-		int nl_mat_gap;                                            ///< Material code of the nonlinear material filling the antenna gap.
+		std::vector<fdtd::materials::Definition> definitions; ///< the run's materials, slot s = definitions[s], slot 0 vacuum
+		bool magnetic_lorentz;                                     ///< The antenna uses the magnetic Lorentz model.
+		int first_medium;                                          ///< Material slot of the background on the source side, low y.
+		int middle_medium;                                         ///< Material slot of the middle layer between first_medium and second_medium.
+		int second_medium;                                         ///< Material slot of the background on the far side, high y.
+		int antenna_material;                                      ///< Material slot of the antenna.
 		bool nonlocal;                                             ///< Electrons are nonlocal, electrons != "local".
 		bool gnor;                                                 ///< Use the GNOR, diffusive, nonlocal model.
 		bool hydrodynamics;                                        ///< The hydrodynamic electron model is active.
-		double fermi_v;                                            ///< Fermi velocity in m/s.
-		double diff_c;                                             ///< GNOR diffusion constant from the configuration in m^2/s.
-		double n_refr_0;                                           ///< Refractive index of dielectric slot 0.
-		double n_refr_1;                                           ///< Refractive index of dielectric slot 1.
-		double n_refr_2;                                           ///< Refractive index of dielectric slot 2.
-		double n_refr_3;                                           ///< Refractive index of dielectric slot 3.
-		double carrier_density;                                    ///< ITO carrier density in m^-3.
-		double carrier_density_back;                               ///< ITO background carrier density in m^-3.
+		double fermi_v;                                            ///< [electrons] fermi_velocity, the factor on every material's Fermi velocity.
 	} materials;
 
 	/// Nonlinear optics
@@ -127,16 +109,8 @@ struct RunConfig
 		bool second_harmonic;                                                  ///< Second-harmonic generation is active.
 		bool third_harmonic;                                                  ///< Third-harmonic generation is active.
 		bool seperate_linear_nonlinear;                            ///< Keep the harmonic fields in separate arrays (*_nl).
-		int shg;                                                   ///< Second-harmonic generation: 0 off, 1 in the structure, antenna, 2 in the layers, bulk.
-		int thg;                                                   ///< Third-harmonic generation: 0 off, 1 antenna, 2 bulk.
-		double chi2_antenna[18];                                   ///< chi2 table of the antenna medium, Voigt rows, as read.
-		double chi2_first[18];                                     ///< chi2 table of the first medium, Voigt rows, as read.
-		double chi2_middle[18];                                    ///< chi2 table of the middle medium, Voigt rows, as read.
-		double chi2_second[18];                                    ///< chi2 table of the second medium, Voigt rows, as read.
-		double chi3_antenna[21];                                   ///< chi3 table of the antenna medium, Voigt rows, as read.
-		double chi3_first[21];                                     ///< chi3 table of the first medium, Voigt rows, as read.
-		double chi3_middle[21];                                    ///< chi3 table of the middle medium, Voigt rows, as read.
-		double chi3_second[21];                                    ///< chi3 table of the second medium, Voigt rows, as read.
+		int shg;                                                   ///< Second-harmonic generation: 0 off, 1 on.
+		int thg;                                                   ///< Third-harmonic generation: 0 off, 1 on.
 	} nonlinear;
 
 	/// Two-temperature model
@@ -167,7 +141,6 @@ struct RunConfig
 		double length;                                             ///< Antenna arm length in m.
 		double length_2;                                            ///< Second arm length for asymmetric shapes in m.
 		double middle_layer;                                       ///< Thickness of the middle layer in m.
-		double stretch_eps_x;                                      ///< Graphene: factor on the plasma frequency and critical-point amplitudes.
 		double rotation_deg;                                       ///< In-plane rotation of the shapes that take one in deg.
 		double antenna_shift;                                      ///< Shift of the antenna along y relative to the interface in m.
 		int shell_material;                                         ///< Material code of the shell of a core-shell sphere.

@@ -26,7 +26,7 @@
 #ifndef FDTD_BOUNDARY_CPML_H
 #define FDTD_BOUNDARY_CPML_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "grid/subdomain.h"
 #include "grid/stretching.h"
 
@@ -52,8 +52,8 @@ constexpr int harmonic = 1; ///< field set, harmonic: the separate nonlinear fie
 struct Profile
 {
 	// 1 / kappa is the coordinates', grid/stretching.h
-	cvector<double> b[2];			///< psi decay b
-	cvector<double> c[2];			///< curl weight c
+	array1<double> b[2];			///< psi decay b
+	array1<double> c[2];			///< curl weight c
 };
 
 /// grading constants, the same on every axis today
@@ -73,14 +73,14 @@ public:
 	Profile profile[3][2];	///< [axis][face]
 	/// psi[set][field][component][derivative axis][face]; allocated only where the derivative axis
 	/// has a CPML face on this rank and differs from the component
-	ctensor<double> psi[2][2][3][3][2];
+	array3<double> psi[2][2][3][3][2];
 	bool harmonic = false; ///< the separate harmonic fields have psi too, set by allocate
 	/// the material the E faces scale their psi with: the first / second medium on the y faces, the y
 	/// layer's medium, the 1D grid's, on the x and z faces, or each cell's own, cellwise
 	struct Background
 	{
-		int near_y = 0; ///< material codes of the y faces
-		int far_y = 0; ///< material codes of the y faces
+		int near_y = 0; ///< material slots of the y faces
+		int far_y = 0; ///< material slots of the y faces
 		bool cellwise = false;     ///< each cell's material, the maps extend into the CPML: mode source
 	} background;
 

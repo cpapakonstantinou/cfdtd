@@ -15,8 +15,8 @@
 #ifndef FDTD_SOURCES_AUX_GRID_H
 #define FDTD_SOURCES_AUX_GRID_H
 
-#include "core/carray.h"
-#include "materials/codes.h"
+#include "core/array.h"
+#include "materials/slots.h"
 #include "materials/state.h"
 
 namespace fdtd::sources
@@ -24,15 +24,15 @@ namespace fdtd::sources
 /// one 1D line along y; index p is the polarisation (0 x, 1 z), side 0 near / 1 far
 struct AuxLine
 {
-	cvector<double> e[2];       ///< Ex, Ez
-	cvector<double> e_prev[2];  ///< E one step back
-	cvector<double> h[2];       ///< Hz, Hx, the H of each polarisation
-	cvector<double> p[2];       ///< Drude / Lorentz polarisation
-	cvector<double> p_prev[2];  ///< and one step back
-	cvector<double> pc[2][materials::NrMaxCP];      ///< critical-point polarisations per pole
-	cvector<double> pc_prev[2][materials::NrMaxCP]; ///< and one step back
-	cvector<double> psi_e[2][2]; ///< CPML psi of E (d/dy), [p][side], num_cpml_cells_y + 1 cells
-	cvector<double> psi_h[2][2]; ///< CPML psi of H (d/dy), [p][side]
+	array1<double> e[2];       ///< Ex, Ez
+	array1<double> e_prev[2];  ///< E one step back
+	array1<double> h[2];       ///< Hz, Hx, the H of each polarisation
+	array1<double> p[2];       ///< Drude / Lorentz polarisation
+	array1<double> p_prev[2];  ///< and one step back
+	array1<double> pc[2][materials::max_poles];      ///< critical-point polarisations per pole
+	array1<double> pc_prev[2][materials::max_poles]; ///< and one step back
+	array1<double> psi_e[2][2]; ///< CPML psi of E (d/dy), [p][side], num_cpml_cells_y + 1 cells
+	array1<double> psi_h[2][2]; ///< CPML psi of H (d/dy), [p][side]
 
 	/// allocates and zeroes every array: fields on n_cells + 1 points, psi on n_cpml + 1
 	void allocate(int n_cells, int n_cpml);
@@ -43,7 +43,7 @@ struct AuxLine
 struct AuxGrid
 {
 	AuxLine line[2];     ///< 0 the source line, 1 the periodic reference line
-	cvector<int> &mat = fdtd::materials::background_y; ///< material code per cell of line 0, the background along y
+	array1<int> &mat = fdtd::materials::background_y; ///< material slot per cell of line 0, the background along y
 
 	/// E update of line 0 and, with periodic x and z, line 1, the TF/SF source step before the 3D E scan
 	void update_e();

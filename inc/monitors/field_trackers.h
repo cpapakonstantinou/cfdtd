@@ -19,7 +19,7 @@
 #ifndef FDTD_MONITORS_FIELD_TRACKERS_H
 #define FDTD_MONITORS_FIELD_TRACKERS_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include <vector>
 
 namespace fdtd::monitors
@@ -35,7 +35,7 @@ struct TrackPoint
 struct FieldTrackers
 {
 	std::vector<TrackPoint> point;
-	ctensor<double> dft[2][2][3];
+	array3<double> dft[2][2][3];
 
 	/// finds this rank's points around the centre and allocates their DFTs, collective: prints the total
 	void setup(int center_x, int center_y, int center_z);

@@ -19,15 +19,15 @@
 #ifndef FDTD_MONITORS_PLANE_DFT_H
 #define FDTD_MONITORS_PLANE_DFT_H
 
-#include "core/carray.h"
+#include "core/array.h"
 
 namespace fdtd::monitors
 {
 /// one step of the DFT of E, field 0, or H, field 1, of set `set` at time t on the plane with normal
 /// axis `normal` at `pad` cells from the inner origin; re/im[component], components without an array skipped
-void sample_plane(int normal, int pad, int field, int set, double t, const ctetrad<double> (&re)[3], const ctetrad<double> (&im)[3]);
+void sample_plane(int normal, int pad, int field, int set, double t, const array4<double> (&re)[3], const array4<double> (&im)[3]);
 /// normalises the plane with normal axis `normal` in place; re/im[component]
-void normalize_plane(int normal, const ctetrad<double> (&re)[3], const ctetrad<double> (&im)[3]);
+void normalize_plane(int normal, const array4<double> (&re)[3], const array4<double> (&im)[3]);
 } // namespace fdtd::monitors
 
 #endif

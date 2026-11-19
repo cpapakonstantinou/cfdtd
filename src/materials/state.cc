@@ -10,12 +10,12 @@ namespace fdtd::materials
 {
 bool laplacian;
 bool gradient_divergence;
-ctensor<double> magnetization_x;
-ctensor<double> magnetization_y;
-ctensor<double> magnetization_z;
+fdtd::array3<double> magnetization_x;
+fdtd::array3<double> magnetization_y;
+fdtd::array3<double> magnetization_z;
 } // namespace fdtd::materials
 
 fdtd::materials::ModelSpec fdtd::materials::the_model_spec;
 fdtd::materials::DispersiveState fdtd::materials::the_dispersive_state;
 fdtd::materials::ModelParameters fdtd::materials::the_model_parameters;
-cvector<int> fdtd::materials::background_y;
+fdtd::array1<int> fdtd::materials::background_y;

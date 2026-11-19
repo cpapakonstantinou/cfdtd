@@ -24,11 +24,11 @@
 #ifndef FDTD_MATERIALS_STRETCH_H
 #define FDTD_MATERIALS_STRETCH_H
 
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include "core/views.h"
 #include "materials/material_field.h"
 #include "materials/component.h"
-#include "core/carray.h"
+#include "core/array.h"
 #include "materials/state.h"
 #include <algorithm>
 #include <vector>
@@ -123,13 +123,13 @@ struct AdeRow
 	double *e_prev; ///< E and E one step back
 	double *p; ///< Drude polarisation and one step back
 	double *p_prev; ///< Drude polarisation and one step back
-	double *pc[NrMaxCP]; ///< critical-point polarisations and one step back
-	double *pc_prev[NrMaxCP]; ///< critical-point polarisations and one step back
+	double *pc[max_poles]; ///< critical-point polarisations and one step back
+	double *pc_prev[max_poles]; ///< critical-point polarisations and one step back
 };
 
 /// the AdeRow of row (i, j) of material mm for the arrays of one component
-inline AdeRow make_ade_row(view3<double> e, view3<double> e_prev, material_field<double, nr_disp_mat_d> &p, material_field<double, nr_disp_mat_d> &p_prev,
-						 ctetrad<double> *pc, ctetrad<double> *pc_prev, int mm, int i, int j)
+inline AdeRow make_ade_row(view3<double> e, view3<double> e_prev, material_field<double, max_slots> &p, material_field<double, max_slots> &p_prev,
+						 array4<double> *pc, array4<double> *pc_prev, int mm, int i, int j)
 {
 	const auto &mp = fdtd::materials::model_parameters();
 	AdeRow r{e[i][j], e_prev[i][j], p[mm][i][j], p_prev[mm][i][j], {}, {}};
@@ -149,7 +149,7 @@ inline AdeRow make_ade_row(view3<double> e, view3<double> e_prev, material_field
  * background, or of the cell's material with mode_source. A factor -c gives f - c psi exactly.
  */
 template <class S, class F, class D>
-inline void psi_update(double *f, double *psi, int off, int k0, int k1, const cvector<double> &c1, const cvector<double> &c2, S &&s, F &&factor, D &&dF)
+inline void psi_update(double *f, double *psi, int off, int k0, int k1, const array1<double> &c1, const array1<double> &c2, S &&s, F &&factor, D &&dF)
 {
 	for (int k = k0; k < k1; ++k)
 	{

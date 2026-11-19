@@ -24,7 +24,7 @@ namespace fdtd::materials::models
 /// one cell of a stretch
 struct Cell
 {
-	int mm;         ///< dispersive material index, code - DispMateOffsetD
+	int mm;         ///< material slot
 	int i; ///< local cell
 	int j; ///< local cell
 	int k; ///< local cell

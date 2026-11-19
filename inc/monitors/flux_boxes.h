@@ -17,14 +17,14 @@
 #ifndef FDTD_MONITORS_FLUX_BOXES_H
 #define FDTD_MONITORS_FLUX_BOXES_H
 
-#include "core/carray.h"
+#include "core/array.h"
 
 namespace fdtd::monitors
 {
 struct FluxFace
 {
-	ctetrad<double> re[2][2][3]; ///< [E/H][field/harmonic][component]
-	ctetrad<double> im[2][2][3]; ///< [E/H][field/harmonic][component]
+	array4<double> re[2][2][3]; ///< [E/H][field/harmonic][component]
+	array4<double> im[2][2][3]; ///< [E/H][field/harmonic][component]
 };
 
 struct FluxBox

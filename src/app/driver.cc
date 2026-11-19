@@ -25,7 +25,7 @@
 #include "sources/waves.h"
 #include "config/apply.h"
 #include "sources/mode_source.h"
-#include "config/exceptions.h"
+#include "config/errors.h"
 #include "materials/stretch.h"
 #include "boundary/cpml.h"
 #include "core/limits.h"
@@ -55,15 +55,13 @@ using fdtd::constants::C0;
 using fdtd::constants::PI2;
 using fdtd::constants::ROOTPROCESS;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::NRMAXMATERIALS;
+using fdtd::materials::max_slots;
 using fdtd::materials::magnetization_x;
 using fdtd::materials::magnetization_y;
 using fdtd::materials::magnetization_z;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
 using fdtd::materials::background_y;
 
 namespace
@@ -99,8 +97,9 @@ std::vector<std::string> output_directories(const std::string& root)
 	return {root, run_cfg.output.reports_dir, run_cfg.output.fields_dir, run_cfg.output.frames_dir, run_cfg.output.materials_dir, run_cfg.output.state_dir};
 }
 
-/// Root reads the file once; every rank gets the same text, no N-way file-system hammering.
-bool broadcast_file(const std::string& path, int rank, std::string& text, std::string& err)
+/// Root reads the file and the catalog files it needs once; every rank gets the same text, no N-way
+/// file-system hammering.
+bool broadcast_file(const std::string& path, const std::vector<std::string>& overrides, int rank, std::string& text, std::string& err)
 {
 	long long len = -1;
 	if (rank == ROOTPROCESS)
@@ -110,14 +109,23 @@ bool broadcast_file(const std::string& path, int rank, std::string& text, std::s
 		{
 			std::ostringstream ss;
 			ss << in.rdbuf();
-			text = ss.str();
-			len = static_cast<long long>(text.size());
+			try
+			{
+				text = fdtd::config::with_catalog(ss.str(), path, overrides);
+				len = static_cast<long long>(text.size());
+			}
+			catch (const std::exception& e)
+			{
+				err = e.what();
+				len = -2;
+			}
 		}
 	}
 	MPI_Bcast(&len, 1, MPI_LONG_LONG, ROOTPROCESS, MPI_COMM_WORLD);
 	if (len < 0)
 	{
-		err = "cannot read configuration file '" + path + "'";
+		if (len == -1 || rank != ROOTPROCESS)
+			err = len == -1 ? "cannot read configuration file '" + path + "'" : "the materials of the configuration could not be read";
 		return false;
 	}
 	text.resize(static_cast<size_t>(len));
@@ -198,7 +206,7 @@ void Driver::load_configuration()
 
 	std::string text;
 	std::string err;
-	if (!agree(broadcast_file(_opt.config_file, _rank, text, err), err))
+	if (!agree(broadcast_file(_opt.config_file, _opt.overrides, _rank, text, err), err))
 		return;
 
 	// every rank parses the same text -> identical configuration everywhere
@@ -270,7 +278,7 @@ bool Driver::estimate_memory(std::vector<std::array<unsigned long long, core::me
 	load_configuration();
 	if (!_ok)
 		return false;
-	core::memory::lazy = true; // arrays are address space only
+	core::memory::enter_lazy_mode(); // arrays cost memory once written
 	fdtd::io::log_muted = true;
 	per_rank.assign(_size, {});
 	for (int r = 0; r < _size && _ok; ++r)
@@ -298,9 +306,9 @@ bool Driver::estimate_memory(std::vector<std::array<unsigned long long, core::me
 			_ok = false;
 			_error = "internal error: " + std::to_string(core::memory::held - held_before) + " bytes of arrays were not released after rank " +
 					 std::to_string(r) + "; use the geometry report of `fdtd mesh` and report this";
-			for (const auto& [ptr, b] : core::memory::blocks)
-				if (b.bytes > 4096)
-					_error += "\n  " + std::string(core::memory::GROUP_NAMES[b.group]) + ": " + std::to_string(b.bytes) + " bytes";
+			for (const core::memory::Charge* c : core::memory::Charge::outstanding())
+				if (c->bytes() > 4096)
+					_error += "\n  " + std::string(core::memory::GROUP_NAMES[c->group()]) + ": " + std::to_string(c->bytes()) + " bytes";
 		}
 	}
 	fdtd::grid::world_rank = ROOTPROCESS;
@@ -397,7 +405,7 @@ void Driver::configure_run()
 		sp.shape = g.antenna_type, sp.draw = g.nano_antenna, sp.graphene_optim = g.graphene_optim, sp.grating = g.grating;
 		sp.centre[0] = g.center_position_x, sp.centre[1] = g.center_position_y, sp.centre[2] = g.center_position_z;
 		sp.antenna_shift = g.antenna_shift, sp.thickness = g.thickness;
-		sp.antenna_material = run_cfg.materials.antenna_material, sp.shell_material = g.shell_material, sp.gap_material = run_cfg.materials.nl_mat_gap;
+		sp.antenna_material = run_cfg.materials.antenna_material, sp.shell_material = g.shell_material, sp.gap_material = 0;
 		sp.medium_first = run_cfg.materials.first_medium, sp.medium_second = run_cfg.materials.second_medium;
 		sp.e_peak = run_cfg.source.e_peak, sp.fundamental_frequency = run_cfg.source.fundamental_frequency;
 		sp.polarization_deg = run_cfg.source.polarization_deg;
@@ -528,20 +536,13 @@ void Driver::setup_sources_and_monitors()
 		{
 			fdtd::io::log("run", "nonlinear approach (0 = E-field update, 1 = polarization update) = %d\n", run_cfg.nonlinear.pnl_approach);
 			fdtd::io::log("run", "meshing (0 = per component, 1 = staircasing) = %d\n", run_cfg.geometry.sta_ir_casing);
-			fdtd::io::log("run", "antenna / first / middle / second medium = %d / %d / %d / %d\n", run_cfg.materials.antenna_material, run_cfg.materials.first_medium, run_cfg.materials.middle_medium, run_cfg.materials.second_medium);
-			const double* chiA = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::chi_2_a : fdtd::materials::nonlinear::chi_3_a;
-			const double* chiF = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::chi_2_f : fdtd::materials::nonlinear::chi_3_f;
-			const double* chiM = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::chi_2_m : fdtd::materials::nonlinear::chi_3_m;
-			const double* chiS = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::chi_2_s : fdtd::materials::nonlinear::chi_3_s;
-			const bool* iso = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::iso_chi_2_dl : fdtd::materials::nonlinear::iso_chi_3_dl;
-			fdtd::io::log("run", "%s isotropic (first/middle/second) = %d / %d / %d\n", run_cfg.nonlinear.second_harmonic ? "chi2" : "chi3", iso[run_cfg.materials.first_medium], iso[run_cfg.materials.middle_medium], iso[run_cfg.materials.second_medium]);
-			// nl: dispersive materials, index >= DispMateOffsetD, nl_dl: dispersionless ones
-			const bool dispersive = run_cfg.materials.antenna_material >= DispMateOffsetD;
-			fdtd::io::log("run", "antenna nonlinear = %d (%s)\n", dispersive ? fdtd::materials::nonlinear::nl[run_cfg.materials.antenna_material - DispMateOffsetD] : fdtd::materials::nonlinear::nl_dl[run_cfg.materials.antenna_material],
-				   dispersive ? "dispersive" : "dispersionless");
-			fdtd::io::log("run", "dispersionless+nonlinear (first/middle/second) = %d / %d / %d\n", fdtd::materials::nonlinear::nl_dl[run_cfg.materials.first_medium], fdtd::materials::nonlinear::nl_dl[run_cfg.materials.middle_medium], fdtd::materials::nonlinear::nl_dl[run_cfg.materials.second_medium]);
-			fdtd::io::log("run", "antenna diagonal [0]=%15.5e [7]=%15.5e [14]=%15.5e | first %15.5e middle %15.5e second %15.5e\n",
-				   chiA[0], chiA[7], chiA[14], chiF[0], chiM[0], chiS[0]);
+			for (int m = 0; m < fdtd::materials::slot_count(); ++m)
+			{
+				const double* chi = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::chi_2[m] : fdtd::materials::nonlinear::chi_3[m];
+				fdtd::io::log("run", "material %d %s: nonlinear %d, diagonal only %d, diagonal %15.5e %15.5e %15.5e\n", m, fdtd::materials::slot_name(m).c_str(),
+							  int(fdtd::materials::nonlinear::nl[m]), int(run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::iso_chi_2[m] : fdtd::materials::nonlinear::iso_chi_3[m]),
+							  chi[0], chi[7], chi[14]);
+			}
 		}
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -593,7 +594,7 @@ void Driver::dump_geometry()
 void Driver::write_geometry_report()
 {
 	// material census over the interior (TF/SF) cells of every rank, per Yee component
-	const int ncodes = nl_code + NRMAXMATERIALS + 1;
+	const int ncodes = fdtd::materials::slot_count();
 	std::vector<long long> local(3 * ncodes, 0);
 	std::vector<long long> total(3 * ncodes, 0);
 	long long out_of_range = 0;
@@ -677,7 +678,7 @@ void Driver::write_geometry_report()
 	r << "  in bytes          : " << array_max[ng - 1] << " " << array_sum[ng - 1] << "\n";
 
 	r << "\nmaterial census (interior cells, per Yee component)\n";
-	r << "   code        Ex-cells        Ey-cells        Ez-cells  note\n";
+	r << "   slot        Ex-cells        Ey-cells        Ez-cells  material, note\n";
 	long long structure_cells = 0;
 	for (int m = 0; m < ncodes; ++m)
 	{
@@ -686,22 +687,24 @@ void Driver::write_geometry_report()
 		const long long z = total[2 * ncodes + m];
 		if (x + y + z == 0)
 			continue;
-		const int base = m >= nl_code ? m - nl_code : m;
-		std::string note = m >= nl_code ? "nonlinear-tagged" : "";
-		if (base == _cfg.geometry.material)
+		std::string note = fdtd::materials::slot_name(m) + (fdtd::materials::nonlinear::nl[m] ? ", nonlinear" : "");
+		if (m == run_cfg.materials.antenna_material)
 		{
-			note += note.empty() ? "structure" : ", structure";
+			note += ", structure";
 			structure_cells += x + y + z;
 		}
-		if (base == _cfg.geometry.first_medium) note += note.empty() ? "first medium" : ", first medium";
-		if (base == _cfg.geometry.middle_medium && _cfg.geometry.middle_thickness > 0) note += note.empty() ? "middle medium" : ", middle medium";
-		if (base == _cfg.geometry.last_medium) note += note.empty() ? "last medium" : ", last medium";
+		if (m == run_cfg.materials.first_medium)
+			note += ", first medium";
+		if (m == run_cfg.materials.middle_medium && _cfg.geometry.middle_thickness > 0)
+			note += ", middle medium";
+		if (m == run_cfg.materials.second_medium)
+			note += ", last medium";
 		char line[160];
 		std::snprintf(line, sizeof(line), "  %5d  %14lld  %14lld  %14lld  %s\n", m, x, y, z, note.c_str());
 		r << line;
 	}
 	if (out_of_range_all)
-		r << "  WARNING: " << out_of_range_all << " cell components carry a material code outside [0, " << ncodes << ")\n";
+		r << "  WARNING: " << out_of_range_all << " cell components carry a material slot outside [0, " << ncodes << ")\n";
 	if (config::shape_code(_cfg.geometry.shape) != 0 && structure_cells == 0)
 		r << "  WARNING: a structure was requested ([geometry] shape = " << _cfg.geometry.shape
 		  << ") but no cell carries [geometry] material = " << _cfg.geometry.material

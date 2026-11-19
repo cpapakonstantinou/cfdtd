@@ -8,10 +8,10 @@
 #ifndef FDTD_MATERIALS_THERMAL_STATE_H
 #define FDTD_MATERIALS_THERMAL_STATE_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "core/constants.h"
 #include "materials/material_field.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include <complex>
 #include <mpi.h>
 #include <string>
@@ -25,10 +25,10 @@ extern std::string str_outfilepathname_t;                        ///< Path prefi
 extern std::string str_infilepathname_t;                         ///< Path prefix of the temperature input file.
 extern std::string str_fileextension;                            ///< File extension of the temperature files.
 extern int num_rk;                                          ///< Number of Runge-Kutta stages of the temperature update.
-extern ctensor<double> electron_temp;                         ///< Electron temperature per cell in K.
-extern ctensor<double> electron_temp_tf;                      ///< Electron temperature written to / read from the temperature files in K.
-extern ctensor<double> lattice_temp;                          ///< Lattice temperature per cell in K.
-extern ctensor<double> temp_save;                             ///< Temperature history of the pump run [field][step][y], replayed in the probe run.
+extern array3<double> electron_temp;                         ///< Electron temperature per cell in K.
+extern array3<double> electron_temp_tf;                      ///< Electron temperature written to / read from the temperature files in K.
+extern array3<double> lattice_temp;                          ///< Lattice temperature per cell in K.
+extern array3<double> temp_save;                             ///< Temperature history of the pump run [field][step][y], replayed in the probe run.
 } // namespace fdtd::materials::thermal
 
 #endif

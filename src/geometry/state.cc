@@ -8,8 +8,6 @@
 namespace fdtd::geometry
 {
 int j_offset_uni;
-bool shg_bulk;
-bool thg_bulk;
 double corner_radius;
 bool add_free_electron_layer;
 double antenna_gap;

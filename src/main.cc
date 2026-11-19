@@ -16,7 +16,7 @@
 #include "app/machine.h"
 #include "config/apply.h"
 #include "app/driver.h"
-#include "config/exceptions.h"
+#include "config/errors.h"
 #include "grid/state.h"
 #include "app/run_state.h"
 #include "app/run_config.h"
@@ -85,7 +85,7 @@ int check_configuration(const fdtd::CliOptions &opt)
 	std::stringstream text;
 	text << in.rdbuf();
 
-	auto config = fdtd::config::load_sim_config(fdtd::config::build_config(text.str(), opt.config_file, opt.overrides, opt.input_dir, opt.output_dir));
+	auto config = fdtd::config::load_sim_config(fdtd::config::build_config(fdtd::config::with_catalog(text.str(), opt.config_file, opt.overrides), opt.config_file, opt.overrides, opt.input_dir, opt.output_dir));
 	fdtd::config::validate_sim_config(config);
 
 	std::printf("%s", fdtd::config::to_ini(config).c_str());

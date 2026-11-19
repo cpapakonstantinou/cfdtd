@@ -6,7 +6,8 @@ This page maps their keys and codes to the INI keys.
 
 `tools/migrate_config_keys.py run.ini` rewrites an INI file written for an earlier state of the INI
 schema (renamed keys, the generic `[geometry]` dimensions, rotation conventions) in place and
-reports what it changed or dropped.
+reports what it changed or dropped. `tools/migrate_materials.py run.ini` then turns the material
+codes of such a file into material names, [Materials](../models/Materials.md).
 
 Two conventions changed with the format:
 
@@ -47,21 +48,21 @@ Two conventions changed with the format:
 | (new) | `[output] xdmf` (default true): a `.xmf` next to every HDF5 output for ParaView / VisIt; complex fields are stored as `<name>_re` / `<name>_im` |
 | Exact Multipoles | `[multipoles] exact`; new: `lwa` (long-wavelength moments, any material model) |
 | Multipoles [r, ntheta, nphi] | `[multipoles] sphere_radius`, `sphere_theta`, `sphere_phi` |
-| Antenna Type 0..1001 / Antenna Medium | `[geometry] shape = none / sphere / dipole / bowtie / ...` (names below), `material` |
-| First / Middle / Last Medium, Middle Thickness | `[geometry] first_medium`, `middle_medium`, `last_medium`, `middle_thickness` |
+| Antenna Type 0..1001 / Antenna Medium | `[geometry] shape = none / sphere / dipole / bowtie / ...` (names below), `material`, a material name |
+| First / Middle / Last Medium, Middle Thickness | `[geometry] first_medium`, `middle_medium`, `last_medium`, material names; `middle_thickness` |
 | Antenna Shift | `[geometry] shift_y` |
 | WIDTH, LENGTH, THICKNESS, LENGTH2, GAP, LENGTH1_L, LENGTH2_B | keys of the shape's own section, named for the shape ([Shapes](../geometry/Shapes.md)); `Height` is removed (read by nothing) |
 | ald_layer, afm_size_x/z (hardcoded) | removed (read by nothing) |
-| pphmatini.txt NREFR1..99 | `[materials] n1 ... n99` |
-| pphmatini.txt carrier/gamma/stretch/sheets | `[materials] carrier_density`, `carrier_density_back`, `stretch_x` (`stretch_z`, `sheet_spacing`, and the LIDAR-only `damping_*` / `extra_layer_*` are removed) |
-| pphREADINMATERIAL.txt | `[custom_material] eps_inf`, `plasma_frequency`, `plasma_damping`, `cp_frequency(_2)`, `cp_damping(_2)`, `cp_amplitude(_2)`, `cp_phase(_2)`, `fermi_velocity`, `electron_density` |
+| pphmatini.txt NREFR1..99 | a `[material.<name>]` of model `dielectric` with `n` per medium |
+| pphmatini.txt carrier/gamma/stretch/sheets | `carrier_density` of the ITO materials, `sheet_scale` of graphene (`stretch_z`, `sheet_spacing`, and the LIDAR-only `damping_*` / `extra_layer_*` are removed) |
+| pphREADINMATERIAL.txt | a `[material.<name>]` of model `hydrodynamic` or `drude_lorentz` with its poles |
 | pphlidar.txt | removed with the `lidar_*` shapes (2026-11-13) |
-| DFG_OPTIM 0..6 | `[nonlinear] shg = none / antenna / bulk`, `thg = none / antenna / bulk` (the DFG/SFG two-sweep modes are removed: run each pump separately and mix in post-processing) |
-| pphnlsini.txt (4 tensor names + approach) | `[nonlinear] chi_structure`, `chi_first`, `chi_middle`, `chi_last` (unset = zero), `update = field / polarization` |
-| INIDEF/chi2/*.txt, INIDEF/chi3/*.txt | `[chi2.<name>]` / `[chi3.<name>]` sections, or the built-in presets of the same names ([Nonlinear Tensors](../models/NonlinearTensors.md)) |
+| DFG_OPTIM 0..6 | `[nonlinear] shg = true / false`, `thg = true / false`; the materials with a tensor are nonlinear (the DFG/SFG two-sweep modes are removed: run each pump separately and mix in post-processing) |
+| pphnlsini.txt (4 tensor names + approach) | `chi2 =` / `chi3 =` of the material definitions; `[nonlinear] update = field / polarization` |
+| INIDEF/chi2/*.txt, INIDEF/chi3/*.txt | `[chi2.<name>]` / `[chi3.<name>]` sections, in the run file or in the catalog, `materials/chi2/`, `materials/chi3/` ([Nonlinear Tensors](../models/NonlinearTensors.md)) |
 | DFG_THZ_FREQ, DFG_DEEP_STEP, GRAPHENE_OPTIM | `rotation` [deg] and `corner_radius` [m] of the shape's section (what the shapes read the two DFG values as); `[nonlinear] graphene_optimization` |
 | Advanced Model 0..2023 | `[electrons] model`, `[temperature] model`, `[hydrodynamic]` (table below) |
-| Diffusion Coefficient, Fermi velocity | `[electrons] diffusion`, `fermi_velocity` |
+| Diffusion Coefficient, Fermi velocity | `diffusion` of the material; `[electrons] fermi_velocity`, a factor on the materials' `fermi_velocity` |
 | NumRK.txt, PumpProbeDelay.txt | `[two_temperature] rk_stages`, `[pump_probe] delay` |
 | Probes.txt | one `[probe.<name>]` section with `x`, `y`, `z` per probe |
 | ./INIDEF, ./OUTPUT (hardcoded) | `[paths] input_dir` (data files: mode profiles, electron temperature), `output_dir`; CLI `-i`, `-o` |

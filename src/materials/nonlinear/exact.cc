@@ -5,7 +5,7 @@
  * For a dispersionless isotropic medium the update D = eps0 (eps E + chi E^n) is a quadratic, SHG, or
  * cubic, THG, equation in the new E, solved in closed form. One solver per order serves Ex, Ey and Ez:
  * the component's field array and its diagonal chi element, Voigt xx, yy, zz, are the arguments.
- * The chi tables are the dielectric ones, chi2_dl, chi3_dl, index = material code.
+ * The chi tables are chi_2 and chi_3 of the slot, nonlinear/state.h.
  */
 #include "materials/nonlinear/nonlinear.h"
 #include "fields/fields.h"
@@ -79,10 +79,10 @@ void exact_thg(view3<double> e, int m, const double *chi3, double rotdiff, int i
 // the diagonal chi element of component a: chi2 xx, yy, zz = [0], [7], [14]; chi3 xxxx, yyyy, zzzz likewise
 void fdtd::materials::nonlinear::update_exact_shg(int a, double rotdiff, int m, int i, int j, int k)
 {
-	exact_shg(fields::fields().E[0][a], m, &chi2_dl[m][7 * a], rotdiff, i, j, k);
+	exact_shg(fields::fields().E[0][a], m, &chi_2[m][7 * a], rotdiff, i, j, k);
 }
 
 void fdtd::materials::nonlinear::update_exact_thg(int a, double rotdiff, int m, int i, int j, int k)
 {
-	exact_thg(fields::fields().E[0][a], m, &chi3_dl[m][7 * a], rotdiff, i, j, k);
+	exact_thg(fields::fields().E[0][a], m, &chi_3[m][7 * a], rotdiff, i, j, k);
 }

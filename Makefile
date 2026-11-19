@@ -8,12 +8,15 @@ DOXYGEN_IMAGE_PATH = docs/dev/Images docs/geometry/shapes
 
 CXX = mpicxx
 TARGETS = fdtd
-SRC = main.cc $(patsubst src/%,%,$(wildcard src/*/*.cc src/*/*/*.cc))
+SRC = main.cc $(patsubst src/%,%,$(wildcard src/*/*.cc src/*/*/*.cc)) $(EXTERN_SRC)
+# upstream modules, unmodified: see extern/README.md
+EXTERN_SRC = ../extern/config/config.cc
+CPPFLAGS += -isystem extern/carray -isystem extern/config
 
-TEST_TARGETS = test_config test_machine test_carray test_h5io test_geometry
+TEST_TARGETS = test_config test_machine test_array test_h5io test_geometry
 TEST_SRC = $(TEST_TARGETS:%=%.cc)
 # the tests link the modules without solver state
-TEST_DEPS = $(addprefix src/,config/ini.o config/sim_config.o config/chi_tensors.o io/h5io.o geometry/csg.o geometry/anapole.o)
+TEST_DEPS = $(addprefix src/,io/ini.o ../extern/config/config.o core/memory.o config/sim_config.o materials/definition.o io/h5io.o geometry/csg.o geometry/anapole.o)
 
 # parallel HDF5 through pkg-config; another name: make HDF5_PKG=hdf5-openmpi
 HDF5_PKG ?= hdf5

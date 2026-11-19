@@ -1,22 +1,21 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
-/** \file 	config/ini.h
+/** \file 	config.h
  * \brief 	definition for configuration utilties
  * \author 	c. papakonstantinou
  * \date 	March 2023 
  **/
 #include <string>
 #include <cstring>
-#include <istream>
 #include <list>
 #include <map>
 #include <vector>
-#include "config/exceptions.h"
+#include "exceptions.h"
 
 /** Configuration file parser and utilities.
  *
- * Create an instance of this class, pointing it at a configuration file, to
+ * Create an instance of this class (pointing it at a configuration file) to
  * parse it.
  *
  * The configuration file follows standard Windows "INI" file syntax.
@@ -38,7 +37,7 @@
  * options which are passed in via command-line parameters or some
  * other mechanism.
  */
-namespace fdtd::config
+namespace cfg
 {
 	/// Type of a single value associated with a key.
 	using value_type = std::string;
@@ -54,11 +53,10 @@ namespace fdtd::config
 		private:
 			/// Mapping between key names and their values
 			using keys_type = std::map<std::string, value_list>;
-			/// Mapping between section and their keys, and values
+			/// Mapping between section and their keys (and values)
 			using sections_type = std::map<std::string, keys_type>;
 
-			sections_type _sections; ///< Known sections.
-			std::vector<std::string> _order; ///< Section names in the order they first appeared.
+			sections_type sections_; ///< Known sections.
 
 		protected:
 			/** \brief Add a key-value pair to the specified section.
@@ -96,7 +94,7 @@ namespace fdtd::config
 
 			/** \brief Open and parse a configuration file.
 			 *
-			 * \param filename Name of the file to parse, relative to cwd.
+			 * \param filename Name of the file to parse (relative to cwd).
 			 *
 			 * \throws file_error, syntax_error.
 			 */
@@ -104,24 +102,12 @@ namespace fdtd::config
 
 			/** \brief Open and parse a configuration file.
 			*
-			* \param filename Name of the file to parse, relative to cwd.
+			* \param filename Name of the file to parse (relative to cwd).
 			*
 			* \throws file_error, syntax_error.
 			*/
 			void load(const std::string& filename);
 
-			/** \brief Parse configuration text held in memory, e.g. broadcast over MPI.
-			*
-			* \param text INI text.
-			*
-			* \param name Name used in error messages.
-			*
-			* \throws syntax_error.
-			*/
-			void load_string(const std::string& text, const std::string& name = "<memory>");
-
-			/** \brief Parse configuration text from a stream. \sa load */
-			void parse(std::istream& strm, const std::string& name);
 
 			/** \brief Add a section to the configuration file.
 			 *
@@ -149,8 +135,7 @@ namespace fdtd::config
 			void override(const std::string &, const override_list &);
 
 			/** \brief Return the available section names. */
-			std::vector<std::string> sections(void) const; ///< sorted by name
-			std::vector<std::string> sections_in_file_order(void) const; ///< in the order they first appeared
+			std::vector<std::string> sections(void) const;
 
 			/** \brief Return the available keys within a section. */
 			key_list keys(const std::string& sect) const;
@@ -164,6 +149,7 @@ namespace fdtd::config
 
 			/** \brief Is a particular key in a section available? */
 			bool is_key(const std::string& sect, const std::string& key) const;
+
 
 			/** \brief Convert a config file into a string, for output.
 			*
@@ -211,6 +197,7 @@ namespace fdtd::config
 			 * \throws syntax_error.
 			 */
 			unsigned get_unsigned(const std::string& sect, const std::string& key, unsigned dflt = 0, unsigned base = 10) const;
+
 
 			/** \brief Get a value as a floating-point value.
 			 *
@@ -318,6 +305,6 @@ namespace fdtd::config
 			static void trim(std::string& line);
 
 	};
-}//namespace fdtd::config
+}//namespace cfg
 
 #endif //__CONFIG_H__

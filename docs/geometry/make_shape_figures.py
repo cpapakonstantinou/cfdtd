@@ -31,7 +31,8 @@ import numpy as np
 
 ANGLES = ("rotation", "angle")  # keys in degrees
 N, NY = 96, 56  # cells along x and z, along y, 1 nm cells
-MATERIAL = 100
+MATERIAL = "gold_d2cp"
+STRUCTURE = 1  # the slot of the structure's material in the material maps: vacuum is 0
 
 INI = """[grid]
 nx = {n}
@@ -196,7 +197,7 @@ def x_shape(p):
 
 SHAPES = {
     "sphere": dict(p=dict(radius=24), dims=lambda p: [("xz", "radius", (0, 0), (p["radius"], 0))]),
-    "sphere_shell": dict(p=dict(radius=20), geometry="shell_material = 2", dims=lambda p: [("xz", "radius", (0, 0), (p["radius"], 0))]),
+    "sphere_shell": dict(p=dict(radius=20), geometry="shell_material = shell\n[material.shell]\nmodel = dielectric\nn = 1.5", dims=lambda p: [("xz", "radius", (0, 0), (p["radius"], 0))]),
     "two_spheres": dict(p=dict(radius=10, separation=24), views=("xy", "xz"),
                         dims=lambda p: [("xy", "radius", (0, p["separation"] / 2), (p["radius"], p["separation"] / 2)),
                                         ("xy", "separation", (-p["radius"] - 4, -p["separation"] / 2), (-p["radius"] - 4, p["separation"] / 2))]),
@@ -212,7 +213,7 @@ SHAPES = {
     "cylinder": dict(p=dict(radius=14, length=60), views=("xy", "xz"),
                      dims=lambda p: [("xy", "radius", (0, 0), (p["radius"], 0)),
                                      ("xz", "length", (p["radius"] + 5, -p["length"] / 2), (p["radius"] + 5, p["length"] / 2))]),
-    "cylinder_shell": dict(p=dict(radius_core=12, core_length=64, radius_shell=20, shell_length=40), geometry="shell_material = 2", views=("xy", "xz"), centre_cut=("xy",),
+    "cylinder_shell": dict(p=dict(radius_core=12, core_length=64, radius_shell=20, shell_length=40), geometry="shell_material = shell\n[material.shell]\nmodel = dielectric\nn = 1.5", views=("xy", "xz"), centre_cut=("xy",),
                            dims=lambda p: [("xy", "radius_core", (0, 0), (p["radius_core"], 0)),
                                            ("xy", "radius_shell", (0, 0), (-0.7071 * p["radius_shell"], 0.7071 * p["radius_shell"])),
                                            ("xz", "core_length", (0, -p["core_length"] / 2), (0, p["core_length"] / 2)),
@@ -257,7 +258,7 @@ SHAPES = {
     "x_shape": dict(p=dict(thickness=10, fixed_length=64, fixed_width=12, rotated_length=44, rotated_width=8, corner_radius=3, angle=60), dims=x_shape),
     "anapole": dict(p=dict(patch_edge=200, thickness=30, corner_radius=11, gap_length=12.0432, gap_width=15.914), n=232, ny=48,
                     views=("xz", ("xz", 20), "zy"), dims=anapole),
-    "two_films_spacer": dict(p=dict(thickness=10), views=("zy",), geometry="middle_thickness = 8e-9\nmiddle_medium = 2\nlast_medium = 3\n[materials]\nn2 = 1.5\nn3 = 2.0", dims=lambda p: []),
+    "two_films_spacer": dict(p=dict(thickness=10), views=("zy",), geometry="middle_thickness = 8e-9\nmiddle_medium = spacer\nlast_medium = film\n[material.spacer]\nmodel = dielectric\nn = 1.5\n[material.film]\nmodel = dielectric\nn = 2.0", dims=lambda p: []),
 }
 
 AXES = {"xz": (0, 2, 1), "zy": (2, 1, 0), "xy": (0, 1, 2)}  # horizontal, vertical, cut, axes of the [x][y][z] volume
@@ -287,7 +288,7 @@ def draw(shape, spec, vol, out):
     lo, hi = idx.min(0), idx.max(0) + 1
     # the dimension lines are placed from the centre of the domain (x, z) and of the structure (y)
     cell = spec.get("cell", 1)
-    body = np.argwhere(vol == MATERIAL)
+    body = np.argwhere(vol == STRUCTURE)
     centre = np.array([vol.shape[0] / 2, (body[:, 1].min() + body[:, 1].max() + 1) / 2, vol.shape[2] / 2])
     views = spec.get("views", ("xz", "zy"))
     fig, axs = plt.subplots(1, len(views), figsize=(5.2 * len(views), 5.2), squeeze=False)
@@ -299,14 +300,14 @@ def draw(shape, spec, vol, out):
             view, zoom = view
         h, v, cut = AXES[view]
         # cut through the plane that holds the most of the structure
-        at = (vol == MATERIAL).sum(axis=(h, v)).argmax()
+        at = (vol == STRUCTURE).sum(axis=(h, v)).argmax()
         if view in spec.get("centre_cut", ()):
             at = int(centre[cut])  # through the middle of the structure
         img = np.take(vol, at, axis=cut)
         img = img if h < v else img.T  # rows = horizontal axis
         ext = [-centre[h] * cell, (vol.shape[h] - centre[h]) * cell, -centre[v] * cell, (vol.shape[v] - centre[v]) * cell]
         ax.imshow((img != background).T, origin="lower", extent=ext, cmap="Greys", vmin=0, vmax=2.2, interpolation="nearest")
-        others = (img != background) & (img != MATERIAL)
+        others = (img != background) & (img != STRUCTURE)
         if others.any():
             ax.imshow(np.ma.masked_where(~others.T, others.T), origin="lower", extent=ext, cmap="Blues", vmin=0, vmax=2.5, interpolation="nearest")
         for dview, key, p0, p1 in dims:

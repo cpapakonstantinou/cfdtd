@@ -110,16 +110,16 @@ void plane_dft(double t, double harmonic, Plane plane, int pad, const std::array
 
 } // namespace
 
-void sample_plane(int normal, int pad, int field, int set, double t, const ctetrad<double> (&re)[3], const ctetrad<double> (&im)[3])
+void sample_plane(int normal, int pad, int field, int set, double t, const array4<double> (&re)[3], const array4<double> (&im)[3])
 {
 	const fields::Fields &F = fields::fields();
 	const int s = set == 1 && sp.harmonic ? 1 : 0;
-	const ctensor<double> (&f)[3] = field == 0 ? F.E[s] : F.H[s];
+	const array3<double> (&f)[3] = field == 0 ? F.E[s] : F.H[s];
 	static const Plane kPlane[3] = {Plane::YZ, Plane::XZ, Plane::XY};
 	plane_dft(t, set == 1 ? 2 : 1, kPlane[normal], pad, {f[0], f[1], f[2]}, {re[0], re[1], re[2]}, {im[0], im[1], im[2]});
 }
 
-void normalize_plane(int normal, const ctetrad<double> (&re)[3], const ctetrad<double> (&im)[3])
+void normalize_plane(int normal, const array4<double> (&re)[3], const array4<double> (&im)[3])
 {
 	const int ni = normal == 0 ? 0 : subdomain.inner_dim_x;
 	const int nj = normal == 1 ? 0 : subdomain.inner_dim_y;

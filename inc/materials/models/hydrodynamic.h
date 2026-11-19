@@ -1,6 +1,6 @@
 /**
  * @file materials/models/hydrodynamic.h
- * @brief Hydrodynamic free-electron + critical points model, E update, codes 300-349
+ * @brief Hydrodynamic free-electron + critical points model, E update, model hydrodynamic
  *
  * The hydrodynamic current J comes from the hydrodynamic solver, src/hydrodynamics.cc; this is the
  * E-side point update.
@@ -34,14 +34,12 @@ struct Hydrodynamic
 	{
 	};
 
-	/// coefficients of dispersive material index mm, material code `code`, for time step dt
-	static Coeffs compute(int mm, int code, double dt)
+	/// coefficients of material slot mm for time step dt
+	static Coeffs compute(int mm, double dt)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
 		const int n = mm;
-		const int m = code;
-		(void)m;
 		double NL1;
 		double cp1;
 		double cp2;
@@ -79,8 +77,8 @@ struct Hydrodynamic
 			c.b4[s] = 2 * cp3 * (cp7 - (2 + cp2) * cp8) / cp6;
 		}
 
-		cp9 = mp.sig_m[m] * dt / 2 + c.b3[0] + c.b3[1] - EP0 * mp.epre_inf[n];
-		cp10 = mp.sig_m[m] * dt / 2 + c.b4[0] + c.b4[1] + EP0 * mp.epre_inf[n];
+		cp9 = mp.sig_m[n] * dt / 2 + c.b3[0] + c.b3[1] - EP0 * mp.epre_inf[n];
+		cp10 = mp.sig_m[n] * dt / 2 + c.b4[0] + c.b4[1] + EP0 * mp.epre_inf[n];
 		c.c0 = dt / cp10;
 		c.c1 = 1 / cp10;
 		c.c2 = -(c.b2[0] + c.b2[1]) / cp10;
@@ -116,8 +114,8 @@ struct Hydrodynamic
 		const int kk = k + 1;
 		const int nr_cp = mp.nr_cp[mm];
 		const bool nl = fdtd::materials::model_spec().harmonic;
-		double P_CP_new[NrMaxCP];
-		double P_CP_new_NL[NrMaxCP];
+		double P_CP_new[max_poles];
+		double P_CP_new_NL[max_poles];
 		double E_new_NL = 0;
 		const double P_new = -jc[mm][ii][jj][kk];
 		double E_new = cf.c0 * (c.curl + P_new) + cf.c2 * e_prev[i][j][k] + cf.c3 * e[i][j][k];

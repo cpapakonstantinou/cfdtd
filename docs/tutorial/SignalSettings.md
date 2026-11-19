@@ -39,7 +39,7 @@ of the signal over the run's steps, as the monitors do, and reports that power r
 power at the fundamental:
 
 ```
-harmonic: fundamental 800.0000 nm (signal carrier); [nonlinear] shg = antenna, thg = none
+harmonic: fundamental 800.0000 nm (signal carrier); [nonlinear] shg = true, thg = false
 harmonic: shg 400.0000 nm floor -85.5 dB (pump power at 2 f relative to f, 40000 steps)
 harmonic: thg 266.6667 nm floor -90.5 dB (pump power at 3 f relative to f, 40000 steps)
 harmonic: steps 20000 shg_floor -20.1 dB thg_floor -25.1 dB

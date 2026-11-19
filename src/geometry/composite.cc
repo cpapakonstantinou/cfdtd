@@ -28,7 +28,6 @@ using fdtd::grid::subdomain;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
 using fdtd::materials::background_y;
 
 namespace

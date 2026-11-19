@@ -9,7 +9,7 @@
 #ifndef FDTD_APP_ARCHIVE_H
 #define FDTD_APP_ARCHIVE_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "materials/material_field.h"
 #include <cstdint>
 #include <cstdio>
@@ -55,7 +55,7 @@ public:
 	}
 	/// the contents of an allocated array, nothing for an empty one
 	template <class T, std::size_t N, std::size_t A>
-	void array(carray<T, N, A> &a)
+	void array(core::array<T, N, A> &a)
 	{
 		if (a && a.size() > 0 && a.stored() == 0)
 			throw std::logic_error("state archive: an array without a stored count");
@@ -74,7 +74,7 @@ public:
 	template <class T, std::size_t M>
 	void array(material_field<T, M> &f)
 	{
-		f.for_each([&](ctensor<T> &a) { array(a); });
+		f.for_each([&](array3<T> &a) { array(a); });
 	}
 
 private:

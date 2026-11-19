@@ -31,12 +31,10 @@ using fdtd::fields::ez_nl;
 using fdtd::fields::hx_nl;
 using fdtd::fields::hy_nl;
 using fdtd::fields::hz_nl;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nr_disp_mat_d;
+using fdtd::materials::max_slots;
 
 namespace
 {

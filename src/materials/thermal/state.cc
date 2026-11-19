@@ -12,8 +12,8 @@ std::string str_outfilepathname_t;
 std::string str_infilepathname_t;
 std::string str_fileextension;
 int num_rk;
-ctensor<double> electron_temp;
-ctensor<double> electron_temp_tf;
-ctensor<double> lattice_temp;
-ctensor<double> temp_save;
+fdtd::array3<double> electron_temp;
+fdtd::array3<double> electron_temp_tf;
+fdtd::array3<double> lattice_temp;
+fdtd::array3<double> temp_save;
 } // namespace fdtd::materials::thermal

@@ -1,10 +1,12 @@
 #include <algorithm>
 // Unit tests for fdtd::config::Config, fdtd::config::SimConfig and the CLI layer, no MPI needed.
-#include "config/exceptions.h"
+#include "config/errors.h"
 #include "config/sim_config.h"
 
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <string>
 
@@ -54,11 +56,12 @@ signal = Gaussian
 [signal.gaussian]
 center_wavelength = 800e-9
 
-[materials]
-n4 = 1.45
-
 [geometry]
-material = 4
+material = Glass
+
+[material.glass]
+model = dielectric
+n = 1.45
 
 [multipoles]
 exact = true
@@ -93,7 +96,8 @@ int main()
 	CHECK(c.source.signal == "gaussian" && fdtd::config::pulse_code(c.source.signal) == 6);
 	CHECK(c.signal.gaussian.center_wavelength == 800e-9 && c.plane_wave.polarization_axis == "z");
 	CHECK(c.source.aux_steps == c.grid.time_steps);
-	CHECK(c.materials.refractive_index.at(4) == 1.45);
+	CHECK(c.definitions.size() == 2 && c.definitions[0].name == "vacuum" && c.definitions[1].name == "glass" && c.definitions[1].n == 1.45);
+	CHECK(fdtd::config::material_slot(c, "Glass") == 1 && fdtd::config::material_slot(c, "vacuum") == 0);
 	CHECK(c.multipoles.exact);
 	CHECK(c.probes.size() == 1 && c.probes[0].name == "center" && c.probes[0].z == 30);
 	CHECK(c.paths.output_dir == "./OUTPUT");
@@ -183,9 +187,9 @@ int main()
 					 "--set", "mode.propagation_axis=x", "--set", "mode.mpb_x_axis=x", "--set", "mode.mpb_y_axis=y"});
 	}, "across the propagation axis"));
 	CHECK(throws<fdtd::config::syntax_error>([] { load(BASIC, {"--set", "source.signal=mode"}); }, "expected one of")); // the mode is a source type now
-	c = load(std::string(BASIC) + "[block.b]\nmaterial = 2\ny_max = 0\n[block.a]\nmaterial = 3\ncount = 4\npitch_x = 1e-6\n");
+	c = load(std::string(BASIC) + "[block.b]\nmaterial = glass\ny_max = 0\n[block.a]\nmaterial = vacuum\ncount = 4\npitch_x = 1e-6\n");
 	CHECK(c.blocks.size() == 2 && c.blocks[0].name == "b" && c.blocks[0].y_max == 0 && c.blocks[0].x_min == -1 && c.blocks[1].count == 4); // file order
-	CHECK(throws<fdtd::config::validation_error>([] { load(std::string(BASIC) + "[block.b]\nmaterial = 2\ny_min = 1e-6\ny_max = 0\n"); }, "min < max"));
+	CHECK(throws<fdtd::config::validation_error>([] { load(std::string(BASIC) + "[block.b]\nmaterial = glass\ny_min = 1e-6\ny_max = 0\n"); }, "min < max"));
 
 	// typos and missing keys are errors, not silently ignored
 	CHECK(throws<fdtd::config::validation_error>([] { load(std::string(BASIC) + "[grid2]\nfoo = 1\n"); }, "unknown key:  [grid2] foo"));
@@ -196,28 +200,42 @@ int main()
 	CHECK(throws<fdtd::config::syntax_error>([] { load("nx = 1\n"); }, "outside of a [section]"));
 
 	// validation
-	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "geometry.first_medium=7"}); }, "[materials] n7 is required"));
+	// materials: definitions, extends, poles, errors
+	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "geometry.first_medium=water"}); }, "material 'water' is not defined"));
+	CHECK(throws<fdtd::config::syntax_error>([] { load(std::string(BASIC) + "[material.bad]\nmodel = dielectric\nn = 1\nplasma_frequency = 1\n"); }, "not a key of model dielectric"));
+	CHECK(throws<fdtd::config::syntax_error>([] { load(std::string(BASIC) + "[material.bad]\nmodel = plasma\n"); }, "not a model"));
+	CHECK(throws<fdtd::config::validation_error>([] { load(std::string(BASIC) + "[material.vacuum]\nmodel = dielectric\nn = 2\n"); }, "built in"));
+	{
+		const std::string metal = std::string(BASIC) +
+			"[material.metal]\nmodel = drude_cp\neps_inf = 1.5\nplasma_frequency = 1e16\nplasma_damping = 1e14\n"
+			"[material.metal.pole.1]\namplitude = 1\nfrequency = 4e15\ndamping = 5e14\nphase = -1\n"
+			"[material.metal.pole.2]\namplitude = 2\nfrequency = 5e15\ndamping = 6e14\nphase = 1\n"
+			"[material.wet]\nextends = metal\nplasma_damping = 2e14\n[material.wet.pole.2]\nphase = 0.5\n";
+		auto m = load(metal, {"--set", "geometry.material=wet", "--set", "geometry.last_medium=metal"});
+		const auto& w = m.definitions[fdtd::config::material_slot(m, "wet")];
+		CHECK(w.kind == fdtd::materials::Kind::drude_cp && w.eps_inf == 1.5 && w.plasma_damping == 2e14 && w.poles.size() == 2);
+		CHECK(w.poles[1].phase == 0.5 && w.poles[1].amplitude == 2 && w.poles[0].phase == -1);
+		CHECK(fdtd::config::material_slot(m, "metal") == 2 && m.definitions.size() == 3);
+		CHECK(fdtd::config::to_ini(load(fdtd::config::to_ini(m))) == fdtd::config::to_ini(m));
+		CHECK(throws<fdtd::config::validation_error>([&] { load(metal + "[material.metal.pole.4]\namplitude = 1\n", {"--set", "geometry.material=metal"}); }, "without a gap"));
+		CHECK(throws<fdtd::config::validation_error>([&] { load(metal + "[material.loop]\nextends = loop\n", {"--set", "geometry.material=loop"}); }, "circle"));
+	}
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "parallel.chunks_x=0 0"}); }, "strictly increasing"));
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "parallel.chunks_x=0"}); }, "exactly 2 entries"));
-	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "nonlinear.shg=antenna", "--set", "spectrum.harmonic_band=second", "--set", "spectrum.spacing=frequency"}); }, "chi_structure"));
+	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "nonlinear.shg=true", "--set", "spectrum.harmonic_band=second", "--set", "spectrum.spacing=frequency"}); }, "a material with a chi2 tensor"));
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "multipoles.sphere_radius=4"}); }, "set together"));
 	c = load(BASIC, {"--set", "parallel.chunks_x=0 120"});
 
-	// nonlinear tensors: [chi2|chi3.<name>] sections and presets
+	// nonlinear tensors: [chi2|chi3.<name>] sections named by a material
 	{
-		const char* shg[] = {"--set", "nonlinear.shg=antenna", "--set", "spectrum.harmonic_band=second", "--set", "spectrum.spacing=frequency"};
+		const char* shg[] = {"--set", "nonlinear.shg=true", "--set", "spectrum.harmonic_band=second", "--set", "spectrum.spacing=frequency"};
 		std::vector<const char*> on(std::begin(shg), std::end(shg));
-		auto with = [&](const char* k) { auto v = on; v.push_back("--set"); v.push_back(k); return v; };
-		const std::string mine = std::string(BASIC) + "[chi2.Mine]\nd22 = 2.1e-12\nd31 = 0.15e-12\n[chi3.Au]\nxxxx = 1\n";
-		auto t = load(mine, with("nonlinear.chi_structure=mine"));
-		const fdtd::config::ChiTensor* m = fdtd::config::find_chi_tensor(2, "MINE", t.chi_tensors);
-		CHECK(m && m->values[7] == 2.1e-12 && m->values[12] == 0.15e-12 && m->values[0] == 0);
-		CHECK(fdtd::config::find_chi_tensor(3, "au", t.chi_tensors)->values[1] == 0);                   // a section replaces the preset
-		CHECK(fdtd::config::find_chi_tensor(3, "au", {})->values[1] == 2.533e-19);
-		CHECK(fdtd::config::find_chi_tensor(2, "BBO", {})->values[7] == 2.1e-12);
-		CHECK(throws<fdtd::config::validation_error>([&] { load(mine, with("nonlinear.chi_structure=other")); }, "no [chi2.other] section"));
-		CHECK(throws<fdtd::config::validation_error>([&] { load(mine, with("nonlinear.chi_structure=Au")); }, "chi2 presets: Zero, BBO"));
-		CHECK(throws<fdtd::config::syntax_error>([&] { load(std::string(BASIC) + "[chi2.x]\nxxxx = 1\n"); }, "d11 ... d36"));
+		const std::string mine = std::string(BASIC) + "[chi2.Mine]\nd22 = 2.1e-12\nd31 = 0.15e-12\n[material.crystal]\nextends = glass\nchi2 = Mine\n";
+		auto t = load(mine, {"--set", "geometry.material=crystal", "--set", "nonlinear.shg=true", "--set", "spectrum.harmonic_band=second", "--set", "spectrum.spacing=frequency"});
+		const auto& d = t.definitions[1];
+		CHECK(d.name == "crystal" && d.chi2 == "mine" && d.chi2_values[7] == 2.1e-12 && d.chi2_values[12] == 0.15e-12 && d.chi2_values[0] == 0 && d.n == 1.45);
+		CHECK(throws<fdtd::config::validation_error>([&] { load(mine + "[material.other]\nextends = glass\nchi2 = none_such\n", {"--set", "geometry.material=other"}); }, "no [chi2.none_such] section"));
+		CHECK(throws<fdtd::config::syntax_error>([&] { load(std::string(BASIC) + "[chi2.x]\nxxxx = 1\n[material.x]\nextends = glass\nchi2 = x\n", {"--set", "geometry.material=x"}); }, "d11 ... d36"));
 		CHECK(fdtd::config::to_ini(load(fdtd::config::to_ini(t))) == fdtd::config::to_ini(t));
 	}
 	CHECK(fdtd::config::parse_int_list("d", "k", c.parallel.chunks_x) == std::vector<int>({0, 120}));
@@ -233,8 +251,8 @@ int main()
 		CHECK(w.size() == 41 && close(w.front(), pi2 * c0 / s0.lambda_max) && close(w.back(), pi2 * c0 / s0.lambda_min));
 		w = fdtd::config::spectrum_omegas(load(BASIC, {"--set", "spectrum.points=1", "--set", "spectrum.lambda_max=500e-9"}).spectrum);
 		CHECK(w.size() == 1 && close(w[0], pi2 * c0 / s0.lambda_min));
-		const char* shg[] = {"--set", "nonlinear.shg=bulk", "--set", "nonlinear.chi_structure=BBO", "--set", "nonlinear.chi_first=zero",
-							 "--set", "nonlinear.chi_middle=Zero", "--set", "nonlinear.chi_last=Zero"};
+		const char* shg[] = {"--set", "nonlinear.shg=true", "--set", "geometry.material=crystal", "--set", "material.crystal.extends=glass",
+							 "--set", "material.crystal.chi2=c", "--set", "chi2.c.d11=1e-12"};
 		std::vector<const char*> base(std::begin(shg), std::end(shg));
 		auto with = [&](std::vector<const char*> extra) { auto v = base; v.insert(v.end(), extra.begin(), extra.end()); return v; };
 		w = fdtd::config::spectrum_omegas(load(BASIC, with({"--set", "spectrum.harmonic_band=second", "--set", "spectrum.points=1", "--set", "spectrum.lambda_max=500e-9"})).spectrum); // pair
@@ -249,15 +267,30 @@ int main()
 		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, {"--set", "spectrum.points=1"}); }, "lambda_min = lambda_max"));
 	}
 
+	// the catalog: files outside the binary, named by the materials and tensors they define
+	{
+		const std::string dir = "/tmp/fdtd_test_catalog";
+		std::filesystem::create_directories(dir + "/chi3");
+		std::ofstream(dir + "/metal.ini") << "[material.metal]\nmodel = drude\neps_inf = 1\nplasma_frequency = 1e16\nplasma_damping = 1e14\nchi3 = kerr\n";
+		std::ofstream(dir + "/chi3/kerr.ini") << "[chi3.kerr]\nxxxx = 1e-19\n";
+		const std::string run = std::string(BASIC) + "[materials]\ncatalog = " + dir + "\n";
+		const std::vector<std::string> set = {"geometry.last_medium=metal", "material.mine.extends=metal", "material.mine.plasma_damping=2e14", "geometry.first_medium=mine"};
+		const std::string text = fdtd::config::with_catalog(run, "x.ini", set);
+		CHECK(text.find("[material.metal]") != std::string::npos && text.find("[chi3.kerr]") != std::string::npos);
+		auto m = fdtd::config::load_sim_config(fdtd::config::build_config(text, "x.ini", set));
+		CHECK(m.definitions.size() == 4 && m.definitions[2].name == "mine" && m.definitions[2].plasma_damping == 2e14 && m.definitions[3].chi3_values[0] == 1e-19);
+		CHECK(throws<std::invalid_argument>([&] { fdtd::config::with_catalog(run, "x.ini", {"geometry.material=unobtainium"}); }, "neither in the run file nor in the catalog"));
+	}
+
 	// resolved dump round-trips
 	c = load(BASIC, {"--set", "grid.dx=1.234567890123e-9"});
 	auto again = load(fdtd::config::to_ini(c));
 	CHECK(fdtd::config::to_ini(again) == fdtd::config::to_ini(c));
 	CHECK(again.grid.dx == 1.234567890123e-9);
-	CHECK(again.probes.size() == 1 && again.materials.refractive_index.size() == 1);
+	CHECK(again.probes.size() == 1 && again.definitions.size() == 2 && again.definitions[1] == c.definitions[1]);
 
 	// template parses, all keys are known
-	CHECK(throws<fdtd::config::syntax_error>([] { fdtd::config::Config t; t.load_string(fdtd::config::template_ini() + "\n[grid]\n"); }, "duplicate section"));
+	CHECK(throws<fdtd::config::syntax_error>([] { fdtd::io::Ini t; t.load_string(fdtd::config::template_ini() + "\n[grid]\n"); }, "duplicate section"));
 	{
 		// the template with the required keys filled in must load cleanly
 		std::string t = fdtd::config::template_ini();
@@ -292,7 +325,7 @@ int main()
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "hydrodynamic.pressure=false"}); }, "[hydrodynamic] has keys set"));
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "two_temperature.save_frames=true"}); }, "[two_temperature] has keys set"));
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "pump_probe.delay=1e-13", "--set", "temperature.model=two_temperature"}); }, "[pump_probe] has keys set"));
-	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "electrons.diffusion=1"}); }, "need model = nonlocal"));
+	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "electrons.fermi_velocity=2"}); }, "needs model = nonlocal"));
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "anapole.patch_edge=1e-7"}); }, "[anapole] has keys set"));
 	CHECK(throws<fdtd::config::validation_error>([] { load(BASIC, {"--set", "electrons.model=gnor", "--set", "temperature.model=two_temperature"}); },
 										"models combine"));

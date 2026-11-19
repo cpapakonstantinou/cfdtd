@@ -89,13 +89,14 @@ wavelengths of the example. Lower `[spectrum] points` and ask `fdtd memory` befo
 ```ini
 [geometry]
 shape = anapole
-material = 101               ; silver patch
+material = silver_d2cp       ; silver patch
 
 [anapole]
-aperture_material = 153      ; ITO in the lobes and the gap
-gap_material = -1            ; 153 here and -1 above fills the gap alone
+aperture_material = ito      ; ITO in the lobes and the gap
+; gap_material = ito         ; instead of the line above: the gap alone
 
-[materials]
+[material.ito]
+extends = ito_10p5_drude
 carrier_density = 1.054e27   ; free carriers of the ITO, m^-3
 ```
 

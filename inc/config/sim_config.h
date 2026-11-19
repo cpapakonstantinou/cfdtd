@@ -1,7 +1,7 @@
 #ifndef __SIM_CONFIG_H__
 #define __SIM_CONFIG_H__
 /** \file   config/sim_config.h
- *  \brief  Typed simulation configuration built on top of Config, INI.
+ *  \brief  Typed simulation configuration built on io::Ini.
  *
  *  Rules of the interface:
  *    - one flat scalar per key, snake_case, 1-2 self-documenting words
@@ -18,8 +18,8 @@
 #include <map>
 #include <string>
 #include <vector>
-#include "config/chi_tensors.h"
-#include "config/ini.h"
+#include "materials/definition.h"
+#include "io/ini.h"
 #include "geometry/anapole.h"
 #include "geometry/block.h"
 #include "sources/mode_spec.h"
@@ -228,10 +228,10 @@ struct MultipolesSection
 struct GeometrySection
 {
 	std::string shape = "none";    ///< structure, see shape_code()
-	int material = 0; ///< material of the structure
-	int first_medium = 0;
-	int middle_medium = 0;
-	int last_medium = 0;
+	std::string material = "vacuum"; ///< material of the structure, a material name
+	std::string first_medium = "vacuum";
+	std::string middle_medium = "vacuum";
+	std::string last_medium = "vacuum";
 	double middle_thickness = 0.0; ///< [m]
 	double shift_y = 0.0;          ///< structure offset along y [m]
 	// the pool of dimensions of the shapes without a section of their own (shape_sections())
@@ -245,33 +245,12 @@ struct GeometrySection
 	double arm_width = 0; ///< [m]
 	double rotation = 0;           ///< [deg]
 	double corner_radius = 0;      ///< [m]
-	int shell_material = 2;
+	std::string shell_material = "vacuum";
 };
 
 struct MaterialsSection
 {
-	std::map<int, double> refractive_index; ///< n<i> = value, i = 0..99, dispersionless media
-	double carrier_density = 0;
-	double carrier_density_back = 0;
-	double stretch_x = 0;           ///< graphene, material 102: scales the plasma frequency and the critical-point amplitudes
-};
-
-struct CustomMaterialSection
-{
-	double eps_inf = 0;
-	double plasma_frequency = 0;
-	double plasma_damping = 0;
-	double cp_frequency = 0;
-	double cp_frequency_2 = 0;
-	double cp_damping = 0;
-	double cp_damping_2 = 0;
-	double cp_amplitude = 0;
-	double cp_amplitude_2 = 0;
-	double cp_phase = 0;
-	double cp_phase_2 = 0;
-	double fermi_velocity = 0;
-	double electron_density = 0;
-	bool operator==(const CustomMaterialSection&) const = default;
+	std::string catalog; ///< directories of material files, ':' between them, relative to the configuration file
 };
 
 /**
@@ -291,15 +270,18 @@ struct CustomMaterialSection
  */
 using AnapoleSection = geom::AnapoleSpec; ///< [anapole], geometry/anapole.h
 
+/// the materials of the anapole's fills by name; empty: the background
+struct AnapoleFill
+{
+	std::string aperture;
+	std::string gap;
+};
+
 struct NonlinearSection
 {
-	std::string shg = "none";       ///< none | antenna | bulk : second-harmonic generation in the structure or in the layers
-	std::string thg = "none";       ///< none | antenna | bulk : third-harmonic generation, not together with shg
+	bool shg = false;               ///< second-harmonic generation in every material with a chi2 tensor
+	bool thg = false;               ///< third-harmonic generation in every material with a chi3 tensor, not together with shg
 	std::string update = "field";   ///< field | polarization : how the nonlinearity enters the update
-	std::string chi_structure; ///< tensor names: a [chi2|chi3.<name>] section or a preset, config/chi_tensors.h; unset = zero
-	std::string chi_first; ///< tensor names: a [chi2|chi3.<name>] section or a preset, config/chi_tensors.h; unset = zero
-	std::string chi_middle; ///< tensor names: a [chi2|chi3.<name>] section or a preset, config/chi_tensors.h; unset = zero
-	std::string chi_last; ///< tensor names: a [chi2|chi3.<name>] section or a preset, config/chi_tensors.h; unset = zero
 	bool graphene_optimization = false;
 };
 
@@ -307,8 +289,7 @@ struct NonlinearSection
 struct ElectronsSection
 {
 	std::string model = "local";    ///< local | nonlocal | gnor | hydrodynamic
-	double diffusion = 0.0;         ///< diffusion coefficient, nonlocal, gnor, hydrodynamic
-	double fermi_velocity = 1.0;    ///< nonlocal, gnor, hydrodynamic
+	double fermi_velocity = 1.0;    ///< factor on every material's fermi_velocity, nonlocal, gnor, hydrodynamic
 	bool operator==(const ElectronsSection&) const = default;
 };
 
@@ -361,7 +342,11 @@ struct DipoleSpec
 	double e_z = 1; ///< amplitude of the injected E components, times the pulse
 };
 
-using BlockSpec = fdtd::geometry::Block; ///< one [block.<name>] section, geometry/block.h
+/// one [block.<name>] section, geometry/block.h, with its material by name
+struct BlockSpec : fdtd::geometry::Block
+{
+	std::string material_name = "vacuum";
+};
 
 /// one [wave.<name>] section of a wave_superposition source
 struct WaveSpec
@@ -419,8 +404,8 @@ struct SimConfig
 	MultipolesSection multipoles;
 	GeometrySection geometry;
 	MaterialsSection materials;
-	CustomMaterialSection custom_material;
 	AnapoleSection anapole;
+	AnapoleFill anapole_fill;
 	NonlinearSection nonlinear;
 	ElectronsSection electrons;
 	HydrodynamicSection hydrodynamic;
@@ -432,10 +417,10 @@ struct SimConfig
 	std::vector<WaveSpec> waves; ///< one [wave.<name>] section each
 	std::vector<BlockSpec> blocks; ///< one [block.<name>] section each, in file order
 	std::vector<DipoleSpec> dipoles; ///< one [dipole.<name>] section each
-	std::vector<ChiTensor> chi_tensors; ///< one [chi2.<name>] or [chi3.<name>] section each
+	std::vector<materials::Definition> definitions; ///< the run's materials in slot order, vacuum first, material_names()
 };
 
-SimConfig load_sim_config(const Config& ini);           ///< \throws syntax_error, validation_error
+SimConfig load_sim_config(const io::Ini& ini);           ///< \throws syntax_error, validation_error
 void validate_sim_config(const SimConfig& c);               ///< \throws validation_error
 std::string to_ini(const SimConfig& c);                    ///< fully resolved configuration
 std::string template_ini();                                ///< commented template with defaults
@@ -458,7 +443,6 @@ std::vector<int> tfsf_planes(const SimConfig& c, int axis);
 GeometrySection resolved_geometry(const SimConfig& c);
 int shape_code(const std::string& name);           ///< legacy antenna_type
 int source_code(const std::string& name);          ///< legacy TFSF
-int harmonic_mode(const std::string& name);        ///< none 0, antenna 1, bulk 2
 int dft_plane_mask_bits(const OutputSection& o);       ///< legacy dft_plot bits: 1 yz, 2 xz, 4 xy, 8 magnetic
 int harmonic_order(const std::string& name);       ///< none 1, second 2, third 3
 int process_harmonic(const NonlinearSection& n);   ///< 2 with shg, 3 with thg, 1 otherwise
@@ -466,8 +450,21 @@ int process_harmonic(const NonlinearSection& n);   ///< 2 with shg, 3 with thg, 
 bool split_override(const std::string& spec, std::string& section, std::string& key, std::string& value);
 /** \brief Parse INI text and layer the overrides, "section.key=value", and the directories on top.
  *  Precedence: file < overrides < input_dir / output_dir. \throws syntax_error, std::invalid_argument */
-Config build_config(const std::string& ini_text, const std::string& name, const std::vector<std::string>& overrides,
+io::Ini build_config(const std::string& ini_text, const std::string& name, const std::vector<std::string>& overrides,
 						const std::string& input_dir = "", const std::string& output_dir = "");
+
+/** \brief The run file's text with the catalog files it needs appended: the materials it names, the
+ *  materials they extend and their tensors, from the catalog directories, materials_catalog().
+ *  A section the run file or an override defines is not read from the catalog. \throws std::invalid_argument */
+std::string with_catalog(const std::string& ini_text, const std::string& name, const std::vector<std::string>& overrides);
+/// the directories searched for material files: [materials] catalog, relative to the directory of
+/// `config_file`, then $FDTD_MATERIALS, then materials/ next to the executable
+std::vector<std::string> materials_catalog(const io::Ini& ini, const std::string& config_file);
+/// the material names in slot order: vacuum, structure, first, middle, last medium, the shell, the
+/// anapole fills, the blocks; each once, only those the geometry draws
+std::vector<std::string> material_names(const SimConfig& c);
+/// the slot of material `name`, from c.materials
+int material_slot(const SimConfig& c, const std::string& name);
 std::vector<int> parse_int_list(const std::string& sect, const std::string& key, const std::string& raw);
 
 } // namespace fdtd::config

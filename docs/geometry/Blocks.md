@@ -5,11 +5,11 @@ layers of `[geometry]` cannot: substrates of finite extent, buried layers, ridge
 
 ```ini
 [block.substrate]
-material = 1
+material = glass
 y_max = -50e-9          ; everything below y = -50 nm
 
 [block.teeth]
-material = 2
+material = silicon
 x_min = 0
 x_max = 500e-9
 y_min = -400e-9
@@ -20,7 +20,7 @@ pitch_x = 1e-6          ; ... 1 um apart along x
 
 | Key | Default | Meaning |
 |---|---|---|
-| `material` | 0 | material code ([Materials](../models/Materials.md)) |
+| `material` | vacuum | material name ([Materials](../models/Materials.md)) |
 | `x_min`, `x_max`, `y_min`, `y_max`, `z_min`, `z_max` | past the domain | bounds [m], measured from the structure origin (`[grid] origin_x/y/z`) |
 | `count` | 1 | number of copies |
 | `pitch_x`, `pitch_y`, `pitch_z` | 0 | offset between copies [m] |

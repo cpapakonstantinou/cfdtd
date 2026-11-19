@@ -50,9 +50,9 @@ void TimeProbes::setup(const std::vector<ProbePoint> &probes)
 		return;
 	for (int c = 0; c < 3; ++c)
 	{
-		E[c] = cmatrix<double>(int(point.size()), sp.steps + 1);
+		E[c] = array2<double>(int(point.size()), sp.steps + 1);
 		E[c].zeros();
-		H[c] = cmatrix<double>(int(point.size()), sp.steps + 1);
+		H[c] = array2<double>(int(point.size()), sp.steps + 1);
 		H[c].zeros();
 	}
 }

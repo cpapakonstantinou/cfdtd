@@ -140,7 +140,7 @@ namespace
  * buffer whose last row/column is a ghost cell; the, subdomain.output_size - 1, interior is placed at
  * subdomain.output_start in a global (globalsizes[a] - 1) x (globalsizes[b] - 1) plane.
  */
-void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, const ctetrad<double> (&re)[3], const ctetrad<double> (&im)[3])
+void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, const array4<double> (&re)[3], const array4<double> (&im)[3])
 {
 	const auto block = h5io::Block::plane(sp.global_size[a] - 1, sp.global_size[b] - 1, subdomain.output_start[a], subdomain.output_start[b], subdomain.output_size[a] - 1,
 										  subdomain.output_size[b] - 1, subdomain.output_size[a], subdomain.output_size[b]);

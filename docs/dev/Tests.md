@@ -20,7 +20,7 @@ On a machine with fewer cores than a case has ranks, pass the launcher with Open
 |---|---|
 | `test_config` | the INI reader, every validation rule, command-line overrides, the template round trip, shape sections, the χ tensors |
 | `test_machine` | the state machine of the driver: the order of the phases, error and restart paths |
-| `test_carray` | the array and view types |
+| `test_array` | `core::array`: indexing, sharing, boxes, the empty state, the memory charge |
 | `test_geometry` | the set operations and the rendering of the geometry layers; the anapole against its point-wise definition |
 | `test_h5io` | parallel HDF5 output, on 1 rank and under `MPIEXEC` |
 

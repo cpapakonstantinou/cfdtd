@@ -29,7 +29,7 @@ one-line description; this page explains how the sections fit together.
 | `[signal.<name>]` | the time signal ([Signal and Time Steps](SignalSettings.md)) |
 | `[spectrum]` | the wavelengths every monitor analyses |
 | `[geometry]`, `[<shape>]`, `[block.<name>]` | the layers and the structure ([Shapes](../geometry/Shapes.md), [Blocks](../geometry/Blocks.md)) |
-| `[materials]`, `[custom_material]` | refractive indices and material parameters ([Materials](../models/Materials.md)) |
+| `[material.<name>]`, `[materials] catalog` | the materials by name and where their files are ([Materials](../models/Materials.md)) |
 | `[nonlinear]`, `[chi2.<name>]`, `[chi3.<name>]` | second- and third-harmonic generation ([Nonlinear Tensors](../models/NonlinearTensors.md)) |
 | `[electrons]`, `[hydrodynamic]` | the free-electron model ([Nonlocal Plasmonics](../models/NonlocalPlasmonics.md), [Hydrodynamics](../models/Hydrodynamics.md)) |
 | `[temperature]`, `[two_temperature]`, `[pump_probe]` | the electron temperature ([ITO](../models/ITOmodel.md)) |
@@ -96,12 +96,12 @@ points. `points = 1` needs `lambda_min = lambda_max`. To analyse a pump and its 
 
 ```ini
 [geometry]
-first_medium = 0            ; where the wave enters (y below the layers)
-middle_medium = 1           ; a layer of middle_thickness that ends at origin_y
+first_medium = vacuum       ; where the wave enters, y below the layers
+middle_medium = film        ; a layer of middle_thickness that ends at origin_y
 middle_thickness = 100e-9
-last_medium = 2             ; from origin_y on
+last_medium = glass         ; from origin_y on
 shape = sphere              ; the structure; its dimensions are in [sphere]
-material = 100              ; material of the structure
+material = gold_d2cp        ; material of the structure
 shift_y = 0                 ; moves the structure along y [m]; positive is toward the source
 
 [sphere]

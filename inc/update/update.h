@@ -27,8 +27,8 @@ struct Spec
 	bool magnetic_lorentz = false;  ///< the magnetic Lorentz model is present
 	bool harmonic = false;          ///< separate harmonic fields (*_nl)
 	bool cellwise_materials = false; ///< every cell's own material in the CPML, mode source
-	int medium_near_y = 0; ///< background material codes below / above the domain in y
-	int medium_far_y = 0; ///< background material codes below / above the domain in y
+	int medium_near_y = 0; ///< background material slots below / above the domain in y
+	int medium_far_y = 0; ///< background material slots below / above the domain in y
 	double coeff_h = 0;             ///< H update coefficient DT / MU0
 };
 const Spec &spec();

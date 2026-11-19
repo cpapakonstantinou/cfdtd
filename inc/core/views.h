@@ -3,7 +3,7 @@
  * @file core/views.h
  * @brief Non-owning views of 3D and 4D arrays, the parameter type of the field kernels
  *
- * A kernel receives arrays from three kinds of owner: carray owners, ctensor, ctetrad, the
+ * A kernel receives arrays from three kinds of owner: array owners, array3, array4, the
  * per-material slices of a material_field, and null placeholders for arrays a material does not
  * use. A view is a plain pointer to the row-pointer table: it converts from all three and indexes
  * like the raw pointer (`v[i][j][k]`, `v[m][i][j][k]`). `row(i, j)` is the contiguous k-row that a
@@ -26,7 +26,7 @@ class view3
 public:
 	view3() = default;
 	view3(T*** p) : _p(p) {}
-	/// anything that converts to T*** a ctensor, a material_field slice
+	/// anything that converts to T*** an array3, a material_field slice
 	template <class C>
 		requires(!std::is_same_v<std::remove_cvref_t<C>, view3> && !std::is_pointer_v<std::remove_cvref_t<C>> && std::is_convertible_v<C&, T***>)
 	view3(C& c) : _p(static_cast<T***>(c)) {}
@@ -46,7 +46,7 @@ class view4
 public:
 	view4() = default;
 	view4(T**** p) : _p(p) {}
-	/// anything that converts to T**** a ctetrad, a material_field
+	/// anything that converts to T**** an array4, a material_field
 	template <class C>
 		requires(!std::is_same_v<std::remove_cvref_t<C>, view4> && !std::is_pointer_v<std::remove_cvref_t<C>> && std::is_convertible_v<C&, T****>)
 	view4(C& c) : _p(static_cast<T****>(c)) {}

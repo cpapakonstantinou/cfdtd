@@ -33,11 +33,7 @@ using fdtd::fields::Hx;
 using fdtd::fields::Hy;
 using fdtd::fields::Hz;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::Drude;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
-using fdtd::materials::NRMAXMATERIALS;
+using fdtd::materials::max_slots;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_x_full;
 using fdtd::materials::matind_y;
@@ -161,23 +157,6 @@ void make_real(MpbField &f, std::vector<double> &x, std::vector<double> &y)
 	}
 }
 
-/// E update coefficient dt / eps of a material code; false where no plain coefficient applies
-bool e_factor(int m, double &c)
-{
-	const auto &mp = fdtd::materials::model_parameters();
-	if (m >= DispMateOffsetD && m < NRMAXMATERIALS)
-	{
-		const int mm = m - DispMateOffsetD;
-		if (mm >= DrudeCP && mm < Lorentz)
-		{
-			c = mm < Drude ? fdtd::materials::coeffs<fdtd::materials::models::Drude>(mm).ce2 : fdtd::materials::coeffs<fdtd::materials::models::Lorentz>(mm).ce2;
-			return true;
-		}
-		return false;
-	}
-	c = mp.ce_2[m];
-	return true;
-}
 
 struct Plane
 {
@@ -198,11 +177,11 @@ struct Plane
 	bool active = false;
 } plane;
 
-std::array<ctensor<double> *, 3> e_fields() { return {&Ex, &Ey, &Ez}; }
-std::array<ctensor<double> *, 3> h_fields() { return {&Hx, &Hy, &Hz}; }
+std::array<fdtd::array3<double> *, 3> e_fields() { return {&Ex, &Ey, &Ez}; }
+std::array<fdtd::array3<double> *, 3> h_fields() { return {&Hx, &Hy, &Hz}; }
 
 /// element (a_n, a_u, a_v) of a field, in the axis order of the plane
-double &cell(ctensor<double> &f, int an, int au, int av)
+double &cell(fdtd::array3<double> &f, int an, int au, int av)
 {
 	std::array<int, 3> ijk{};
 	ijk[plane.n] = an, ijk[plane.u] = au, ijk[plane.v] = av;
@@ -311,12 +290,12 @@ void fdtd::sources::setup_mode_source()
 		return f.at(a == ax ? cx : cy, px, py);
 	};
 	const double ch = sp.dt / (fdtd::constants::MU0 * d[P.n]);
-	ctensor<int> *full[3] = {&matind_x_full, &matind_y_full, &matind_z_full};
+	fdtd::array3<int> *full[3] = {&matind_x_full, &matind_y_full, &matind_z_full};
 	auto factor = [&](int A, int au, int av) {
 		std::array<int, 3> ijk{};
 		ijk[P.n] = std::max(P.e_local, 0), ijk[P.u] = au, ijk[P.v] = av;
 		double c = 0;
-		return e_factor((*full[A])[ijk[0]][ijk[1]][ijk[2]], c) ? c / d[P.n] : 0.0;
+		return fdtd::materials::e_factor((*full[A])[ijk[0]][ijk[1]][ijk[2]], c) ? c / d[P.n] : 0.0;
 	};
 	for (int au = 0; au < P.nu; ++au)
 		for (int av = 0; av < P.nv; ++av)

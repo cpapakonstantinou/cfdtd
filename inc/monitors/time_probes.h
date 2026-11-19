@@ -14,7 +14,7 @@
 #ifndef FDTD_MONITORS_TIME_PROBES_H
 #define FDTD_MONITORS_TIME_PROBES_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "monitors/inputs.h"
 #include <vector>
 
@@ -33,8 +33,8 @@ struct ProbeCell
 struct TimeProbes
 {
 	std::vector<ProbeCell> point;
-	cmatrix<double> E[3];
-	cmatrix<double> H[3];
+	array2<double> E[3];
+	array2<double> H[3];
 
 	/// keeps the probes of this rank, none on ranks that are all CPML, and allocates their traces
 	void setup(const std::vector<ProbePoint> &probes);

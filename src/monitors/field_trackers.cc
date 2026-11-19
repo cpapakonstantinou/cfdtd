@@ -127,7 +127,7 @@ void FieldTrackers::write() const
 			std::fprintf(f, "%ld\t%ld\t%ld\n", P.x + subdomain.output_start[0] - subdomain.inner_org_x - sp.centre[0],
 						 P.y + subdomain.output_start[1] - subdomain.inner_org_y - sp.centre[1], P.z + subdomain.output_start[2] - subdomain.inner_org_z - sp.centre[2]);
 			const double harmonic = s == 0 ? 1.0 : 2.0;
-			const ctensor<double>(&a)[2][3] = dft[s];
+			const array3<double>(&a)[2][3] = dft[s];
 			for (int m = 0; m < sp.nr_frequencies; ++m)
 				std::fprintf(f, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", C0 / (harmonic * fdtd::sources::analysis_omega[m] / (2 * PI)),
 							 a[0][0][p][m][0], a[0][0][p][m][1], a[0][1][p][m][0], a[0][1][p][m][1], a[0][2][p][m][0], a[0][2][p][m][1],

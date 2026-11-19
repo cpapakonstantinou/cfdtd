@@ -1,9 +1,9 @@
 /**
  * @file geometry/builders.h
- * @brief The shape builders: each writes its material code into the material maps (matind_x/y/z)
+ * @brief The shape builders: each writes its material slot into the material maps (matind_x/y/z)
  *        over the cells its shape covers, on this rank's part of the grid
  *
- * The arguments are the shape's centre in cells, its dimensions in m, the material code and the layer
+ * The arguments are the shape's centre in cells, its dimensions in m, the material slot and the layer
  * offsets of the run, in the order of the legacy builders; the set-arithmetic shapes of
  * inc/geometry.h, namespace geom, replace them one by one, roadmap §8. Returns false on failure.
  */
@@ -34,7 +34,6 @@ bool create_cylinder_xz(const int &, const int &, const int &, const double &, c
 
 /// legacy.cc: older shapes kept on the keep-list
 bool create_lateral_dipole(const int &, const int &, const int &, const double &, const double &, const double &, const double &, const double &, const int &, const double &, const double &, const double &);
-bool create_nonlinear_cube(const int &, const double &);
 bool create_dipole_round(const int &, const int &, const int &, const double &, const double &, const double &, const double &, const double &, const int &, const double &, const double &, const double &, const double &, const double &);
 bool create_x_shaped(const int &, const int &, const int &, const double &, const double &, const double &, const double &, const double &, const int &, const double &, const double &, const double &, const double &, const double &, const double &);
 bool create_hole(const int &, const int &, const int &, const double &, const double &, const double &, const int &);

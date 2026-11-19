@@ -29,9 +29,8 @@ using fdtd::constants::I_UNIT;
 using fdtd::constants::PI;
 using fdtd::constants::PI2;
 using fdtd::constants::ROOTPROCESS;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::NRMAXMATERIALS;
-using fdtd::materials::nr_disp_mat_d;
+using fdtd::materials::max_slots;
+using fdtd::materials::max_slots;
 
 namespace
 {
@@ -42,7 +41,6 @@ using namespace fdtd::sources; // transitional: module state, sources/state.h
 // File-local state, formerly globals used only in this file.
 namespace
 {
-double N_AVG[NRMAXMATERIALS];                                 ///< Refractive index per material averaged over the analysed frequencies, CPML grading.
 double input_intensity;                                       ///< Incident intensity |E|^2 at the first analysed frequency in V^2/m^2.
 double PhaseNormalization[fdtd::max_frequencies];                ///< Phase of the DFT of the source signal per frequency in rad.
 std::complex<double> signal_transform;                                     ///< Scratch: DFT of the source signal at one frequency.
@@ -83,8 +81,8 @@ int fdtd::sources::transform_pulse(int steps)
 	else if (sp.cw_pulse)
 		n_max = int(signal.cw_periods() / sp.fundamental_frequency / sp.dt) + 10;
 
-	cvector<std::complex<double>> SignalTransformVec;
-	SignalTransformVec = vector1<std::complex<double>>(sp.nr_frequencies);
+	fdtd::array1<std::complex<double>> SignalTransformVec;
+	SignalTransformVec = fdtd::vector1<std::complex<double>>(sp.nr_frequencies);
 	FILE *sigfile = nullptr;
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 		sigfile = fopen((sp.reports_dir + "/Signal.txt").c_str(), "w");
@@ -154,26 +152,15 @@ int fdtd::sources::transform_pulse(int steps)
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	for (n = 0; n < NRMAXMATERIALS; ++n)
+	for (n = 0; n < fdtd::materials::slot_count(); ++n)
 	{
 		sum_n = double(0.);
 		for (m = 0; m < sp.nr_frequencies; ++m)
-		{
 			sum_n += fdtd::materials::refractive_index(n, fdtd::sources::analysis_omega[m]).real();
-		}
-		N_AVG[n] = sum_n / sp.nr_frequencies;
-		if (fdtd::grid::world_rank == ROOTPROCESS && N_AVG[n] > 0)
-			fdtd::io::log("n_avg", "material %d index %f", n, N_AVG[n]);
-	}
-	for (n = 0; n < DispMateOffsetD; ++n)
-	{
-		if (fdtd::grid::world_rank == ROOTPROCESS && (sp.shg || sp.thg) && fdtd::materials::nonlinear::nl_dl[n])
-			fdtd::io::log("sources", "NL[%d]=%s\n", n, fdtd::materials::nonlinear::nl_dl[n] ? "true" : "false");
-	}
-	for (n = 0; n < nr_disp_mat_d; ++n)
-	{
+		if (fdtd::grid::world_rank == ROOTPROCESS && sum_n > 0)
+			fdtd::io::log("n_avg", "material %d %s index %f", n, fdtd::materials::slot_name(n).c_str(), sum_n / sp.nr_frequencies);
 		if (fdtd::grid::world_rank == ROOTPROCESS && (sp.shg || sp.thg) && fdtd::materials::nonlinear::nl[n])
-			fdtd::io::log("sources", "NL[%d]=%s\n", n + DispMateOffsetD, fdtd::materials::nonlinear::nl[n] ? "true" : "false");
+			fdtd::io::log("sources", "material %d %s is nonlinear\n", n, fdtd::materials::slot_name(n).c_str());
 	}
 
 	return steps;

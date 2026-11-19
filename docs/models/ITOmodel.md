@@ -60,15 +60,15 @@ the pump and the probe pulse.
 
 ## How to use
 
-Select a Drude + Lorentz material (codes 350 to 399; see [Materials](Materials.md)). Code 350 is
-thin-film ITO. Its optical properties depend on the sample and its thickness; the parameter set is
-chosen from `[geometry] middle_thickness`: below 50 nm the parameters of [3] (reported for 30 nm),
-below 300 nm those of [4] (reported for 220 nm), and above that those of [5] (reported for 310 nm).
-Code 351 takes its parameters from `[custom_material]`.
+Select a `drude_lorentz` material, [Materials](Materials.md); the two-temperature model heats the
+first one of the run. The optical properties of thin-film ITO depend on the sample and its
+thickness, and the catalog has one material per film: `ito_film_thin` the parameters of [3],
+reported for 30 nm, `ito_film_mid` those of [4], reported for 220 nm, and `ito_film_thick` those of
+[5], reported for 310 nm. A film of another sample is a definition of its own.
 
 ```ini
 [geometry]
-middle_medium = 350
+middle_medium = ito_film_thick
 middle_thickness = 310e-9
 
 [temperature]

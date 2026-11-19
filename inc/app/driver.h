@@ -13,7 +13,7 @@
 #include <string>
 
 #include "app/options.h"
-#include "core/aligned_memory.h"
+#include "core/memory.h"
 #include <array>
 #include <vector>
 #include "config/sim_config.h"

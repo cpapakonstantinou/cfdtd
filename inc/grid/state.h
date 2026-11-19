@@ -8,7 +8,7 @@
 #ifndef FDTD_GRID_STATE_H
 #define FDTD_GRID_STATE_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "core/constants.h"
 #include <complex>
 #include <mpi.h>

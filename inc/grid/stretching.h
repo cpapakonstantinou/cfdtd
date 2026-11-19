@@ -10,7 +10,7 @@
 #ifndef FDTD_GRID_STRETCHING_H
 #define FDTD_GRID_STRETCHING_H
 
-#include "core/carray.h"
+#include "core/array.h"
 
 namespace fdtd::grid
 {
@@ -18,7 +18,7 @@ struct Stretching
 {
 	/// inv_kappa[axis][face][position]: position 0 the E samples in m, 1 the H samples (m + 1/2),
 	/// m = 0, outer end .. N, interface
-	cvector<double> inv_kappa[3][2][2];
+	array1<double> inv_kappa[3][2][2];
 };
 extern Stretching the_stretching;
 inline Stretching &stretching() { return the_stretching; }

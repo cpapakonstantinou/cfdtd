@@ -21,11 +21,7 @@ using fdtd::fields::Hx;
 using fdtd::fields::Hy;
 using fdtd::fields::Hz;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::Drude;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
-using fdtd::materials::NRMAXMATERIALS;
+using fdtd::materials::max_slots;
 
 namespace
 {
@@ -56,24 +52,6 @@ void correct_plane(view3<double> f, int axis, int at, int a0, int a1, int b0, in
 			double &c = axis == 0 ? f[at][a][b] : axis == 1 ? f[a][at][b] : f[a][b][at];
 			c += v(a, b);
 		}
-}
-
-/// E coefficient of the TF/SF correction in background m; false where the model adds it itself
-bool background_e_factor(int m, double &c)
-{
-	const auto &mp = fdtd::materials::model_parameters();
-	if (m >= DispMateOffsetD && m < NRMAXMATERIALS)
-	{
-		const int mm = m - DispMateOffsetD;
-		if (mm >= DrudeCP && mm < Lorentz)
-		{
-			c = (mm < Drude ? fdtd::materials::coeffs<fdtd::materials::models::Drude>(mm).ce2 : fdtd::materials::coeffs<fdtd::materials::models::Lorentz>(mm).ce2);
-			return true;
-		}
-		return false;
-	}
-	c = mp.ce_2[m];
-	return true;
 }
 
 bool periodic() { return lat.periodic_x && lat.periodic_z; }
@@ -133,7 +111,7 @@ void tfsf_e(Face f)
 		for (int j = subdomain.jpw_min; j < subdomain.jpw_max; ++j)
 		{
 			const int J = j + subdomain.j_for_uni;
-			if (background_e_factor(fdtd::materials::background_y[J], c))
+			if (fdtd::materials::e_factor(fdtd::materials::background_y[J], c))
 				correct_plane(Ey, 0, nea ? subdomain.ipw_1 : subdomain.ipw_2, j, j + 1, kpw_min_mod, subdomain.kpw_max + 1, [&](int, int) { return nea ? c * lat.inv_d[0] * src.h[0][J] : -(c * lat.inv_d[0] * src.h[0][J]); });
 		}
 		break;
@@ -145,13 +123,13 @@ void tfsf_e(Face f)
 		for (int j = subdomain.jpw_min; j < subdomain.jpw_max; ++j)
 		{
 			const int J = j + subdomain.j_for_uni;
-			if (background_e_factor(fdtd::materials::background_y[J], c))
+			if (fdtd::materials::e_factor(fdtd::materials::background_y[J], c))
 				correct_plane(Ey, 2, nea ? subdomain.kpw_1 : subdomain.kpw_2, ipw_min_mod, subdomain.ipw_max + 1, j, j + 1, [&](int, int) { return nea ? -(c * lat.inv_d[2] * src.h[1][J]) : c * lat.inv_d[2] * src.h[1][J]; });
 		}
 		break;
 	}
 	case Face::YNea: // first medium
-		if (!background_e_factor(sp.medium[0], c))
+		if (!fdtd::materials::e_factor(sp.medium[0], c))
 			break;
 		if (xpol)
 			correct_plane(Ex, 1, subdomain.jpw_1, subdomain.ipw_min, subdomain.ipw_max, kpw_min_mod, subdomain.kpw_max + 1, [&](int /*i*/, int /*k*/) {
@@ -167,7 +145,7 @@ void tfsf_e(Face f)
 			});
 		break;
 	case Face::YFar: // second medium
-		if (!background_e_factor(sp.medium[2], c))
+		if (!fdtd::materials::e_factor(sp.medium[2], c))
 			break;
 		if (zpol)
 			correct_plane(Ez, 1, subdomain.jpw_2, ipw_min_mod, subdomain.ipw_max + 1, subdomain.kpw_min, subdomain.kpw_max, [&](int, int) { return -(c * lat.inv_d[1] * src.h[1][jpw_end_uni]); });
@@ -211,8 +189,8 @@ void tfsf_e_terms(int A, int i, int j, int k, double c, double &e_new)
 	if (!in)
 		return;
 	const double s = x ? -1 : 1; // Ex: - near, + far; Ez: + near, - far
-	const cvector<double> &h = x ? src.h[0] : src.h[1];
-	const cvector<double> &h_ref = x ? ref.h[0] : ref.h[1];
+	const array1<double> &h = x ? src.h[0] : src.h[1];
+	const array1<double> &h_ref = x ? ref.h[0] : ref.h[1];
 	if (subdomain.pw_nea_y && j == subdomain.jpw_1)
 	{
 		const double v = c * lat.inv_d[1] * (lat.periodic_x && lat.periodic_z ? h_ref[jpw_source_uni] : h[jpw_source_uni]);

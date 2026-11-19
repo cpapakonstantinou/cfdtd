@@ -27,44 +27,50 @@ void fdtd::materials::compute_ade_coefficients()
 	auto &mp = fdtd::materials::model_parameters();
 	const double dt = fdtd::materials::model_spec().dt;
 
-	for (int m = 0; m < NRMAXMATERIALS; ++m)
+	for (int m = 0; m < slot_count(); ++m)
 	{
-		if (m < DispMateOffsetD)
+		const int n = m;
+		switch (kind(m))
 		{
+		case Kind::dielectric:
 			mp.ce_1[m] = (double(2.) * EP0 * mp.epre[m] - dt * mp.sig_m[m]) / (double(2.) * EP0 * mp.epre[m] + dt * mp.sig_m[m]);
 			mp.ce_2[m] = double(2.) * dt / (double(2.) * EP0 * mp.epre[m] + dt * mp.sig_m[m]);
 			mp.n_refr_index[m] = sqrt(double(mp.epre[m]));
-			continue;
-		}
-		const int n = m - DispMateOffsetD;
-		if (n < DrudeCP)
+			break;
+		case Kind::drude_cp:
 		{
-			coeff_table<models::Drude2CP>[n] = models::Drude2CP::compute(n, m, dt);
+			coeff_table<models::Drude2CP>[n] = models::Drude2CP::compute(n, dt);
 			const double beta = mp.gam_plasma[n] * dt;
 			const bool nonlocal = fdtd::materials::model_spec().nonlocal;
 			fdtd::materials::hydro::non_loc[n] = nonlocal ? 2 * dt * dt * fdtd::materials::hydro::beta_nl[n] * fdtd::materials::hydro::beta_nl[n] / (2 + beta) : 0;
 			fdtd::materials::hydro::gnor_1[n] = nonlocal ? 2 * dt * dt * fdtd::materials::hydro::diff_coeff[n] * mp.gam_plasma[n] / (2 + beta) : 0;
 			fdtd::materials::hydro::gnor_2[n] = nonlocal ? 2 * dt * dt * fdtd::materials::hydro::diff_coeff[n] / (2 * dt * (2 + beta)) : 0;
+			break;
 		}
-		else if (n < Drude)
-			coeff_table<models::Drude>[n] = models::Drude::compute(n, m, dt);
-		else if (n < Lorentz)
-			coeff_table<models::Lorentz>[n] = models::Lorentz::compute(n, m, dt);
-		else if (n < ModLorentz)
-			coeff_table<models::ModifiedLorentz>[n] = models::ModifiedLorentz::compute(n, m, dt);
-		else if (n < NonlinearDrudeLorentz)
-		{
-			// the electron gas of the hydrodynamic and nonlinear Drude-Lorentz models
+		case Kind::drude:
+			coeff_table<models::Drude>[n] = models::Drude::compute(n, dt);
+			break;
+		case Kind::lorentz:
+			coeff_table<models::Lorentz>[n] = models::Lorentz::compute(n, dt);
+			break;
+		case Kind::modified_lorentz:
+			coeff_table<models::ModifiedLorentz>[n] = models::ModifiedLorentz::compute(n, dt);
+			break;
+		case Kind::hydrodynamic:
+		case Kind::drude_lorentz:
+			// the electron gas of the hydrodynamic and Drude-Lorentz models
 			fdtd::materials::hydro::powerterm[n] = pow(fdtd::materials::hydro::equilibrium_electron_density[n], 2.0 / 3.0);
 			fdtd::materials::hydro::inverse_edens[n] = 1.0 / fdtd::materials::hydro::equilibrium_electron_density[n];
 			fdtd::materials::hydro::inverse_chargedens[n] = 1.0 / (E0 * fdtd::materials::hydro::equilibrium_electron_density[n]);
-			if (n < NonLinFreeElectron)
-				coeff_table<models::Hydrodynamic>[n] = models::Hydrodynamic::compute(n, m, dt);
+			if (kind(m) == Kind::hydrodynamic)
+				coeff_table<models::Hydrodynamic>[n] = models::Hydrodynamic::compute(n, dt);
 			else
-				coeff_table<models::DrudeLorentz>[n] = models::DrudeLorentz::compute(n, m, dt);
+				coeff_table<models::DrudeLorentz>[n] = models::DrudeLorentz::compute(n, dt);
+			break;
+		case Kind::magnetic_lorentz:
+			coeff_table<models::MagneticLorentz>[n] = models::MagneticLorentz::compute(n, dt);
+			break;
 		}
-		else if (n < MagneticLorentz)
-			coeff_table<models::MagneticLorentz>[n] = models::MagneticLorentz::compute(n, m, dt);
 	}
 
 }

@@ -24,7 +24,6 @@
 #include "app/setup.h"
 #include "sources/signal.h"
 #include "materials/materials.h"
-#include "materials/inputs.h"
 #include "materials/spec.h"
 #include "sources/spec.h"
 #include "grid/lattice.h"
@@ -43,13 +42,7 @@ using fdtd::constants::MU0;
 using fdtd::constants::PI;
 using fdtd::constants::ROOTPROCESS;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
-using fdtd::materials::MagneticLorentz;
-using fdtd::materials::ModLorentz;
-using fdtd::materials::NRMAXMATERIALS;
-using fdtd::materials::NonlinearDrudeLorentz;
+using fdtd::materials::max_slots;
 using fdtd::materials::magnetization_x;
 using fdtd::materials::magnetization_y;
 using fdtd::materials::magnetization_z;
@@ -60,8 +53,7 @@ using fdtd::materials::matind_y;
 using fdtd::materials::matind_y_full;
 using fdtd::materials::matind_z;
 using fdtd::materials::matind_z_full;
-using fdtd::materials::nl_code;
-using fdtd::materials::nr_disp_mat_d;
+using fdtd::materials::max_slots;
 using fdtd::materials::background_y;
 
 namespace
@@ -77,24 +69,33 @@ fdtd::boundary::Cpml &the_cpml = fdtd::boundary::cpml(); ///< cached: the access
 // File-local state, formerly globals used only in this file.
 namespace
 {
-double list_of_material_inds[NRMAXMATERIALS];                 ///< Per-material presence flags, 1 = used. Never written, so always 0.
 int nr_cells_y_pure;                                        ///< Global cells along y without the CPML.
 std::vector<int> deferred_poles;                            ///< materials whose poles allocate_material_state allocates
-bool SHG_antenna;                                           ///< Second-harmonic source is the antenna material.
-bool THG_antenna;                                           ///< Third-harmonic source is the antenna material.
 int blocklength;                                            ///< Scratch: block length for the MPI_Type_vector calls in setup.
 int stride;                                                 ///< Scratch: stride for the MPI_Type_vector calls in setup.
 } // namespace
 
  namespace
 {
-/// state of dispersive material index mm stored for the rows of its cells only: the point-update
-/// models, Drude + 2CP, Drude, Lorentz, modified Lorentz, without the nonlocal / hydrodynamic /
+/// state of dispersive slot mm stored for the rows of its cells only: the point-update models,
+/// Drude + critical points, Drude, Lorentz, modified Lorentz, without the nonlocal / hydrodynamic /
 /// two-temperature arrays, which take neighbouring cells
 bool boxed_state(int mm)
 {
 	const auto &rc = fdtd::app::run_config();
-	return mm < ModLorentz && !rc.materials.nonlocal && !rc.thermal.two_temperature_model && !rc.materials.hydrodynamics;
+	return fdtd::materials::kind(mm) < fdtd::materials::Kind::hydrodynamic && !rc.materials.nonlocal && !rc.thermal.two_temperature_model && !rc.materials.hydrodynamics;
+}
+
+/// the slot carries a free-electron current J: hydrodynamic, Drude-Lorentz
+bool electron_current(int m)
+{
+	return fdtd::materials::is(m, fdtd::materials::Kind::hydrodynamic) || fdtd::materials::is(m, fdtd::materials::Kind::drude_lorentz);
+}
+
+/// the slot carries pole polarisations: every dispersive model but Drude and Lorentz
+bool pole_state(int m)
+{
+	return !fdtd::materials::is(m, fdtd::materials::Kind::drude) && !fdtd::materials::is(m, fdtd::materials::Kind::lorentz);
 }
 } // namespace
 
@@ -109,44 +110,12 @@ bool boxed_state(int mm)
   */
 bool fdtd::app::initialise_run()
 {
-	auto &mp = fdtd::materials::model_parameters();
 	fdtd::app::RunConfig &run_cfg = fdtd::app::edit_run_config(); // configure phase
-	int m;
-	int i;
 	// INIZIALIZATION - START
 
 	subdomain.cells_x = fdtd::grid::cells_per_rank_x[subdomain.position[0]];
 	subdomain.cells_y = fdtd::grid::cells_per_rank_y[subdomain.position[1]];
 	subdomain.cells_z = fdtd::grid::cells_per_rank_z[subdomain.position[2]];
-
-	//-Izzat-
-	for (m = 0; m < 18; ++m)
-	{
-		fdtd::materials::nonlinear::chi_2_a[m] = run_cfg.nonlinear.chi2_antenna[m]; //A=Antenna
-		fdtd::materials::nonlinear::chi_2_f[m] = run_cfg.nonlinear.chi2_first[m]; //F=First layer
-		fdtd::materials::nonlinear::chi_2_m[m] = run_cfg.nonlinear.chi2_middle[m]; //M=Middle layer
-		fdtd::materials::nonlinear::chi_2_s[m] = run_cfg.nonlinear.chi2_second[m]; //S=Second layer
-	}
-
-	for (i = 0; i < 21; ++i)
-	{
-		fdtd::materials::nonlinear::chi_3_a[i] = run_cfg.nonlinear.chi3_antenna[i];
-		fdtd::materials::nonlinear::chi_3_f[i] = run_cfg.nonlinear.chi3_first[i];
-		fdtd::materials::nonlinear::chi_3_m[i] = run_cfg.nonlinear.chi3_middle[i];
-		fdtd::materials::nonlinear::chi_3_s[i] = run_cfg.nonlinear.chi3_second[i];
-	}
-
-	run_cfg.materials.magnetic_lorentz = (run_cfg.materials.antenna_material == DispMateOffsetD + NonlinearDrudeLorentz); // the first magnetic Lorentz code
-
-	if (run_cfg.materials.magnetic_lorentz && fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("setup", "Magnetic Lorentz model\n");
-
-	fdtd::geometry::shg_bulk = false;
-	SHG_antenna = false;
-	fdtd::geometry::thg_bulk = false;
-	THG_antenna = false;
-	run_cfg.nonlinear.second_harmonic = false;
-	run_cfg.nonlinear.third_harmonic = false;
 
 	// Flags for source injection types
 	run_cfg.source.tfsf = run_cfg.source.kind == fdtd::sources::kind::plane_wave;
@@ -158,18 +127,21 @@ bool fdtd::app::initialise_run()
 	run_cfg.source.oblique_incidence_with_medium = (run_cfg.source.plane_wave_superposition && ( run_cfg.materials.middle_medium != run_cfg.materials.first_medium || run_cfg.materials.second_medium != run_cfg.materials.first_medium)) || run_cfg.source.enforce_one_dim_simulation;
 
 	run_cfg.analysis.dft_plot = run_cfg.analysis.dft_plane_mask != 0;
-	if (run_cfg.nonlinear.thg == 1)
-		THG_antenna = true;
-	if (run_cfg.nonlinear.thg == 2)
-		fdtd::geometry::thg_bulk = true;
-	if (run_cfg.nonlinear.shg == 1)
-		SHG_antenna = true;
-	if (run_cfg.nonlinear.shg == 2)
-		fdtd::geometry::shg_bulk = true;
-	if (SHG_antenna || fdtd::geometry::shg_bulk)
-		run_cfg.nonlinear.second_harmonic = true;
-	if (THG_antenna || fdtd::geometry::thg_bulk)
-		run_cfg.nonlinear.third_harmonic = true;
+	run_cfg.nonlinear.second_harmonic = run_cfg.nonlinear.shg != 0;
+	run_cfg.nonlinear.third_harmonic = run_cfg.nonlinear.thg != 0;
+
+	{
+		fdtd::materials::LoadSpec spec;
+		spec.harmonic_order = run_cfg.nonlinear.second_harmonic ? 2 : run_cfg.nonlinear.third_harmonic ? 3 : 0;
+		spec.dy = fdtd::grid::lattice().d[1];
+		spec.fermi_velocity_scale = run_cfg.materials.fermi_v;
+		fdtd::materials::load_slots(run_cfg.materials.definitions, spec);
+	}
+
+	run_cfg.materials.magnetic_lorentz = fdtd::materials::is(run_cfg.materials.antenna_material, fdtd::materials::Kind::magnetic_lorentz);
+
+	if (run_cfg.materials.magnetic_lorentz && fdtd::grid::world_rank == ROOTPROCESS)
+		fdtd::io::log("setup", "Magnetic Lorentz model\n");
 
 	run_cfg.geometry.grating = false;					// Legacy
 
@@ -183,7 +155,6 @@ bool fdtd::app::initialise_run()
 	MPI_Bcast(&run_cfg.source.pulse_width, 1, MPI_DOUBLE, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Bcast(&run_cfg.source.chirp, 1, MPI_DOUBLE, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Bcast(&run_cfg.source.chirp_2, 1, MPI_DOUBLE, ROOTPROCESS, MPI_COMM_WORLD);
-	MPI_Bcast(&mp.n_refr, 100, MPI_DOUBLE, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Bcast(&fdtd::monitors::sphere_rad_multipole, 1, MPI_INT, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Bcast(&fdtd::monitors::nphi_multipole, 1, MPI_INT, ROOTPROCESS, MPI_COMM_WORLD);
 	MPI_Bcast(&fdtd::monitors::ntheta_multipole, 1, MPI_INT, ROOTPROCESS, MPI_COMM_WORLD);
@@ -266,33 +237,6 @@ bool fdtd::app::initialise_run()
 	fdtd::materials::laplacian = false; // This should always be false, but I'd like to keep the booleans just in case
 	fdtd::materials::gradient_divergence = true; // This should always be true, but I'd like to keep the booleans just in case
 
-	{
-		const auto &m = run_cfg.materials;
-		fdtd::materials::Inputs in;
-		in.antenna = m.antenna_material, in.first = m.first_medium, in.middle = m.middle_medium, in.second = m.second_medium;
-		in.n[0] = m.n_refr_0, in.n[1] = m.n_refr_1, in.n[2] = m.n_refr_2, in.n[3] = m.n_refr_3;
-		in.graphene_optim = run_cfg.geometry.graphene_optim;
-		in.middle_layer = run_cfg.geometry.middle_layer;
-		in.graphene_stretch = run_cfg.geometry.stretch_eps_x;
-		in.fermi_velocity = m.fermi_v, in.gnor_diffusion = m.diff_c;
-		in.carrier_density = m.carrier_density, in.carrier_density_back = m.carrier_density_back;
-		auto &c = in.custom;
-		c.eps_inf = m.read_in_epre_inf, c.plasma_frequency = m.read_in_ome_plasma, c.plasma_damping = m.read_in_gam_plasma;
-		c.cp_frequency = m.read_in_big_omega_cp, c.cp_frequency_2 = m.read_in_big_omega_cp_2;
-		c.cp_damping = m.read_in_big_gamma_cp, c.cp_damping_2 = m.read_in_big_gamma_cp_2;
-		c.cp_amplitude = m.read_in_a_coeff_cp, c.cp_amplitude_2 = m.read_in_a_coeff_cp_2;
-		c.cp_phase = m.read_in_phi_cp, c.cp_phase_2 = m.read_in_phi_cp_2;
-		c.electron_density = m.read_in_electron_density, c.fermi_velocity = m.read_in_fermi_velocity;
-		const auto &nl = run_cfg.nonlinear;
-		const double *chi2[4] = {nl.chi2_antenna, nl.chi2_first, nl.chi2_middle, nl.chi2_second};
-		const double *chi3[4] = {nl.chi3_antenna, nl.chi3_first, nl.chi3_middle, nl.chi3_second};
-		for (int k = 0; k < 4; ++k)
-		{
-			for (int q = 0; q < 18; ++q) in.chi2[k][q] = chi2[k][q];
-			for (int q = 0; q < 21; ++q) in.chi3[k][q] = chi3[k][q];
-		}
-		fdtd::materials::set_parameters(in);
-	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,11 +270,11 @@ bool fdtd::app::initialise_run()
 	subdomain.start_x = 0;
 	subdomain.start_y = 0;
 	subdomain.start_z = 0;
-	for (m = 0; m < subdomain.position[0]; ++m)
+	for (int m = 0; m < subdomain.position[0]; ++m)
 		subdomain.start_x += fdtd::grid::cells_per_rank_x[m];
-	for (m = 0; m < subdomain.position[1]; ++m)
+	for (int m = 0; m < subdomain.position[1]; ++m)
 		subdomain.start_y += fdtd::grid::cells_per_rank_y[m];
-	for (m = 0; m < subdomain.position[2]; ++m)
+	for (int m = 0; m < subdomain.position[2]; ++m)
 		subdomain.start_z += fdtd::grid::cells_per_rank_z[m];
 	// physical origin of the local process with respect to the global reference system
 	subdomain.origin_x = subdomain.start_x * run_cfg.grid.dx;
@@ -581,9 +525,9 @@ bool fdtd::app::allocate_fields()
 
 		if (run_cfg.materials.magnetic_lorentz)
 		{
-			magnetization_x = field3<double>(subdomain.cells_x + 1, subdomain.cells_y + 1, subdomain.cells_z + 1);
-			magnetization_y = field3<double>(subdomain.cells_x + 1, subdomain.cells_y + 1, subdomain.cells_z + 1);
-			magnetization_z = field3<double>(subdomain.cells_x + 1, subdomain.cells_y + 1, subdomain.cells_z + 1);
+			magnetization_x = fdtd::field3<double>(subdomain.cells_x + 1, subdomain.cells_y + 1, subdomain.cells_z + 1);
+			magnetization_y = fdtd::field3<double>(subdomain.cells_x + 1, subdomain.cells_y + 1, subdomain.cells_z + 1);
+			magnetization_z = fdtd::field3<double>(subdomain.cells_x + 1, subdomain.cells_y + 1, subdomain.cells_z + 1);
 		}
 
 		{
@@ -597,20 +541,20 @@ bool fdtd::app::allocate_fields()
 			if (run_cfg.thermal.pump_probe)
 			{
 				if (run_cfg.thermal.pump)
-					fdtd::materials::thermal::temp_save = field3<double>(1, fdtd::app::run_state().nr_max_time_steps, subdomain.cells_y);
+					fdtd::materials::thermal::temp_save = fdtd::field3<double>(1, fdtd::app::run_state().nr_max_time_steps, subdomain.cells_y);
 				fdtd::materials::thermal::nr_max_time_steps_pump = fdtd::app::run_state().nr_max_time_steps + int(220e-15 / run_cfg.time.dt);
 				if (run_cfg.thermal.probe)
-					fdtd::materials::thermal::temp_save = field3<double>(1, fdtd::materials::thermal::nr_max_time_steps_pump, subdomain.cells_y);
+					fdtd::materials::thermal::temp_save = fdtd::field3<double>(1, fdtd::materials::thermal::nr_max_time_steps_pump, subdomain.cells_y);
 			}
 
-			fdtd::materials::thermal::electron_temp = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-			fdtd::materials::thermal::lattice_temp = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-			fdtd::monitors::energy_density = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+			fdtd::materials::thermal::electron_temp = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+			fdtd::materials::thermal::lattice_temp = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+			fdtd::monitors::energy_density = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
 			if (!run_cfg.materials.hydrodynamics)
 			{
-				fdtd::materials::hydro::ex_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-				fdtd::materials::hydro::ey_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-				fdtd::materials::hydro::ez_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::ex_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::ey_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::ez_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 			}
 			for (i = 0; i <= subdomain.cells_x; i++)
 			{
@@ -627,62 +571,60 @@ bool fdtd::app::allocate_fields()
 
 		if (!run_cfg.materials.hydrodynamics && run_cfg.analysis.multipoles && !run_cfg.thermal.two_temperature_model)
 		{
-			fdtd::materials::hydro::ex_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::ey_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::ez_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::ex_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::ey_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::ez_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 
-			fdtd::materials::hydro::px_cp_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::py_cp_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::pz_cp_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::px_cp_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::py_cp_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::pz_cp_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 
-			fdtd::materials::hydro::epsinf_x = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::epsinf_y = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::epsinf_z = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::epsinf_x = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::epsinf_y = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::epsinf_z = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 
-			fdtd::materials::hydro::nd_x = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-			fdtd::materials::hydro::nd_y = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-			fdtd::materials::hydro::nd_z = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+			fdtd::materials::hydro::nd_x = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+			fdtd::materials::hydro::nd_y = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+			fdtd::materials::hydro::nd_z = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
 		}
 
 		if (run_cfg.materials.hydrodynamics)
 		{
 
-			fdtd::materials::hydro::ex_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::ey_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::ez_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::ex_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::ey_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::ez_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 
-			fdtd::materials::hydro::px_cp_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::py_cp_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::pz_cp_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::px_cp_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::py_cp_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::pz_cp_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 
 			if (run_cfg.nonlinear.seperate_linear_nonlinear)
 			{
-				fdtd::materials::hydro::px_cp_2_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-				fdtd::materials::hydro::py_cp_2_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-				fdtd::materials::hydro::pz_cp_2_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::px_cp_2_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::py_cp_2_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::pz_cp_2_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 
-				fdtd::materials::hydro::ex_2_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-				fdtd::materials::hydro::ey_2_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-				fdtd::materials::hydro::ez_2_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::ex_2_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::ey_2_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+				fdtd::materials::hydro::ez_2_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 			}
 
-			fdtd::materials::hydro::epsinf_x = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::epsinf_y = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
-			fdtd::materials::hydro::epsinf_z = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::epsinf_x = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::epsinf_y = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
+			fdtd::materials::hydro::epsinf_z = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);
 		}
 
-		for (m = 0; m < nr_disp_mat_d; ++m)
+		for (m = 0; m < fdtd::materials::slot_count(); ++m)
 		{
-			if ((m == run_cfg.materials.antenna_material - DispMateOffsetD) || (m == run_cfg.materials.first_medium - DispMateOffsetD) || (m == run_cfg.materials.middle_medium - DispMateOffsetD) || (m == run_cfg.materials.second_medium - DispMateOffsetD) || ((run_cfg.nonlinear.second_harmonic || run_cfg.nonlinear.third_harmonic) && m == run_cfg.materials.nl_mat_gap - DispMateOffsetD) || (run_cfg.geometry.antenna_type == fdtd::geometry::shape::round_hybrid && (m == run_cfg.materials.nl_mat_gap - DispMateOffsetD))
-				// || (m == 4-DispMateOffsetD && run_cfg.geometry.antenna_type==fdtd::geometry::shape::v_shape)
-				|| (list_of_material_inds[m + DispMateOffsetD] == 1))
+			if (fdtd::materials::dispersive(m))
 			{
 				if (!run_cfg.materials.nonlocal && !run_cfg.thermal.two_temperature_model && !run_cfg.materials.hydrodynamics)
 				{
 					ds.c[0].p.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
 					ds.c[1].p.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
 					ds.c[2].p.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
-					if (m >= ModLorentz && m < NonlinearDrudeLorentz)
+					if (electron_current(m))
 					{
 
 						ds.c[0].j.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
@@ -693,7 +635,7 @@ bool fdtd::app::allocate_fields()
 						fdtd::materials::hydro::jy_prev.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
 						fdtd::materials::hydro::jz_prev.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
 					}
-					if (m >= NonlinearDrudeLorentz && m < MagneticLorentz)
+					if (fdtd::materials::is(m, fdtd::materials::Kind::magnetic_lorentz))
 					{
 						ds.c[0].p_prev_2.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
 						ds.c[1].p_prev_2.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
@@ -706,7 +648,7 @@ bool fdtd::app::allocate_fields()
 				}
 				else
 				{ //if nonlocal
-					if (m >= ModLorentz && m < NonlinearDrudeLorentz)
+					if (electron_current(m))
 					{
 						if (run_cfg.materials.hydrodynamics || run_cfg.thermal.two_temperature_model)
 						{
@@ -753,23 +695,23 @@ bool fdtd::app::allocate_fields()
 					{
 						if (!run_cfg.materials.hydrodynamics && !run_cfg.thermal.two_temperature_model)
 						{
-							fdtd::materials::hydro::px_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::py_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::pz_nl = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							ds.c[0].p_nl_prev = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							ds.c[1].p_nl_prev = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							ds.c[2].p_nl_prev = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::px_nl_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::py_nl_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::pz_nl_2 = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::px_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::py_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::pz_nl = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							ds.c[0].p_nl_prev = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							ds.c[1].p_nl_prev = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							ds.c[2].p_nl_prev = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::px_nl_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::py_nl_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::pz_nl_2 = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
 						}
 
 						if (run_cfg.materials.hydrodynamics)
 						{																				  //Electron number density
-							fdtd::materials::hydro::nd_x = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::nd_y = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::nd_z = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);	   // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
-							fdtd::materials::hydro::nd_z_prev = field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::nd_x = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::nd_y = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::nd_z = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2);	   // subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
+							fdtd::materials::hydro::nd_z_prev = fdtd::field3<double>(subdomain.cells_x + 2, subdomain.cells_y + 2, subdomain.cells_z + 2); //subdomain.inner_dim_x+2, subdomain.inner_dim_y+2, subdomain.inner_dim_z+2);//
 
 							//REMOVE
 
@@ -777,17 +719,17 @@ bool fdtd::app::allocate_fields()
 
 						if (run_cfg.materials.gnor)
 						{
-							fdtd::materials::hydro::grad_div_x = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-							fdtd::materials::hydro::grad_div_y = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-							fdtd::materials::hydro::grad_div_z = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_x = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_y = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_z = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
 
-							fdtd::materials::hydro::grad_div_x_n = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-							fdtd::materials::hydro::grad_div_y_n = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-							fdtd::materials::hydro::grad_div_z_n = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_x_n = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_y_n = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_z_n = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
 
-							fdtd::materials::hydro::grad_div_x_n_1 = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-							fdtd::materials::hydro::grad_div_y_n_1 = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
-							fdtd::materials::hydro::grad_div_z_n_1 = field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_x_n_1 = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_y_n_1 = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
+							fdtd::materials::hydro::grad_div_z_n_1 = fdtd::field3<double>(subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
 						}
 						checker = 1;
 					}
@@ -796,27 +738,27 @@ bool fdtd::app::allocate_fields()
 				ds.c[1].p_prev.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
 				ds.c[2].p_prev.require(m, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);//
 
-				if ((m < DrudeCP || m >= Lorentz) && boxed_state(m))
+				if (pole_state(m) && boxed_state(m))
 					deferred_poles.push_back(m); // allocated after the geometry, rows of the material only
-				else if (m < DrudeCP || m >= Lorentz)
+				else if (pole_state(m))
 				{
 					for (n = 0; n < mp.nr_cp[m]; ++n)
 					{
-						if (!ds.c[0].pc[m]) ds.c[0].pc[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-						if (!ds.c[1].pc[m]) ds.c[1].pc[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-						if (!ds.c[2].pc[m]) ds.c[2].pc[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+						if (!ds.c[0].pc[m]) ds.c[0].pc[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+						if (!ds.c[1].pc[m]) ds.c[1].pc[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+						if (!ds.c[2].pc[m]) ds.c[2].pc[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
 						if (run_cfg.nonlinear.seperate_linear_nonlinear)
 						{
-							if (!ds.c[0].pc_nl[m]) ds.c[0].pc_nl[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-							if (!ds.c[1].pc_nl[m]) ds.c[1].pc_nl[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-							if (!ds.c[2].pc_nl[m]) ds.c[2].pc_nl[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-							if (!ds.c[0].pc_prev_nl[m]) ds.c[0].pc_prev_nl[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-							if (!ds.c[1].pc_prev_nl[m]) ds.c[1].pc_prev_nl[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-							if (!ds.c[2].pc_prev_nl[m]) ds.c[2].pc_prev_nl[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+							if (!ds.c[0].pc_nl[m]) ds.c[0].pc_nl[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+							if (!ds.c[1].pc_nl[m]) ds.c[1].pc_nl[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); //subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+							if (!ds.c[2].pc_nl[m]) ds.c[2].pc_nl[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+							if (!ds.c[0].pc_prev_nl[m]) ds.c[0].pc_prev_nl[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+							if (!ds.c[1].pc_prev_nl[m]) ds.c[1].pc_prev_nl[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+							if (!ds.c[2].pc_prev_nl[m]) ds.c[2].pc_prev_nl[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
 						}
-						if (!ds.c[0].pc_prev[m]) ds.c[0].pc_prev[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-						if (!ds.c[1].pc_prev[m]) ds.c[1].pc_prev[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
-						if (!ds.c[2].pc_prev[m]) ds.c[2].pc_prev[m] = field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+						if (!ds.c[0].pc_prev[m]) ds.c[0].pc_prev[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+						if (!ds.c[1].pc_prev[m]) ds.c[1].pc_prev[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+						if (!ds.c[2].pc_prev[m]) ds.c[2].pc_prev[m] = fdtd::field4<double>(mp.nr_cp[m], subdomain.cells_x, subdomain.cells_y, subdomain.cells_z); // subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
 					}
 				}
 			}
@@ -827,7 +769,7 @@ bool fdtd::app::allocate_fields()
 			fdtd::monitors::volume_dft().allocate();
 			if (run_cfg.thermal.save_output_temperature || run_cfg.thermal.load_temperature)
 			{
-				fdtd::materials::thermal::electron_temp_tf = field3<double>(subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
+				fdtd::materials::thermal::electron_temp_tf = fdtd::field3<double>(subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);
 			}
 			fdtd::materials::material_map().allocate_inner(subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z, subdomain.cells_x, subdomain.cells_y, subdomain.cells_z);
 
@@ -867,7 +809,7 @@ bool fdtd::app::allocate_aux_source()
 	fdtd::sources::AuxGrid &g = fdtd::sources::aux_grid();
 	try
 	{
-		g.mat = vector1<int>(run_cfg.grid.nr_cells_uni + 1);
+		g.mat = fdtd::vector1<int>(run_cfg.grid.nr_cells_uni + 1);
 		for (int j = 0; j <= run_cfg.grid.nr_cells_uni; ++j)
 			g.mat[j] = j < run_cfg.grid.nr_cells_uni / 2 ? run_cfg.materials.first_medium : run_cfg.materials.second_medium;
 		// the lines only on ranks with a TF/SF face
@@ -908,7 +850,7 @@ bool fdtd::app::allocate_scattering_and_absorption()
  *
  * A material that can be a background, first, middle or second medium, or on the 1D layer profile
  * reaches the CPML cells and keeps full rows; the others occur only through the material maps of the
- * inner region, so their box is the bounding box of their cells there, codes m and m + nl_code.
+ * inner region, so their box is the bounding box of their cells there.
  * The rows outside a box read 0, as the full arrays did there, only a material's own cells are written.
  */
 bool fdtd::app::allocate_material_state()
@@ -916,12 +858,10 @@ bool fdtd::app::allocate_material_state()
 	auto &ds = fdtd::materials::dispersive_state();
 	const auto &mp = fdtd::materials::model_parameters();
 	const auto &S = subdomain;
-	std::vector<bool> background(NRMAXMATERIALS, false);
-	auto mark = [&](int code) {
-		if (code >= nl_code)
-			code -= nl_code;
-		if (code >= 0 && code < NRMAXMATERIALS)
-			background[code] = true;
+	std::vector<bool> background(max_slots, false);
+	auto mark = [&](int s) {
+		if (s >= 0 && s < max_slots)
+			background[s] = true;
 	};
 	mark(run_cfg.materials.first_medium);
 	mark(run_cfg.materials.middle_medium);
@@ -930,11 +870,11 @@ bool fdtd::app::allocate_material_state()
 		mark(background_y[j]);
 
 	// bounding boxes of the materials' inner cells, in cell indices
-	std::vector<CellBox> box(nr_disp_mat_d, CellBox{1 << 30, -1, 1 << 30, -1});
+	std::vector<CellBox> box(max_slots, CellBox{1 << 30, -1, 1 << 30, -1});
 	if (!S.cpml_only && S.inner_dim_z >= 0)
 		box = fdtd::materials::material_map().dispersive_boxes(S.inner_org_x, S.inner_org_y);
 	auto box_of = [&](int mm) -> std::optional<CellBox> {
-		if (!boxed_state(mm) || background[mm + DispMateOffsetD])
+		if (!boxed_state(mm) || background[mm])
 			return std::nullopt;
 		if (box[mm].i1 < 0)
 			return CellBox{0, 0, 0, 0}; // not on this rank: one row
@@ -947,8 +887,8 @@ bool fdtd::app::allocate_material_state()
 		{
 			const std::optional<CellBox> b = box_of(mm);
 			const std::array<size_t, 4> shape = {size_t(mp.nr_cp[mm] > 0 ? mp.nr_cp[mm] : 1), size_t(S.cells_x + 1), size_t(S.cells_y + 1), size_t(S.cells_z + 1)};
-			fdtd::materials::dispersive_state().for_each_pole(mm, [&](ctetrad<double> &pole) {
-				pole = b ? ctetrad<double>::boxed(shape, b->i0, b->i1, b->j0, b->j1) : field4<double>(mp.nr_cp[mm], S.cells_x, S.cells_y, S.cells_z);
+			fdtd::materials::dispersive_state().for_each_pole(mm, [&](fdtd::array4<double> &pole) {
+				pole = b ? fdtd::array4<double>::boxed(shape, b->i0, b->i1, b->j0, b->j1) : fdtd::field4<double>(mp.nr_cp[mm], S.cells_x, S.cells_y, S.cells_z);
 			});
 		}
 		deferred_poles.clear();
@@ -962,10 +902,10 @@ bool fdtd::app::allocate_material_state()
 	double bytes[2] = {0, 0};
 	for (auto *field : {&ds.c[0].p, &ds.c[0].p_prev, &ds.c[1].p, &ds.c[1].p_prev, &ds.c[2].p, &ds.c[2].p_prev})
 		bytes[0] += double(field->stored()) * sizeof(double);
-	for (int mm = 0; mm < nr_disp_mat_d; ++mm)
-		fdtd::materials::dispersive_state().for_each_pole(mm, [&](ctetrad<double> &pole) { bytes[0] += double(pole.stored()) * sizeof(double); });
+	for (int mm = 0; mm < max_slots; ++mm)
+		fdtd::materials::dispersive_state().for_each_pole(mm, [&](fdtd::array4<double> &pole) { bytes[0] += double(pole.stored()) * sizeof(double); });
 	const double cell_bytes = double(S.cells_x + 1) * (S.cells_y + 1) * (S.cells_z + 1) * sizeof(double);
-	for (int mm = 0; mm < nr_disp_mat_d; ++mm)
+	for (int mm = 0; mm < max_slots; ++mm)
 		if (ds.c[0].p[mm])
 			bytes[1] += cell_bytes * 6 * (1 + (ds.c[0].pc[mm] ? double(ds.c[0].pc[mm].extent(0)) : 0.0));
 	double total[2] = {0, 0};
@@ -982,8 +922,8 @@ bool fdtd::app::material_state_intact()
 	bool ok = true;
 	for (auto *field : {&ds.c[0].p, &ds.c[1].p_prev, &ds.c[0].p_prev, &ds.c[1].p, &ds.c[2].p, &ds.c[2].p_prev})
 		ok = ok && field->padding_zero();
-	for (int mm = 0; mm < nr_disp_mat_d; ++mm)
-		fdtd::materials::dispersive_state().for_each_pole(mm, [&](ctetrad<double> &pole) { ok = ok && pole.padding_zero(); });
+	for (int mm = 0; mm < max_slots; ++mm)
+		fdtd::materials::dispersive_state().for_each_pole(mm, [&](fdtd::array4<double> &pole) { ok = ok && pole.padding_zero(); });
 	if (!ok)
 		std::fprintf(stderr, "rank %d: dispersive state written outside its material box\n", fdtd::grid::world_rank);
 	return ok;

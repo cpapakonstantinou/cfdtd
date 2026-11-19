@@ -15,18 +15,18 @@
 #ifndef FDTD_MONITORS_VOLUME_DFT_H
 #define FDTD_MONITORS_VOLUME_DFT_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include <complex>
 
 namespace fdtd::monitors
 {
 struct VolumeDft
 {
-	ctetrad<double> re[2][3];
-	ctetrad<double> im[2][3];
-	ctetrad<std::complex<double>> field[2][3];
-	ctetrad<double> re_pnl[3];
-	ctetrad<double> im_pnl[3];
+	array4<double> re[2][3];
+	array4<double> im[2][3];
+	array4<std::complex<double>> field[2][3];
+	array4<double> re_pnl[3];
+	array4<double> im_pnl[3];
 
 	/// allocates what the run needs, not on ranks that are all CPML; arrays already there are kept
 	void allocate();

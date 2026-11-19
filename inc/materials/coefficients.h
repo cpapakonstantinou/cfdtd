@@ -3,15 +3,14 @@
  * @brief The coefficient table of each material model
  *
  * A model type M declares `struct Coeffs`, its precomputed update coefficients for one material, and
- * `static Coeffs compute(int mm, int code, double dt)`, the expressions, from the material parameters
- * and the time step. `compute_ade_coefficients()` fills `coeff_table<M>[mm]` for every dispersive
- * material index mm of M's code range; the update and every other reader take `coeffs<M>(mm)`.
- * Entries of indices outside M's range stay zero.
+ * `static Coeffs compute(int mm, double dt)`, the expressions, from the material parameters
+ * and the time step. `compute_ade_coefficients()` fills `coeff_table<M>[s]` for every slot s of
+ * model M; the update and every other reader take `coeffs<M>(s)`. The entries of other slots stay zero.
  */
 #ifndef FDTD_MATERIALS_COEFFICIENTS_H
 #define FDTD_MATERIALS_COEFFICIENTS_H
 
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include <array>
 
 namespace fdtd::materials
@@ -25,11 +24,11 @@ namespace fdtd::materials
  */
 struct Poles
 {
-	double b0[NrMaxCP];
-	double b1[NrMaxCP];
-	double b2[NrMaxCP];
-	double b3[NrMaxCP];
-	double b4[NrMaxCP];
+	double b0[max_poles];
+	double b1[max_poles];
+	double b2[max_poles];
+	double b3[max_poles];
+	double b4[max_poles];
 	double c0;
 	double c1;
 	double c2;
@@ -46,9 +45,9 @@ struct ElectronGas
 	double nl5;
 };
 
-/// coefficients of model M per dispersive material index, code - DispMateOffsetD
+/// coefficients of model M per material slot
 template <class M>
-inline std::array<typename M::Coeffs, nr_disp_mat_d> coeff_table{};
+inline std::array<typename M::Coeffs, max_slots> coeff_table{};
 
 /// the coefficients of material index mm under model M
 template <class M>

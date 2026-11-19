@@ -1,6 +1,6 @@
 /**
  * @file materials/models/drude_2cp.h
- * @brief Drude + critical points model, local and nonlocal, codes 100-149
+ * @brief Drude + critical points model, local and nonlocal, model drude_cp
  *
  * point() is the local arithmetic, which the scans run over whole stretches, see stretch(), and the 1D
  * auxiliary grid per cell; update() adds the nonlocal / GNOR variant and the electron-density sum.
@@ -39,15 +39,14 @@ struct Drude2CP
 		double a2; ///< P_new = a0 P_prev + a1 P + a2 (E_prev + 2 E + E_new)
 	};
 
-	/// coefficients of dispersive material index mm, material code `code`, for time step dt;
+	/// coefficients of material slot mm for time step dt;
 	/// c0..c3 take the sums of b2, b3, b4 over this material's poles
-	static Coeffs compute(int mm, int code, double dt)
+	static Coeffs compute(int mm, double dt)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		double acc[3] = {0, 0, 0};
 		using namespace fdtd::constants; // EP0, MU0, ...
 		const int n = mm;
-		const int m = code;
 		double cp1;
 		double cp2;
 		double cp3;
@@ -84,8 +83,8 @@ struct Drude2CP
 			acc[1] += c.b3[s];
 			acc[2] += c.b4[s];
 		}
-		cp9 = mp.sig_m[m] * dt / 2 + 2 * c.a2 + acc[1] - EP0 * mp.epre_inf[n];
-		cp10 = mp.sig_m[m] * dt / 2 + c.a2 + acc[2] + EP0 * mp.epre_inf[n];
+		cp9 = mp.sig_m[n] * dt / 2 + 2 * c.a2 + acc[1] - EP0 * mp.epre_inf[n];
+		cp10 = mp.sig_m[n] * dt / 2 + c.a2 + acc[2] + EP0 * mp.epre_inf[n];
 		c.c0 = dt / cp10;
 		c.c1 = 1 / cp10;
 		c.c2 = -(c.a2 + acc[0]) / cp10;
@@ -116,18 +115,16 @@ struct Drude2CP
 	}
 
 	/**
-	 * @brief The Drude + 2 critical points index of material m for the stretch update, or -1
+	 * @brief Slot m when it takes the Drude + critical points stretch update, or -1
 	 *
-	 * A nonlinear material, code shifted by nl_code, SHG or THG run, takes the same Drude + 2CP update:
+	 * A nonlinear material, SHG or THG run, takes the same Drude + critical points update:
 	 * its nonlinear polarisation is added to P beforehand, nonlinear::update_polarisation, as in the per-cell path.
 	 * The nonlocal model and the electron-density DFT keep the per-cell path.
 	 */
 	static int stretch_index(int m)
 	{
-		if (m >= nl_code && m < nl_code + NRMAXMATERIALS && (fdtd::materials::model_spec().shg || fdtd::materials::model_spec().thg))
-			m -= nl_code;
-		const bool ok = m >= DispMateOffsetD && m < NRMAXMATERIALS && m - DispMateOffsetD < DrudeCP && !(fdtd::materials::model_spec().nonlocal && !fdtd::materials::model_spec().hydrodynamics);
-		return ok ? m - DispMateOffsetD : -1;
+		const bool ok = is(m, Kind::drude_cp) && !(fdtd::materials::model_spec().nonlocal && !fdtd::materials::model_spec().hydrodynamics);
+		return ok ? m : -1;
 	}
 
 	/**
@@ -162,7 +159,7 @@ struct Drude2CP
 			e_new += c1 * (-cf.b0[n] * r.pc_prev[n][k] + (1.0 - cf.b1[n]) * r.pc[n][k]);
 		boundary(c0, e_new);
 		const double p_new = a0 * r.p_prev[k] + a1 * r.p[k] + a2 * (r.e_prev[k] + 2.0 * r.e[k] + e_new);
-		double pc_new[NrMaxCP];
+		double pc_new[max_poles];
 		for (int n = 0; n < nr_cp; ++n)
 		{
 			pc_new[n] = cf.b0[n] * r.pc_prev[n][k] + cf.b1[n] * r.pc[n][k] + cf.b2[n] * r.e_prev[k] +
@@ -223,7 +220,7 @@ struct Drude2CP
 		const view3<double> p_nl_2 = C::p_nonlocal_2();
 		double Grad_Div = 0;
 		double GNOR_Correct = 0;
-		double P_CP_new[NrMaxCP];
+		double P_CP_new[max_poles];
 		const bool inner = c.J2 < fdtd::materials::hydro::nonlocal_barrier_int && (j >= subdomain.j_cpml_min && j <= subdomain.j_cpml_max) &&
 						   (i >= subdomain.i_cpml_min && i <= subdomain.i_cpml_max) && (k >= subdomain.k_cpml_min && k <= subdomain.k_cpml_max);
 		if (gradient_divergence && inner)

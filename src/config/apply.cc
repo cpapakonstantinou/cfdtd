@@ -3,8 +3,7 @@
  *
  *  Replaces ReadJSONDataFile() / ReadIniDataFile() and the side files they
  *  pulled in, pphinfoCTW.txt, num_rk.txt, PumpProbeDelay.txt, Probes.txt,
- *  pphREADINMATERIAL.txt, pphnlsini.txt, pphmatini.txt,
- *  gaussian_beam.txt, the chi2/ and chi3/ tensor files.
+ *  gaussian_beam.txt. The materials come resolved, SimConfig::materials.
  *
  *  Unlike the legacy readers this runs on EVERY rank, from the same INI text,
  *  so globals that were only ever set on the root process, update_n,
@@ -28,7 +27,7 @@
 #include "app/structures.h"
 #include "sources/mode_source.h"
 #include "geometry/render.h"
-#include "config/exceptions.h"
+#include "config/errors.h"
 
 using fdtd::constants::C0;
 using fdtd::constants::PI2;
@@ -44,15 +43,6 @@ namespace
 {
 
 /// Copy the tensor called `name`, unset = zero, into `dst`, scaled: the first `count` components.
-void copy_tensor(int order, const std::string& name, const std::vector<ChiTensor>& user, double* dst, int count, double scale)
-{
-	const ChiTensor* t = name.empty() ? nullptr : find_chi_tensor(order, name, user);
-	if (!name.empty() && !t)
-		throw validation_error("unknown chi" + std::to_string(order) + " tensor '" + name + "'");
-	for (int i = 0; i < count; ++i)
-		dst[i] = t ? double(scale * t->values[i]) : double(0);
-}
-
 std::string lower(std::string s)
 {
 	for (auto& ch : s)
@@ -88,8 +78,6 @@ void apply_model(const SimConfig& c, bool frames_on)
 	fdtd::geometry::add_free_electron_layer = false;
 	if (hydro)
 	{
-		if (run_cfg.materials.antenna_material < 17 && run_cfg.materials.second_medium < 17 && run_cfg.materials.middle_medium < 17)
-			throw validation_error("[electrons] model = hydrodynamic needs a hydrodynamic material (index >= 17)");
 		fdtd::materials::hydro::with_pressure = m.pressure;
 		fdtd::materials::hydro::with_convection = m.convection;
 		fdtd::materials::hydro::with_mag_field = m.magnetic;
@@ -111,7 +99,6 @@ void apply_model(const SimConfig& c, bool frames_on)
 
 void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 {
-	auto &mp = fdtd::materials::model_parameters();
 	// domain
 	run_cfg.grid.num_cpml_cells_x = c.grid.pml_x;
 	run_cfg.grid.num_cpml_cells_y = c.grid.pml_y;
@@ -160,6 +147,8 @@ void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 	}
 
 	fdtd::app::anapole_input = c.anapole;
+	fdtd::app::anapole_input.aperture_material = c.anapole_fill.aperture.empty() ? -1 : material_slot(c, c.anapole_fill.aperture);
+	fdtd::app::anapole_input.gap_material = c.anapole_fill.gap.empty() ? -1 : material_slot(c, c.anapole_fill.gap);
 
 	// wave superposition, [wave.*]
 	fdtd::sources::plane_wave_input.clear();
@@ -191,7 +180,13 @@ void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 	run_cfg.source.signal_type = pulse_code(c.source.signal);
 	run_cfg.source.mode_source = (lower(c.source.type) == "mode");
 	fdtd::sources::mode_input = c.mode;
-	fdtd::app::blocks = c.blocks;
+	fdtd::app::blocks.clear();
+	for (const auto &b : c.blocks)
+	{
+		fdtd::geometry::Block block = b;
+		block.material = material_slot(c, b.material_name);
+		fdtd::app::blocks.push_back(block);
+	}
 	run_cfg.source.kind = source_code(c.source.type);
 	fdtd::monitors::max_source_frequency = double(band.max_frequency);
 	run_cfg.source.allow_truncated_signal = c.source.allow_truncated_signal;
@@ -272,10 +267,11 @@ void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 	const GeometrySection g = resolved_geometry(c); // the shape's own section written into the pool
 	run_cfg.geometry.antenna_type = shape_code(g.shape);
 	run_cfg.geometry.nano_antenna = (run_cfg.geometry.antenna_type != fdtd::geometry::shape::none);
-	run_cfg.materials.antenna_material = g.material;
-	run_cfg.materials.first_medium = g.first_medium;
-	run_cfg.materials.middle_medium = g.middle_medium;
-	run_cfg.materials.second_medium = g.last_medium;
+	run_cfg.materials.definitions = c.definitions;
+	run_cfg.materials.antenna_material = material_slot(c, g.material);
+	run_cfg.materials.first_medium = material_slot(c, g.first_medium);
+	run_cfg.materials.middle_medium = material_slot(c, g.middle_medium);
+	run_cfg.materials.second_medium = material_slot(c, g.last_medium);
 	run_cfg.geometry.middle_layer = double(g.middle_thickness);
 	run_cfg.geometry.antenna_shift = double(g.shift_y);
 	run_cfg.geometry.width = double(g.width);
@@ -287,62 +283,14 @@ void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 	run_cfg.geometry.length_2_b = double(g.arm_width);
 	run_cfg.geometry.rotation_deg = double(g.rotation);
 	fdtd::geometry::corner_radius = double(g.corner_radius);
-	run_cfg.geometry.shell_material = g.shell_material;
+	run_cfg.geometry.shell_material = material_slot(c, g.shell_material); // -1 when the shape draws no shell
 
-	// materials, was pphmatini.txt
-	auto n = [&c](int i) {
-		auto it = c.materials.refractive_index.find(i);
-		return it == c.materials.refractive_index.end() ? double(0) : double(it->second);
-	};
-	run_cfg.materials.n_refr_0 = n(0);
-	run_cfg.materials.n_refr_1 = n(1);
-	run_cfg.materials.n_refr_2 = n(2);
-	run_cfg.materials.n_refr_3 = n(3);
-	for (int i = 4; i < 100; ++i)
-		mp.n_refr[i] = n(i);
-	run_cfg.materials.carrier_density = double(c.materials.carrier_density);
-	run_cfg.materials.carrier_density_back = double(c.materials.carrier_density_back);
-	run_cfg.geometry.stretch_eps_x = double(c.materials.stretch_x);
-
-	// user-defined dispersive material, was pphREADINMATERIAL.txt
-	const auto& rm = c.custom_material;
-	run_cfg.materials.read_in_epre_inf = double(rm.eps_inf);
-	run_cfg.materials.read_in_ome_plasma = double(rm.plasma_frequency);
-	run_cfg.materials.read_in_gam_plasma = double(rm.plasma_damping);
-	run_cfg.materials.read_in_big_omega_cp = double(rm.cp_frequency);
-	run_cfg.materials.read_in_big_omega_cp_2 = double(rm.cp_frequency_2);
-	run_cfg.materials.read_in_big_gamma_cp = double(rm.cp_damping);
-	run_cfg.materials.read_in_big_gamma_cp_2 = double(rm.cp_damping_2);
-	run_cfg.materials.read_in_a_coeff_cp = double(rm.cp_amplitude);
-	run_cfg.materials.read_in_a_coeff_cp_2 = double(rm.cp_amplitude_2);
-	run_cfg.materials.read_in_phi_cp = double(rm.cp_phase);
-	run_cfg.materials.read_in_phi_cp_2 = double(rm.cp_phase_2);
-	run_cfg.materials.read_in_fermi_velocity = double(rm.fermi_velocity);
-	run_cfg.materials.read_in_electron_density = double(rm.electron_density);
-
-	// nonlinear, was pphnlsini.txt + chi2/ chi3/ files; now [chi2|chi3.<name>] or presets
-	run_cfg.nonlinear.shg = harmonic_mode(c.nonlinear.shg);
-	run_cfg.nonlinear.thg = harmonic_mode(c.nonlinear.thg);
+	run_cfg.nonlinear.shg = c.nonlinear.shg ? 1 : 0;
+	run_cfg.nonlinear.thg = c.nonlinear.thg ? 1 : 0;
 	run_cfg.geometry.graphene_optim = c.nonlinear.graphene_optimization ? 1 : 0;
 	run_cfg.nonlinear.pnl_approach = (c.nonlinear.update == "polarization") ? 1 : 0;
-	{
-		const bool shg = process_harmonic(c.nonlinear) == 2;
-		const bool thg = process_harmonic(c.nonlinear) == 3;
-		if (shg || thg)
-		{
-			const int order = shg ? 2 : 3;
-			const int count = shg ? 18 : 21;
-			const double scale = shg ? double(2) : double(1); // chi2 = 2 d_mn
-			auto& nl = run_cfg.nonlinear;
-			copy_tensor(order, c.nonlinear.chi_structure, c.chi_tensors, shg ? nl.chi2_antenna : nl.chi3_antenna, count, scale);
-			copy_tensor(order, c.nonlinear.chi_first, c.chi_tensors, shg ? nl.chi2_first : nl.chi3_first, count, scale);
-			copy_tensor(order, c.nonlinear.chi_middle, c.chi_tensors, shg ? nl.chi2_middle : nl.chi3_middle, count, scale);
-			copy_tensor(order, c.nonlinear.chi_last, c.chi_tensors, shg ? nl.chi2_second : nl.chi3_second, count, scale);
-		}
-	}
 
 	// physics models
-	run_cfg.materials.diff_c = double(c.electrons.diffusion);
 	run_cfg.materials.fermi_v = double(c.electrons.fermi_velocity);
 	fdtd::materials::thermal::num_rk = c.two_temperature.rk_stages;
 	fdtd::materials::thermal::pump_probe_delay = double(c.pump_probe.delay);

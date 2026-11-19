@@ -1,6 +1,6 @@
 /**
  * @file materials/models/magnetic_lorentz.h
- * @brief Magnetic, magneto-optic, Lorentz model, codes 400-449
+ * @brief Magnetic, magneto-optic, Lorentz model, model magnetic_lorentz
  */
 #ifndef FDTD_MATERIALS_MODELS_MAGNETIC_LORENTZ_H
 #define FDTD_MATERIALS_MODELS_MAGNETIC_LORENTZ_H
@@ -34,15 +34,15 @@ struct MagneticLorentz
 		double ce2; ///< E update, DispersiveE
 	};
 
-	/// coefficients of dispersive material index mm, material code `code`, for time step dt
-	static Coeffs compute(int mm, int code, double dt)
+	/// coefficients of material slot mm for time step dt
+	static Coeffs compute(int mm, double dt)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
 		const int n = mm;
 		double cp2;
 		Coeffs c{};
-		const DispersiveE e = dispersive_e(mm, code, dt);
+		const DispersiveE e = dispersive_e(mm, dt);
 		c.ce1 = e.ce1;
 		c.ce2 = e.ce2;
 		cp2 = (1.0 / (dt*dt*dt*dt) + mp.gam_plasma[n]/(dt*dt*dt));

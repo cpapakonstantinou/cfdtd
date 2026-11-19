@@ -22,7 +22,7 @@ struct Spec
 	int one_dim_steps = 0;       ///< steps of the standalone 1D simulations
 	int one_dim_cells = 0;       ///< cells of the 1D grid
 	// background and structure
-	int medium[3] = {};          ///< first, middle and second, last, medium, material codes
+	int medium[3] = {};          ///< first, middle and second, last, medium, material slots
 	double middle_layer = 0;     ///< middle layer thickness [m]
 	int centre[3] = {};          ///< the structure's centre cell
 	bool grating = false;        ///< the periodic round_hybrid grating case

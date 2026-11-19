@@ -17,12 +17,12 @@ struct DispersiveE
 	double ce2;
 };
 
-/// the coefficients of dispersive material index mm, material code `code`, for time step dt
-inline DispersiveE dispersive_e(int mm, int code, double dt)
+/// the coefficients of material slot mm for time step dt
+inline DispersiveE dispersive_e(int mm, double dt)
 {
 	const auto &mp = fdtd::materials::model_parameters();
 	using namespace fdtd::constants; // EP0, MU0, ...
-	const double uu1 = mp.sig_m[code] * dt / double(2.);
+	const double uu1 = mp.sig_m[mm] * dt / double(2.);
 	const double uu2 = EP0 * mp.epre_inf[mm] + uu1;
 	return {(EP0 * mp.epre_inf[mm] - uu1) / uu2, dt / uu2};
 }

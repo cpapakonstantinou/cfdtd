@@ -13,7 +13,7 @@
 #include "core/constants.h"
 #include "grid/subdomain.h"
 #include "materials/material_map.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include "grid/state.h"
 #include "materials/state.h"
 #include "io/text.h"
@@ -27,7 +27,6 @@ using fdtd::grid::subdomain;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
 
 namespace
 {
@@ -371,84 +370,6 @@ bool fdtd::geometry::create_lateral_dipole(const int &centerx, const int &center
 
 					zf = z + double(0.5) * lat.d[2];
 				}
-			}
-		}
-	}
-	return true;
-}
-
-/**
- * @brief Create a Cube N L object
- * 
- * @param centery_bulk 
- * @param middle_layer 
- * @return true 
- * @return false 
- */
-bool fdtd::geometry::create_nonlinear_cube(const int &centery_bulk, const double &middle_layer)
-{
-	int i;
-	int j;
-	int k;
-	int code;
-	double x;
-	double xf;
-	double y;
-	double yf;
-	double z;
-	double zf;
-	double x_lim;
-	double y_lim;
-	double z_lim; // y_lim_min, y_lim_max;
-	int deep_y = centery_bulk - ceil(middle_layer / lat.d[1]);
-	x_lim = lat.d[0] * int((lat.cells[0] - 2 * lat.cpml[0] - 4 * lat.tfsf_inset[0]) / 2); //DX*lat.cells[0]; //
-	y_lim = lat.d[1] * int((lat.cells[1] - 2 * lat.cpml[1] - 4 * lat.tfsf_inset[1]) / 2); //DY*lat.cells[1]; //
-	z_lim = lat.d[2] * int((lat.cells[2] - 2 * lat.cpml[2] - 4 * lat.tfsf_inset[2]) / 2); //DZ*lat.cells[2]; //
-	int centerx = int(lat.inner(0) / 2);
-	int centery = int(lat.inner(1) / 2);
-	int centerz = int(lat.inner(2) / 2);
-	if (fdtd::grid::world_rank == ROOTPROCESS)
-	{
-		fdtd::io::log("geometry", "center NL cube: %d %d %d\n", centerx, centery, centerz);
-		fdtd::io::log("geometry", "limits NL cube [nm]: %f %f %f\n", x_lim / double(1.E-9), y_lim / double(1.E-9), z_lim / double(1.E-9));
-	}
-	for (i = subdomain.output_start[0]; i < subdomain.output_start[0] + subdomain.output_size[0]; ++i)
-
-	{
-
-		x = (i - centerx) * lat.d[0];
-		xf = x + double(0.5) * lat.d[0];
-
-		for (j = subdomain.output_start[1]; j < subdomain.output_start[1] + subdomain.output_size[1]; ++j)
-		{
-
-			y = (j - centery) * lat.d[1];
-			yf = y + double(0.5) * lat.d[1];
-
-			if (j < deep_y)
-				code = sc.medium[0] + nl_code;
-			else if (j >= deep_y && j < centery_bulk)
-				code = sc.medium[1] + nl_code;
-			else if (j >= centery_bulk)
-				code = sc.medium[2] + nl_code;
-
-			for (k = subdomain.output_start[2]; k < subdomain.output_start[2] + subdomain.output_size[2]; ++k)
-			{
-
-				z = (k - centerz) * lat.d[2];
-				zf = z + double(0.5) * lat.d[2];
-
-				if ((xf <= x_lim && xf >= -x_lim) && (y <= y_lim && y >= -y_lim) && (z <= z_lim && z >= -z_lim))
-
-					matind_x[i - subdomain.output_start[0]][j - subdomain.output_start[1]][k - subdomain.output_start[2]] = code;
-
-				if ((x <= x_lim && x >= -x_lim) && (yf <= y_lim && yf >= -y_lim) && (z <= z_lim && z >= -z_lim))
-
-					matind_y[i - subdomain.output_start[0]][j - subdomain.output_start[1]][k - subdomain.output_start[2]] = code;
-
-				if ((x <= x_lim && x >= -x_lim) && (y <= y_lim && y >= -y_lim) && (zf <= z_lim && zf >= -z_lim))
-
-					matind_z[i - subdomain.output_start[0]][j - subdomain.output_start[1]][k - subdomain.output_start[2]] = code;
 			}
 		}
 	}

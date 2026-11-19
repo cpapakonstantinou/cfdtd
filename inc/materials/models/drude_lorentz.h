@@ -1,6 +1,6 @@
 /**
  * @file materials/models/drude_lorentz.h
- * @brief Drude + one Lorentz pole, codes 350-399; "nonlinear" refers to the electron gas
+ * @brief Drude + one Lorentz pole, model drude_lorentz; "nonlinear" refers to the electron gas
  *
  * What this register is, checked 2026-11-13 against the code and its history:
  * - The Drude part is the free-electron current J. It is the nonlinear part: with the hydrodynamic
@@ -13,14 +13,13 @@
  *       P'' + G P' + W^2 P = W^2 eps0 (chi1 E + chi2 E^2 + chi3 E^3)
  *   The chi2 / chi3 drive is not implemented. The legacy code set chi_nl = 2.16e-18 m^2/V^2 and
  *   computed NONLINLorentz1 = beta / cp1 and NONLINLorentz2 = (mu0 e / m_e) / cp1, but no update
- *   ever used them; the SHG/THG tensor path, nl_code, src/nonlinear, is not enabled for these codes
- *   either, tensor.cc accepts dispersive slots below ModLorentz only.
+ *   ever used them; the SHG/THG tensor path, src/nonlinear, is not enabled for this model either,
+ *   tensor.cc accepts the models before hydrodynamic only.
  * - Adding the drive is the natural SHG / THG path for these materials: chi2 E^2 gives the second
  *   harmonic, chi3 E^3 the third harmonic and the Kerr term, both with the pole's dispersion. To stay
  *   explicit the drive must use E at step n only, Varin's leapfrog form; the E_new term of the
  *   averaged linear drive below cannot carry it. Roadmap: Phase 2, nonlinear review.
- * - Slots: 350 is ITO, pole present only for middle_thickness < 50 nm; thicker films are pure
- *   Drude, 351 a custom material from the read_in_* keys.
+ * - Catalog: the ITO films ito_film_thin, _mid and _thick; only the thin film has a pole.
  */
 #ifndef FDTD_MATERIALS_MODELS_DRUDE_LORENTZ_H
 #define FDTD_MATERIALS_MODELS_DRUDE_LORENTZ_H
@@ -53,14 +52,12 @@ struct DrudeLorentz
 	{
 	};
 
-	/// coefficients of dispersive material index mm, material code `code`, for time step dt
-	static Coeffs compute(int mm, int code, double dt)
+	/// coefficients of material slot mm for time step dt
+	static Coeffs compute(int mm, double dt)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
 		const int n = mm;
-		const int m = code;
-		(void)m;
 		double NL1;
 		double cp1;
 		double cp2;

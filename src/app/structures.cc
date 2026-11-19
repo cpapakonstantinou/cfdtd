@@ -33,7 +33,6 @@ using fdtd::grid::subdomain;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
-using fdtd::materials::nl_code;
 
 namespace
 {
@@ -47,12 +46,6 @@ std::vector<fdtd::geometry::Block> fdtd::app::blocks;
 
 void fdtd::app::create_structures()
 {
-	int code;
-	//In the case of THG or SHG simulations, additionally if chi3/chi2 tensors have at least one nonzero element,
-	//we have to make an antenna material nonlinear by shifting its material index to nl_code(=620).
-	//PLEASE NOTE: not all structures are nonlinear by default. In order to make a desired structure
-	//nonlinear within the nonlinear polarization approach, just add the corresponding
-	//structure bolean to the "if list" below.
 	{
 		fdtd::geometry::Scene sc;
 		sc.shape = run_cfg.geometry.antenna_type;
@@ -60,18 +53,11 @@ void fdtd::app::create_structures()
 		sc.staircase = run_cfg.geometry.sta_ir_casing;
 		sc.medium[0] = run_cfg.materials.first_medium, sc.medium[1] = run_cfg.materials.middle_medium, sc.medium[2] = run_cfg.materials.second_medium;
 		sc.centre[0] = run_cfg.geometry.center_position_x, sc.centre[1] = run_cfg.geometry.center_position_y, sc.centre[2] = run_cfg.geometry.center_position_z;
-		sc.gap_material = (run_cfg.nonlinear.third_harmonic || run_cfg.nonlinear.second_harmonic) ? nl_code + run_cfg.materials.nl_mat_gap : run_cfg.materials.nl_mat_gap;
+		sc.gap_material = 0; // the round_hybrid gap is vacuum
 		fdtd::geometry::set_scene(sc);
 	}
-	code = run_cfg.materials.antenna_material;
+	const int code = run_cfg.materials.antenna_material;
 	fdtd::monitors::geometric_cross_section = -1; // declared by the shape drawn below
-	if ((run_cfg.nonlinear.third_harmonic || run_cfg.nonlinear.second_harmonic) && (fdtd::materials::nonlinear::is_chi_2_a_d || !fdtd::materials::nonlinear::is_chi_2_a_o || fdtd::materials::nonlinear::is_chi_3_a_d || !fdtd::materials::nonlinear::is_chi_3_a_o) &&
-		(run_cfg.geometry.is(shape::sphere) || run_cfg.geometry.is(shape::round_hybrid) || run_cfg.geometry.is(shape::one_side_round_dipole) || run_cfg.geometry.is(shape::bowtie) ||
-			run_cfg.geometry.is(shape::triangle) || run_cfg.geometry.is(shape::rounded_triangle) || run_cfg.geometry.is(shape::rounded_monopole) || (run_cfg.geometry.is(shape::rounded_dipole) || run_cfg.geometry.is(shape::rounded_dipole_offset_planes)) || run_cfg.geometry.is(shape::u_shape) ||
-			run_cfg.geometry.is(shape::cylinder) || run_cfg.geometry.is(shape::hole)))
-	{
-		code += nl_code;
-	}
 
 	fdtd::geometry::create_background(run_cfg.geometry.center_position_y, run_cfg.geometry.center_position_x, run_cfg.geometry.center_position_z, run_cfg.geometry.middle_layer, run_cfg.geometry.thickness, run_cfg.geometry.antenna_shift, run_cfg.materials.antenna_material);
 	create_blocks(blocks);
@@ -83,9 +69,6 @@ void fdtd::app::create_structures()
 		fdtd::geometry::create_sphere(run_cfg.geometry.center_position_x, run_cfg.geometry.center_position_y, run_cfg.geometry.center_position_z, run_cfg.geometry.width + lat.d[0] * 13, run_cfg.geometry.shell_material, run_cfg.geometry.antenna_shift + lat.d[0] * 5);
 		fdtd::geometry::create_sphere(run_cfg.geometry.center_position_x, run_cfg.geometry.center_position_y, run_cfg.geometry.center_position_z, run_cfg.geometry.width, run_cfg.materials.antenna_material, run_cfg.geometry.antenna_shift + lat.d[0] * 5);
 	}
-
-	if (shg_bulk || thg_bulk)
-		fdtd::geometry::create_nonlinear_cube(run_cfg.geometry.center_position_y, run_cfg.geometry.middle_layer);
 
 	if (run_cfg.geometry.is(shape::round_butterfly))
 		fdtd::geometry::create_lh_butterfly(run_cfg.geometry.center_position_x, run_cfg.geometry.center_position_y, run_cfg.geometry.center_position_z, run_cfg.geometry.width, run_cfg.geometry.thickness, run_cfg.geometry.length, antenna_gap, run_cfg.geometry.length_2, run_cfg.materials.antenna_material, run_cfg.geometry.middle_layer, run_cfg.geometry.antenna_shift, run_cfg.geometry.length_1_l, run_cfg.geometry.length_2_b, run_cfg.geometry.rotation_deg * PI / 180); //round everywhere
@@ -287,10 +270,7 @@ void fdtd::app::create_structures()
 
 	else if (run_cfg.geometry.is(shape::anapole))
 	{
-		int material = run_cfg.materials.antenna_material;
-		if ((run_cfg.nonlinear.third_harmonic || run_cfg.nonlinear.second_harmonic) && (fdtd::materials::nonlinear::is_chi_2_a_d || !fdtd::materials::nonlinear::is_chi_2_a_o || fdtd::materials::nonlinear::is_chi_3_a_d || !fdtd::materials::nonlinear::is_chi_3_a_o))
-			material += nl_code; // nonlinear antenna material, as for the other nonlinear structures
-		create_plasmonic_anapole(anapole_input, material, run_cfg.geometry.center_position_x,
+		create_plasmonic_anapole(anapole_input, run_cfg.materials.antenna_material, run_cfg.geometry.center_position_x,
 							   run_cfg.geometry.center_position_y - int(run_cfg.geometry.antenna_shift / lat.d[1]), run_cfg.geometry.center_position_z);
 		fdtd::monitors::geometric_cross_section = geom::anapole_cross_section(anapole_input);
 	}

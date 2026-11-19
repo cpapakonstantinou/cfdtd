@@ -28,17 +28,21 @@ These models are programmed for Drude + 2 Critical Point materials, and as such 
 
 ## How to use
 
-Select a Drude + critical points material (codes 100 to 149: 100 is gold, 101 silver; see
-[Materials](Materials.md)) and the electron model:
+Select a `drude_cp` material with an electron gas, `gold_d2cp` or `silver_d2cp` of the catalog or
+one of your own, [Materials](Materials.md), and the electron model. The Fermi velocity and the GNOR
+diffusion coefficient are keys of the material:
 
 ```ini
 [geometry]
-material = 100
+material = gold_gnor
+
+[material.gold_gnor]
+extends = gold_d2cp      ; fermi_velocity = 1.39e6 m/s
+diffusion = 3.61e-4      ; diffusion coefficient [m^2/s], used by gnor
 
 [electrons]
-model = nonlocal         ; local (default) | nonlocal | gnor | hydrodynamic
-fermi_velocity = 1.0     ; scales the Fermi velocity of the material
-diffusion = 3.61e-4      ; diffusion coefficient [m^2/s], used by gnor
+model = gnor             ; local (default) | nonlocal | gnor | hydrodynamic
+fermi_velocity = 1.0     ; a factor on the Fermi velocity of every material
 ```
 
 | `model` | Model |

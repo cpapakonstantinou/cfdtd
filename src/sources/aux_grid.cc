@@ -14,12 +14,6 @@
 #include "grid/lattice.h"
 #include "sources/spec.h"
 #include "grid/stretching.h"
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::Drude;
-using fdtd::materials::DrudeCP;
-using fdtd::materials::Lorentz;
-using fdtd::materials::ModLorentz;
-using fdtd::materials::NRMAXMATERIALS;
 
 namespace
 {
@@ -44,7 +38,7 @@ AuxGrid &aux_grid()
 void AuxLine::allocate(int n_cells, int n_cpml)
 {
 	auto zeroed = [](int n) {
-		cvector<double> v = vector1<double>(n);
+		array1<double> v = vector1<double>(n);
 		for (int j = 0; j < n; ++j)
 			v[j] = 0.;
 		return v;
@@ -56,7 +50,7 @@ void AuxLine::allocate(int n_cells, int n_cpml)
 		h[q] = zeroed(n_cells + 1);
 		p[q] = zeroed(n_cells + 1);
 		p_prev[q] = zeroed(n_cells + 1);
-		for (int n = 0; n < materials::NrMaxCP; ++n)
+		for (int n = 0; n < materials::max_poles; ++n)
 		{
 			pc[q][n] = zeroed(n_cells + 1);
 			pc_prev[q][n] = zeroed(n_cells + 1);
@@ -75,7 +69,7 @@ void AuxLine::release()
 	{
 		for (auto *v : {&e[q], &e_prev[q], &h[q], &p[q], &p_prev[q], &psi_e[q][0], &psi_e[q][1], &psi_h[q][0], &psi_h[q][1]})
 			v->reset();
-		for (int n = 0; n < materials::NrMaxCP; ++n)
+		for (int n = 0; n < materials::max_poles; ++n)
 		{
 			pc[q][n].reset();
 			pc_prev[q][n].reset();
@@ -104,7 +98,7 @@ inline void add(double &x, double v)
 
 /**
  * @brief E update of polarisation P at cell j of a line
- * @param m   material code of the cell
+ * @param m   material slot of the cell
  * @param d   dH/dy of the polarisation's H, Hz for Ex, Hx for Ez
  * @param in  between the two CPMLs, no stretching; else the curl is scaled by K
  * @verbatim
@@ -118,14 +112,14 @@ template <int P>
 void e_cell(AuxLine &L, int j, int m, double d, double K, bool in)
 {
 	const auto &mp = fdtd::materials::model_parameters();
-	cvector<double> &e = L.e[P];
-	cvector<double> &e_prev = L.e_prev[P];
-	cvector<double> &p = L.p[P];
-	cvector<double> &p_prev = L.p_prev[P];
-	cvector<double>(&pc)[materials::NrMaxCP] = L.pc[P];
-	cvector<double>(&pc_prev)[materials::NrMaxCP] = L.pc_prev[P];
-	cvector<double> &psi_n = L.psi_e[P][0];
-	cvector<double> &psi_f = L.psi_e[P][1];
+	array1<double> &e = L.e[P];
+	array1<double> &e_prev = L.e_prev[P];
+	array1<double> &p = L.p[P];
+	array1<double> &p_prev = L.p_prev[P];
+	array1<double>(&pc)[materials::max_poles] = L.pc[P];
+	array1<double>(&pc_prev)[materials::max_poles] = L.pc_prev[P];
+	array1<double> &psi_n = L.psi_e[P][0];
+	array1<double> &psi_f = L.psi_e[P][1];
 	const double rotdiff = P == 0 ? (in ? d : d * K) : (in ? -d : -d * K);
 	// CPML psi of the two ends, added to e_new scaled by c
 	auto psi_terms = [&](double c, double &e_new) {
@@ -142,7 +136,7 @@ void e_cell(AuxLine &L, int j, int m, double d, double K, bool in)
 			add<P>(e_new, c * psi_f[V]);
 		}
 	};
-	if (!(m >= DispMateOffsetD && m < NRMAXMATERIALS))
+	if (!fdtd::materials::dispersive(m))
 	{
 		e[j] *= mp.ce_1[m];
 		e[j] += mp.ce_2[m] * rotdiff;
@@ -150,36 +144,46 @@ void e_cell(AuxLine &L, int j, int m, double d, double K, bool in)
 		return;
 	}
 	// the 3D models' point updates on the 1D line, a row indexed by j
-	const int mm = m - DispMateOffsetD;
+	const int mm = m;
 	const int nr_cp = mp.nr_cp[mm];
 	fdtd::materials::stretch::AdeRow r{e, e_prev, p, p_prev, {}, {}};
-	for (int n = 0; n < materials::NrMaxCP; ++n)
+	for (int n = 0; n < materials::max_poles; ++n)
 		r.pc[n] = pc[n], r.pc_prev[n] = pc_prev[n];
-	if (mm < DrudeCP)
+	using fdtd::materials::Kind;
+	switch (fdtd::materials::kind(mm))
+	{
+	case Kind::drude_cp:
 		fdtd::materials::models::Drude2CP::point(fdtd::materials::coeffs<fdtd::materials::models::Drude2CP>(mm), mm, j, r, rotdiff, psi_terms);
-	else if (mm < Drude)
+		break;
+	case Kind::drude:
 	{
 		const auto &cf = fdtd::materials::coeffs<fdtd::materials::models::Drude>(mm);
 		fdtd::materials::models::Drude::point(cf, j, r, rotdiff);
 		psi_terms(cf.ce2, e[j]);
+		break;
 	}
-	else if (mm < Lorentz)
+	case Kind::lorentz:
 	{
 		const auto &cf = fdtd::materials::coeffs<fdtd::materials::models::Lorentz>(mm);
 		fdtd::materials::models::Lorentz::point(cf, mm, j, r, rotdiff);
 		psi_terms(cf.ce2, e[j]);
+		break;
 	}
-	else if (mm < ModLorentz)
+	case Kind::modified_lorentz:
 		fdtd::materials::models::ModifiedLorentz::point(fdtd::materials::coeffs<fdtd::materials::models::ModifiedLorentz>(mm), nr_cp, j, r, rotdiff, psi_terms);
+		break;
+	default:
+		break;
+	}
 }
 
 /// H update of polarisation P at cell j; d = dE/dy of the polarisation's E
 template <int P>
 void h_cell(AuxLine &L, int j, double d, double K)
 {
-	cvector<double> &h = L.h[P];
-	cvector<double> &psi_n = L.psi_h[P][0];
-	cvector<double> &psi_f = L.psi_h[P][1];
+	array1<double> &h = L.h[P];
+	array1<double> &psi_n = L.psi_h[P][0];
+	array1<double> &psi_f = L.psi_h[P][1];
 	add<P>(h[j], sp.coeff_h * K * d);
 	if (j < lat.cpml[1])
 	{

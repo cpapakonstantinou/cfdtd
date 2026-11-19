@@ -1,6 +1,6 @@
 /**
  * @file materials/models/modified_lorentz.h
- * @brief Modified Lorentz model, codes 250-299
+ * @brief Modified Lorentz model, model modified_lorentz
  */
 #ifndef FDTD_MATERIALS_MODELS_MODIFIED_LORENTZ_H
 #define FDTD_MATERIALS_MODELS_MODIFIED_LORENTZ_H
@@ -26,23 +26,22 @@ struct ModifiedLorentz
 	/// update coefficients of one material
 	struct Coeffs
 	{
-		double a[NrMaxCP]; ///< pole recursion: on P_n and on P_n,prev
-		double b[NrMaxCP]; ///< pole recursion: on P_n and on P_n,prev
-		double alpha_p[NrMaxCP]; ///< pole drive: on E_new and on E_prev
-		double alpha_m[NrMaxCP]; ///< pole drive: on E_new and on E_prev
-		double beta[NrMaxCP];                      ///< pole drive: on E
+		double a[max_poles]; ///< pole recursion: on P_n and on P_n,prev
+		double b[max_poles]; ///< pole recursion: on P_n and on P_n,prev
+		double alpha_p[max_poles]; ///< pole drive: on E_new and on E_prev
+		double alpha_m[max_poles]; ///< pole drive: on E_new and on E_prev
+		double beta[max_poles];                      ///< pole drive: on E
 		double ce1; ///< E update: on E_prev, on E, on the curl
 		double ce2; ///< E update: on E_prev, on E, on the curl
 		double ce3; ///< E update: on E_prev, on E, on the curl
 	};
 
-	/// coefficients of dispersive material index mm, material code `code`, for time step dt
-	static Coeffs compute(int mm, int code, double dt)
+	/// coefficients of material slot mm for time step dt
+	static Coeffs compute(int mm, double dt)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
 		const int n = mm;
-		const int m = code;
 		Coeffs c{};
 		for (int s = 0; s < mp.nr_cp[n]; ++s)
 		{
@@ -52,9 +51,9 @@ struct ModifiedLorentz
 			c.alpha_m[s] = EP0 * mp.a_coeff_cp[n][s] * dt * (-0.5 * dt * mp.big_omega_cp[n][s] * mp.big_omega_cp[n][s] + mp.phi_cp[n][s]) / (mp.big_gamma_cp[n][s] * dt + 1.);
 			c.beta[s] = -2. * EP0 * mp.a_coeff_cp[n][s] * dt * mp.phi_cp[n][s] / (mp.big_gamma_cp[n][s] * dt + 1.);
 		}
-		const double den = 2. * EP0 * mp.epre_inf[n] + mp.sig_m[m] * dt + c.alpha_p[0] + c.alpha_p[1];
+		const double den = 2. * EP0 * mp.epre_inf[n] + mp.sig_m[n] * dt + c.alpha_p[0] + c.alpha_p[1];
 		c.ce1 = -(c.alpha_m[0] + c.alpha_m[1]) / den;
-		c.ce2 = (2. * EP0 * mp.epre_inf[n] - mp.sig_m[m] * dt - c.beta[0] - c.beta[1]) / den;
+		c.ce2 = (2. * EP0 * mp.epre_inf[n] - mp.sig_m[n] * dt - c.beta[0] - c.beta[1]) / den;
 		c.ce3 = 2. * dt / den;
 		return c;
 	}
@@ -64,7 +63,7 @@ struct ModifiedLorentz
 	template <class Boundary>
 	static void point(const Coeffs &cf, int nr_cp, int k, const stretch::AdeRow &r, double curl, Boundary &&boundary)
 	{
-		double P_CP_new[NrMaxCP];
+		double P_CP_new[max_poles];
 		double E_new = cf.ce1 * r.e_prev[k] + cf.ce2 * r.e[k] +
 					   cf.ce3 * (curl - 0.5 * ((1. + cf.a[0]) * r.pc[0][k] + (1. + cf.a[1]) * r.pc[1][k] + cf.b[0] * r.pc_prev[0][k] + cf.b[1] * r.pc_prev[1][k]));
 		boundary(cf.ce3, E_new);

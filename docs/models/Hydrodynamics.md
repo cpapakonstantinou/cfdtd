@@ -80,13 +80,13 @@ All finite differences are calculated using central differences. Linear interpol
 
 ## How to use
 
-Select a hydrodynamic material (codes 300 to 349: 300 is gold, 301 silver, 302 the material of
-`[custom_material]`; see [Materials](Materials.md)) and the hydrodynamic electron model:
+Select a `hydrodynamic` material, `gold_hydrodynamic`, `silver_hydrodynamic` or one of your own,
+[Materials](Materials.md), and the hydrodynamic electron model:
 
 ```ini
 [geometry]
 shape = sphere
-material = 300
+material = gold_hydrodynamic
 
 [electrons]
 model = hydrodynamic
@@ -105,8 +105,8 @@ split_nonlinear = false  ; second-order perturbative model
 | `convection`, `magnetic` | switch the two other nonlinear terms individually, to see what each contributes |
 | `split_nonlinear = true` | the second-order perturbative model: the linear and the nonlinear fields are propagated separately, which makes second-order nonlinearities easy to analyse. Assumes $n = n_0$. Combine with `pressure = false` to drop the pressure term |
 
-`[electrons] diffusion` and `fermi_velocity` scale the diffusion coefficient and the Fermi
-velocity of the model.
+The electron gas is part of the material: `electron_density`, `effective_mass`, `diffusion`.
+`[electrons] fermi_velocity` scales the Fermi velocity of the pressure term.
 
 For a second-harmonic spectrum analyse the pump and its harmonic:
 

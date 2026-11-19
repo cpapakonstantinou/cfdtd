@@ -46,15 +46,13 @@ using fdtd::fields::hx_nl;
 using fdtd::fields::hy_nl;
 using fdtd::fields::hz_nl;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::NRMAXMATERIALS;
+using fdtd::materials::max_slots;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_x_full;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_y_full;
 using fdtd::materials::matind_z;
 using fdtd::materials::matind_z_full;
-using fdtd::materials::nl_code;
 using fdtd::materials::background_y;
 
 namespace
@@ -208,7 +206,7 @@ double cpml_factor(int b, int n, bool in)
 	const int pad_nea[3] = {S.cpml_pad_nea_x, S.cpml_pad_nea_y, S.cpml_pad_nea_z};
 	const int pad_far[3] = {S.cpml_pad_far_x, S.cpml_pad_far_y, S.cpml_pad_far_z};
 	const int cpml[3] = {lat.cpml[0], lat.cpml[1], lat.cpml[2]};
-	const cvector<double> &t = b == 0 ? fdtd::grid::stretching().inv_kappa[0][0][0] : b == 1 ? fdtd::grid::stretching().inv_kappa[1][0][0] : fdtd::grid::stretching().inv_kappa[2][0][0];
+	const fdtd::array1<double> &t = b == 0 ? fdtd::grid::stretching().inv_kappa[0][0][0] : b == 1 ? fdtd::grid::stretching().inv_kappa[1][0][0] : fdtd::grid::stretching().inv_kappa[2][0][0];
 	return t[in ? cpml[b] : n < min[b] ? n + pad_nea[b] : cells[b] - n + pad_far[b]];
 }
 /// backward difference of h along axis b at (i, j, k), times 1 / d_b
@@ -289,7 +287,6 @@ void e_scan()
 			};
 			// the per-cell update, all material models, CPML psi and TF/SF terms
 			auto cell = [&](int k, bool inner, int m) {
-				int _m = -1;
 				const auto [p, q] = derivatives(k, false);
 				const double rotdiff = combine(k, inner, p, q);
 				double rotdiff_NL = 0;
@@ -298,16 +295,11 @@ void e_scan()
 					const auto [n1, n2] = derivatives(k, true);
 					rotdiff_NL = combine(k, inner, n1, n2);
 				}
-				if (m >= nl_code && m < nl_code + NRMAXMATERIALS && (up.shg || up.thg))
-					_m = nl_code, m = m - nl_code;
-				if (m >= DispMateOffsetD && m < NRMAXMATERIALS)
+				if (fdtd::materials::dispersive(m))
+					fdtd::materials::with_model(m, [&]<class M>(M) { model_cell.template operator()<M>(m, k, rotdiff, rotdiff_NL, p, q); });
+				else
 				{
-					const int mm = m - DispMateOffsetD;
-					fdtd::materials::with_model(mm, [&]<class M>(M) { model_cell.template operator()<M>(mm, k, rotdiff, rotdiff_NL, p, q); });
-				}
-				else if (m < DispMateOffsetD)
-				{
-					if (_m == nl_code && fdtd::materials::nonlinear::nl_dl[m] && (fdtd::materials::nonlinear::iso_chi_2_dl[m] || fdtd::materials::nonlinear::iso_chi_3_dl[m]))
+					if (fdtd::materials::nonlinear::nl[m] && (fdtd::materials::nonlinear::iso_chi_2[m] || fdtd::materials::nonlinear::iso_chi_3[m]))
 					{
 						if (up.shg)
 							T::shg_dl(rotdiff, m, i, j, k);
@@ -347,13 +339,13 @@ void e_scan()
 					Dielectric::stretch(E[i][j], k0, k1, mp.ce_1[m], mp.ce_2[m], curl);
 				else if (const int mm = Drude2CP::stretch_index(m); mm >= 0)
 					Drude2CP::stretch<A>(mm, i, j, k0, k1, curl, boundary);
-				else if (m >= DispMateOffsetD && m < NRMAXMATERIALS)
+				else if (fdtd::materials::dispersive(m))
 				{
 					// another dispersive model, chosen once for the stretch: its row loop when it has one
 					// with the boundary callback: modified Lorentz; without: Drude, Lorentz, else the
 					// per-cell update. Drude + 2CP arrives here only when its row path is excluded
 					// nonlocal, electron-density DFT; Drude2CP::stretch_index.
-					const int mm = m - DispMateOffsetD;
+					const int mm = m;
 					fdtd::materials::with_model(mm, [&]<class M>(M) {
 						if constexpr (!std::is_same_v<M, Drude2CP> && requires { M::template stretch<A>(mm, i, j, k0, k1, curl, boundary); })
 						{

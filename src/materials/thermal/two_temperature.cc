@@ -11,7 +11,6 @@ using fdtd::fields::Ex;
 using fdtd::fields::Ey;
 using fdtd::fields::Ez;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
 
 namespace
 {
@@ -51,7 +50,7 @@ void fdtd::materials::thermal::update_ttm_rk(){
   y_vec[0][0] = Te;
   y_vec[0][1] = Tl;
 
-  P = ((fdtd::materials::hydro::ex_2[ii][jj][kk])*(ds.c[0].j[350 - DispMateOffsetD][ii][jj][kk]) + (fdtd::materials::hydro::ey_2[ii][jj][kk])*(ds.c[1].j[350 - DispMateOffsetD][ii][jj][kk]) + (fdtd::materials::hydro::ez_2[ii][jj][kk])*(ds.c[2].j[350 - DispMateOffsetD][ii][jj][kk]));
+  P = ((fdtd::materials::hydro::ex_2[ii][jj][kk])*(ds.c[0].j[fdtd::materials::thermal::heated_slot()][ii][jj][kk]) + (fdtd::materials::hydro::ey_2[ii][jj][kk])*(ds.c[1].j[fdtd::materials::thermal::heated_slot()][ii][jj][kk]) + (fdtd::materials::hydro::ez_2[ii][jj][kk])*(ds.c[2].j[fdtd::materials::thermal::heated_slot()][ii][jj][kk]));
 
     for(nrk = 0; nrk < num_rk; nrk++){
 
@@ -129,7 +128,7 @@ bool fdtd::materials::thermal::update_ttm(int step)
     }
 
     fdtd::grid::exchange_margins(fdtd::materials::hydro::ex_2, fdtd::materials::hydro::ey_2, fdtd::materials::hydro::ez_2);
-    fdtd::grid::exchange_margins(ds.c[0].j[250], ds.c[1].j[250], ds.c[2].j[250]); // only for ITO
+    fdtd::grid::exchange_margins(ds.c[0].j[heated_slot()], ds.c[1].j[heated_slot()], ds.c[2].j[heated_slot()]); // only for ITO
 
     if (!fdtd::materials::model_spec().probe)
         fdtd::materials::thermal::update_ttm_rk();
@@ -194,6 +193,6 @@ double fdtd::materials::thermal::plasma_frequency(double Te){
 double fdtd::materials::thermal::damping_constant(double Te, [[maybe_unused]] double Tl){
 	const auto &mp = fdtd::materials::model_parameters();
 
-  return mp.gam_plasma[250]*0.98*(1.0 + (Te/15000.0));
+  return mp.gam_plasma[heated_slot()]*0.98*(1.0 + (Te/15000.0));
 
 }

@@ -8,10 +8,10 @@
 #ifndef FDTD_MATERIALS_NONLINEAR_STATE_H
 #define FDTD_MATERIALS_NONLINEAR_STATE_H
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "core/constants.h"
 #include "materials/material_field.h"
-#include "materials/codes.h"
+#include "materials/slots.h"
 #include <complex>
 #include <mpi.h>
 #include <string>
@@ -19,26 +19,11 @@
 
 namespace fdtd::materials::nonlinear
 {
-extern double chi_2[materials::nr_disp_mat_d][18];                        ///< chi(2) tensor, 18 Voigt entries, per dispersive material.
-extern double chi_2_a[18];                                    ///< chi(2) tensor of the antenna as read from the configuration.
-extern double chi_2_f[18];                                    ///< chi(2) tensor of the first medium as read from the configuration.
-extern double chi_2_m[18];                                    ///< chi(2) tensor of the middle layer as read from the configuration.
-extern double chi_2_s[18];                                    ///< chi(2) tensor of the second medium as read from the configuration.
-extern double chi_3[materials::nr_disp_mat_d][21];                       ///< chi(3) tensor, 21 entries, per dispersive material.
-extern double chi_3_a[21];                                    ///< chi(3) tensor of the antenna as read from the configuration.
-extern double chi_3_f[21];                                    ///< chi(3) tensor of the first medium as read from the configuration.
-extern double chi_3_m[21];                                    ///< chi(3) tensor of the middle layer as read from the configuration.
-extern double chi_3_s[21];                                    ///< chi(3) tensor of the second medium as read from the configuration.
-extern double chi2_dl[materials::DispMateOffsetD][18];                   ///< chi(2) tensor, 18 Voigt entries, per dielectric material code.
-extern double chi3_dl[materials::DispMateOffsetD][21];                   ///< chi(3) tensor, 21 entries, per dielectric material code.
-extern bool iso_chi_2_dl[materials::DispMateOffsetD];                  ///< chi(2) of each dielectric material is isotropic, scalar.
-extern bool iso_chi_3_dl[materials::DispMateOffsetD];                  ///< chi(3) of each dielectric material is isotropic, scalar.
-extern bool nl[materials::nr_disp_mat_d];                              ///< Dispersive material is nonlinear.
-extern bool nl_dl[materials::DispMateOffsetD];                         ///< Dielectric material is nonlinear.
-extern bool is_chi_2_a_d;                                   ///< chi(2) of the antenna has a nonzero diagonal entry.
-extern bool is_chi_2_a_o;                                   ///< chi(2) of the antenna has a nonzero off-diagonal entry.
-extern bool is_chi_3_a_d;                                   ///< chi(3) of the antenna has a nonzero diagonal entry.
-extern bool is_chi_3_a_o;                                   ///< chi(3) of the antenna has a nonzero off-diagonal entry.
+extern double chi_2[materials::max_slots][18]; ///< chi(2) = 2 d, 18 Voigt entries, per slot; zero outside SHG runs
+extern double chi_3[materials::max_slots][21]; ///< chi(3), 21 entries, per slot; zero outside THG runs
+extern bool iso_chi_2[materials::max_slots];   ///< chi(2) of the slot has diagonal entries only
+extern bool iso_chi_3[materials::max_slots];   ///< chi(3) of the slot has diagonal entries only
+extern bool nl[materials::max_slots];          ///< the slot is nonlinear in this run: a tensor entry is not zero
 } // namespace fdtd::materials::nonlinear
 
 #endif

@@ -1,6 +1,6 @@
 /**
  * @file materials/models/lorentz.h
- * @brief Lorentz model, codes 200-249
+ * @brief Lorentz model, model lorentz
  */
 #ifndef FDTD_MATERIALS_MODELS_LORENTZ_H
 #define FDTD_MATERIALS_MODELS_LORENTZ_H
@@ -35,12 +35,12 @@ struct Lorentz
 		double ce2; ///< E update, DispersiveE
 	};
 
-	/// coefficients of dispersive material index mm, material code `code`, for time step dt
-	static Coeffs compute(int mm, int code, double dt)
+	/// coefficients of material slot mm for time step dt
+	static Coeffs compute(int mm, double dt)
 	{
 		const auto &mp = fdtd::materials::model_parameters();
 		using namespace fdtd::constants; // EP0, MU0, ...
-		const DispersiveE e = dispersive_e(mm, code, dt);
+		const DispersiveE e = dispersive_e(mm, dt);
 		return {mp.ome_plasma[mm] * mp.ome_plasma[mm] * dt * dt, mp.gam_plasma[mm] * dt, e.ce1, e.ce2};
 	}
 

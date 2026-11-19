@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "core/carray.h"
+#include "core/array.h"
 #include "app/driver.h"
 
 #include "io/binary.h"

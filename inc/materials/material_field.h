@@ -2,10 +2,10 @@
  * @file materials/material_field.h
  * @brief Per-material fields stored contiguously for the materials actually present.
  *
- * Dispersive polarizations and currents are indexed by material code (0 .. M-1) in the
+ * Dispersive polarizations and currents are indexed by material slot (0 .. M-1) in the
  * kernels: P[m][i][j][k]. Only a few materials occur in a run, so only those are stored, one
- * ctensor [NX+1][NY+1][NZ+1] each, or only the rows of the material's cells, carray::boxed, and
- * `view` maps each material code to its field, nullptr for absent materials, as before.
+ * array3 [NX+1][NY+1][NZ+1] each, or only the rows of the material's cells, array::boxed, and
+ * `view` maps each slot to its field, nullptr for absent materials.
  *
  *     P.require(m, nx, ny, nz);   // for every material present, any order, repeats ok
  *     P.commit();                 // one block per material, or commit(box_of): only the rows of a box
@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include "core/carray.h"
+#include "core/array.h"
 
 /// rows (i, j) of a material's cells: [i0, i1] x [j0, j1], inclusive
 struct CellBox
@@ -60,8 +60,8 @@ public:
 		for (int m : _materials)
 		{
 			const std::optional<CellBox> b = box_of(m);
-			ctensor<T> a = b ? ctensor<T>::boxed({std::size_t(_dims[0] + 1), std::size_t(_dims[1] + 1), std::size_t(_dims[2] + 1)}, b->i0, b->i1, b->j0, b->j1)
-							 : field3<T>(_dims[0], _dims[1], _dims[2]);
+			fdtd::array3<T> a = b ? fdtd::array3<T>::boxed({std::size_t(_dims[0] + 1), std::size_t(_dims[1] + 1), std::size_t(_dims[2] + 1)}, b->i0, b->i1, b->j0, b->j1)
+							 : fdtd::field3<T>(_dims[0], _dims[1], _dims[2]);
 			_view[m] = a;
 			_store.push_back(std::move(a));
 		}
@@ -75,7 +75,7 @@ public:
 	/// the rows outside every box still read 0, nothing wrote there
 	bool padding_zero() const
 	{
-		return std::all_of(_store.begin(), _store.end(), [](const ctensor<T> &a) { return a.padding_zero(); });
+		return std::all_of(_store.begin(), _store.end(), [](const fdtd::array3<T> &a) { return a.padding_zero(); });
 	}
 	/// f(array) for the field of every material present, in material order
 	template <class F>
@@ -98,7 +98,7 @@ public:
 	operator T ****() { return _view.data(); }
 
 private:
-	std::vector<ctensor<T>> _store;
+	std::vector<fdtd::array3<T>> _store;
 	std::array<T ***, M> _view{};
 	std::vector<int> _materials;
 	std::array<int, 3> _dims{};

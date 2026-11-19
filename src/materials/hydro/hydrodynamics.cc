@@ -17,6 +17,7 @@
 #include "materials/models.h"
 #include "materials/hydro/state.h"
 #include "materials/thermal/thermal.h"
+#include "materials/thermal/thermal.h"
 #include "materials/hydro/hydro.h"
 #include "grid/halo_exchange.h"
 #include "grid/subdomain.h"
@@ -39,11 +40,7 @@ using fdtd::fields::hx_prev;
 using fdtd::fields::hy_prev;
 using fdtd::fields::hz_prev;
 using fdtd::grid::subdomain;
-using fdtd::materials::DispMateOffsetD;
-using fdtd::materials::ModLorentz;
-using fdtd::materials::NRMAXMATERIALS;
-using fdtd::materials::NonLinFreeElectron;
-using fdtd::materials::NonlinearDrudeLorentz;
+using fdtd::materials::max_slots;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
 using fdtd::materials::matind_z;
@@ -174,10 +171,10 @@ void fdtd::materials::hydro::update_hydrodynamics()
 	fdtd::materials::hydro::update_pz();
 
 	// Switch here because we need all of the data from the process
-	if (fdtd::materials::model_spec().antenna_material - DispMateOffsetD >= ModLorentz)
-		fdtd::grid::exchange_margins(ds.c[0].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD], ds.c[1].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD], ds.c[2].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD]);
+	if (fdtd::materials::kind(fdtd::materials::model_spec().antenna_material) >= fdtd::materials::Kind::hydrodynamic)
+		fdtd::grid::exchange_margins(ds.c[0].j[fdtd::materials::model_spec().antenna_material], ds.c[1].j[fdtd::materials::model_spec().antenna_material], ds.c[2].j[fdtd::materials::model_spec().antenna_material]);
 	if (fdtd::materials::model_spec().two_temperature)
-		fdtd::grid::exchange_margins(ds.c[0].j[350 - DispMateOffsetD], ds.c[1].j[350 - DispMateOffsetD], ds.c[2].j[350 - DispMateOffsetD]);
+		fdtd::grid::exchange_margins(ds.c[0].j[fdtd::materials::thermal::heated_slot()], ds.c[1].j[fdtd::materials::thermal::heated_slot()], ds.c[2].j[fdtd::materials::thermal::heated_slot()]);
 
 	fdtd::materials::hydro::update_px_2();
 	fdtd::materials::hydro::update_py_2();
@@ -201,38 +198,38 @@ void fdtd::materials::hydro::update_hydrodynamics()
 		{
           if (fdtd::materials::model_spec().two_temperature) 
 		  {
-            ds.c[0].j[350 - DispMateOffsetD][i][j][k] += jx_extra[350 - DispMateOffsetD][i][j][k];
-            ds.c[1].j[350 - DispMateOffsetD][i][j][k] += jy_extra[350 - DispMateOffsetD][i][j][k];
-            ds.c[2].j[350 - DispMateOffsetD][i][j][k] += jz_extra[350 - DispMateOffsetD][i][j][k];
+            ds.c[0].j[fdtd::materials::thermal::heated_slot()][i][j][k] += jx_extra[fdtd::materials::thermal::heated_slot()][i][j][k];
+            ds.c[1].j[fdtd::materials::thermal::heated_slot()][i][j][k] += jy_extra[fdtd::materials::thermal::heated_slot()][i][j][k];
+            ds.c[2].j[fdtd::materials::thermal::heated_slot()][i][j][k] += jz_extra[fdtd::materials::thermal::heated_slot()][i][j][k];
           }
 
-					if (fdtd::materials::model_spec().antenna_material - DispMateOffsetD >= ModLorentz)
+					if (fdtd::materials::kind(fdtd::materials::model_spec().antenna_material) >= fdtd::materials::Kind::hydrodynamic)
 					{
-						ds.c[0].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] += jx_extra[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
-						ds.c[1].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] += jy_extra[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
-						ds.c[2].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] += jz_extra[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
+						ds.c[0].j[fdtd::materials::model_spec().antenna_material][i][j][k] += jx_extra[fdtd::materials::model_spec().antenna_material][i][j][k];
+						ds.c[1].j[fdtd::materials::model_spec().antenna_material][i][j][k] += jy_extra[fdtd::materials::model_spec().antenna_material][i][j][k];
+						ds.c[2].j[fdtd::materials::model_spec().antenna_material][i][j][k] += jz_extra[fdtd::materials::model_spec().antenna_material][i][j][k];
 					}
 				}
 				else
 				{ // IF perturbative and therefore no TTM
-					if (fdtd::materials::model_spec().antenna_material - DispMateOffsetD >= ModLorentz)
+					if (fdtd::materials::kind(fdtd::materials::model_spec().antenna_material) >= fdtd::materials::Kind::hydrodynamic)
 					{
-						ds.c[0].j_nl[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] += jx_extra[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
-						ds.c[1].j_nl[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] += jy_extra[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
-						ds.c[2].j_nl[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] += jz_extra[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
+						ds.c[0].j_nl[fdtd::materials::model_spec().antenna_material][i][j][k] += jx_extra[fdtd::materials::model_spec().antenna_material][i][j][k];
+						ds.c[1].j_nl[fdtd::materials::model_spec().antenna_material][i][j][k] += jy_extra[fdtd::materials::model_spec().antenna_material][i][j][k];
+						ds.c[2].j_nl[fdtd::materials::model_spec().antenna_material][i][j][k] += jz_extra[fdtd::materials::model_spec().antenna_material][i][j][k];
 					}
 				}
-				if (fdtd::materials::model_spec().antenna_material - DispMateOffsetD >= ModLorentz)
+				if (fdtd::materials::kind(fdtd::materials::model_spec().antenna_material) >= fdtd::materials::Kind::hydrodynamic)
 				{
-					jx_prev[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] = ds.c[0].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
-					jy_prev[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] = ds.c[1].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
-					jz_prev[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k] = ds.c[2].j[fdtd::materials::model_spec().antenna_material - DispMateOffsetD][i][j][k];
+					jx_prev[fdtd::materials::model_spec().antenna_material][i][j][k] = ds.c[0].j[fdtd::materials::model_spec().antenna_material][i][j][k];
+					jy_prev[fdtd::materials::model_spec().antenna_material][i][j][k] = ds.c[1].j[fdtd::materials::model_spec().antenna_material][i][j][k];
+					jz_prev[fdtd::materials::model_spec().antenna_material][i][j][k] = ds.c[2].j[fdtd::materials::model_spec().antenna_material][i][j][k];
 				}
 				if (fdtd::materials::model_spec().two_temperature)
 				{
-					jx_prev[350 - DispMateOffsetD][i][j][k] = ds.c[0].j[350 - DispMateOffsetD][i][j][k];
-					jy_prev[350 - DispMateOffsetD][i][j][k] = ds.c[1].j[350 - DispMateOffsetD][i][j][k];
-					jz_prev[350 - DispMateOffsetD][i][j][k] = ds.c[2].j[350 - DispMateOffsetD][i][j][k];
+					jx_prev[fdtd::materials::thermal::heated_slot()][i][j][k] = ds.c[0].j[fdtd::materials::thermal::heated_slot()][i][j][k];
+					jy_prev[fdtd::materials::thermal::heated_slot()][i][j][k] = ds.c[1].j[fdtd::materials::thermal::heated_slot()][i][j][k];
+					jz_prev[fdtd::materials::thermal::heated_slot()][i][j][k] = ds.c[2].j[fdtd::materials::thermal::heated_slot()][i][j][k];
 				}
 			}
 		}
@@ -240,12 +237,12 @@ void fdtd::materials::hydro::update_hydrodynamics()
 
 	if (fdtd::materials::model_spec().harmonic)
 	{
-		fdtd::grid::exchange_margins(ds.c[0].j_nl[fdtd::materials::model_spec().antenna_material - DispMateOffsetD], ds.c[1].j_nl[fdtd::materials::model_spec().antenna_material - DispMateOffsetD], ds.c[2].j_nl[fdtd::materials::model_spec().antenna_material - DispMateOffsetD]);
+		fdtd::grid::exchange_margins(ds.c[0].j_nl[fdtd::materials::model_spec().antenna_material], ds.c[1].j_nl[fdtd::materials::model_spec().antenna_material], ds.c[2].j_nl[fdtd::materials::model_spec().antenna_material]);
 	}
-	if (fdtd::materials::model_spec().antenna_material - DispMateOffsetD >= ModLorentz)
-		fdtd::grid::exchange_margins(jx_prev[fdtd::materials::model_spec().antenna_material - DispMateOffsetD], jy_prev[fdtd::materials::model_spec().antenna_material - DispMateOffsetD], jz_prev[fdtd::materials::model_spec().antenna_material - DispMateOffsetD]);
+	if (fdtd::materials::kind(fdtd::materials::model_spec().antenna_material) >= fdtd::materials::Kind::hydrodynamic)
+		fdtd::grid::exchange_margins(jx_prev[fdtd::materials::model_spec().antenna_material], jy_prev[fdtd::materials::model_spec().antenna_material], jz_prev[fdtd::materials::model_spec().antenna_material]);
 	if (fdtd::materials::model_spec().two_temperature)
-		fdtd::grid::exchange_margins(jx_prev[350 - DispMateOffsetD], jy_prev[350 - DispMateOffsetD], jz_prev[350 - DispMateOffsetD]);
+		fdtd::grid::exchange_margins(jx_prev[fdtd::materials::thermal::heated_slot()], jy_prev[fdtd::materials::thermal::heated_slot()], jz_prev[fdtd::materials::thermal::heated_slot()]);
 }
 
 /**
@@ -370,16 +367,16 @@ void fdtd::materials::hydro::setup_eps_inf_x() {
 						mx = background_y[j + subdomain.j_for_uni];
 					}
 				}
-				if (mx >= DispMateOffsetD && mx < NRMAXMATERIALS)
+				if (fdtd::materials::dispersive(mx))
 				{
-					mmx = mx - DispMateOffsetD;
-					if (mmx >= ModLorentz && mmx < NonLinFreeElectron)
+					mmx = mx;
+					if (fdtd::materials::is(mmx, fdtd::materials::Kind::hydrodynamic))
 					{
 
 						epsinf_x[ii][jj][kk] = mp.epre_inf[mmx];
 					}
 
-					if (mmx >= NonLinFreeElectron && mmx < NonlinearDrudeLorentz)
+					if (fdtd::materials::is(mmx, fdtd::materials::Kind::drude_lorentz))
 					{
 
 						epsinf_x[ii][jj][kk] = mp.epre_inf[mmx];
@@ -504,16 +501,16 @@ void fdtd::materials::hydro::setup_eps_inf_y()
 					else
 						my = background_y[j + subdomain.j_for_uni];
 				}
-				if (my >= DispMateOffsetD && my < NRMAXMATERIALS)
+				if (fdtd::materials::dispersive(my))
 				{
-					mmy = my - DispMateOffsetD;
-					if (mmy >= ModLorentz && mmy < NonLinFreeElectron)
+					mmy = my;
+					if (fdtd::materials::is(mmy, fdtd::materials::Kind::hydrodynamic))
 					{ // Free Electron Hydrodynamics model
 
 						epsinf_y[ii][jj][kk] = mp.epre_inf[mmy];
 					}
 
-					if (mmy >= NonLinFreeElectron && mmy < NonlinearDrudeLorentz)
+					if (fdtd::materials::is(mmy, fdtd::materials::Kind::drude_lorentz))
 					{
 
 						epsinf_y[ii][jj][kk] = mp.epre_inf[mmy];
@@ -649,16 +646,16 @@ void fdtd::materials::hydro::setup_eps_inf_z()
 					else
 						mz = background_y[j + subdomain.j_for_uni];
 				}
-				if (mz >= DispMateOffsetD && mz < NRMAXMATERIALS)
+				if (fdtd::materials::dispersive(mz))
 				{
-					mmz = mz - DispMateOffsetD;
+					mmz = mz;
 
-					if (mmz >= ModLorentz && mmz < NonLinFreeElectron)
+					if (fdtd::materials::is(mmz, fdtd::materials::Kind::hydrodynamic))
 					{ // Free Electron Hydrodynamics model
 						epsinf_z[ii][jj][kk] = mp.epre_inf[mmz];
 					}
 
-					if (mmz >= NonLinFreeElectron && mmz < NonlinearDrudeLorentz)
+					if (fdtd::materials::is(mmz, fdtd::materials::Kind::drude_lorentz))
 					{
 
 						epsinf_z[ii][jj][kk] = mp.epre_inf[mmz];
@@ -787,9 +784,9 @@ void fdtd::materials::hydro::update_px() {
 
         }
 
-        if (mx >= DispMateOffsetD && mx < NRMAXMATERIALS) {
-          mmx = mx - DispMateOffsetD;
-          if (mmx >= ModLorentz && mmx < NonLinFreeElectron) {
+        if (fdtd::materials::dispersive(mx)) {
+          mmx = mx;
+          if (fdtd::materials::is(mmx, fdtd::materials::Kind::hydrodynamic)) {
 
             if (with_pressure) Grad_Div = lat.inv_d[0] * (nd_x[ii + 1][jj][kk] - nd_x[ii][jj][kk]);
             else Grad_Div = 0.0;
@@ -811,7 +808,7 @@ void fdtd::materials::hydro::update_px() {
 
           }
 
-          else if (mmx >= NonLinFreeElectron && mmx < NonlinearDrudeLorentz) {
+          else if (fdtd::materials::is(mmx, fdtd::materials::Kind::drude_lorentz)) {
 
             gamma = fdtd::materials::thermal::damping_constant(fdtd::materials::thermal::electron_temp[i][j][k], fdtd::materials::thermal::lattice_temp[i][j][k]);
             ds.c[0].j[mmx][ii][jj][kk] = ((1.0 / fdtd::materials::model_spec().dt - 0.5 * gamma) / (1.0 / fdtd::materials::model_spec().dt + 0.5 * gamma)) * jx_prev[mmx][ii][jj][kk] + (EP0 * fdtd::materials::thermal::plasma_frequency((fdtd::materials::thermal::electron_temp[i][j][k])) * fdtd::materials::thermal::plasma_frequency((fdtd::materials::thermal::electron_temp[i][j][k])) / (1.0 / fdtd::materials::model_spec().dt + 0.5 * gamma)) * Ex[i][j][k];
@@ -965,9 +962,9 @@ void fdtd::materials::hydro::update_px_2() {
           }
 
         }
-        if (mx >= DispMateOffsetD && mx < NRMAXMATERIALS) {
-          mmx = mx - DispMateOffsetD;
-          if (mmx >= ModLorentz && mmx < NonLinFreeElectron) {
+        if (fdtd::materials::dispersive(mx)) {
+          mmx = mx;
+          if (fdtd::materials::is(mmx, fdtd::materials::Kind::hydrodynamic)) {
 
             if (use_backwards_differences) {
               if (with_pressure) Grad_Div = lat.inv_d[0] * (nd_x[ii + 1][jj][kk] - nd_x[ii][jj][kk]);
@@ -1124,7 +1121,7 @@ void fdtd::materials::hydro::update_px_2() {
             }
           }
         
-          else if (mmx >= NonLinFreeElectron && mmx < NonlinearDrudeLorentz) {
+          else if (fdtd::materials::is(mmx, fdtd::materials::Kind::drude_lorentz)) {
             if (with_pressure) Grad_Div = lat.inv_d[0] * (nd_x[ii + 1][jj][kk] - nd_x[ii][jj][kk]);
             else Grad_Div = 0.0;
             ND1 = 0.5 * (nd_x[ii][jj][kk] + nd_x[ii + 1][jj][kk]);
@@ -1337,11 +1334,10 @@ void fdtd::materials::hydro::update_py()
 						my = background_y[j + subdomain.j_for_uni];
 				}
 
-				// if(my==nl_code){my=NL_mat; my_=nl_code;} //(SHG || THG) &&
-				if (my >= DispMateOffsetD && my < NRMAXMATERIALS)
+				if (fdtd::materials::dispersive(my))
 				{
-					mmy = my - DispMateOffsetD;
-					if (mmy >= ModLorentz && mmy < NonLinFreeElectron)
+					mmy = my;
+					if (fdtd::materials::is(mmy, fdtd::materials::Kind::hydrodynamic))
 					{ // Free Electron Hydrodynamics model
 						if (with_pressure)
 							Grad_Div = lat.inv_d[1] * (nd_x[ii][jj + 1][kk] - nd_x[ii][jj][kk]);
@@ -1365,7 +1361,7 @@ void fdtd::materials::hydro::update_py()
 							ds.c[1].j_nl[mmy][ii][jj][kk] = fdtd::materials::electron_gas(mmy).nl1 * ds.c[1].j_nl[mmy][ii][jj][kk] + (fdtd::materials::electron_gas(mmy).nl2 * ey_nl[i][j][k] + fdtd::materials::electron_gas(mmy).nl3 * ND1 * Ey[i][j][k]) + fdtd::materials::electron_gas(mmy).nl5 * powerterm[mmy] * Grad_Div2 + fdtd::materials::electron_gas(mmy).nl5 * powerapprox * Grad_Div;
 						}
 					}
-					else if (mmy >= NonLinFreeElectron && mmy < NonlinearDrudeLorentz)
+					else if (fdtd::materials::is(mmy, fdtd::materials::Kind::drude_lorentz))
 					{
 
 						gamma = fdtd::materials::thermal::damping_constant(fdtd::materials::thermal::electron_temp[i][j][k], fdtd::materials::thermal::lattice_temp[i][j][k]);
@@ -1515,9 +1511,9 @@ void fdtd::materials::hydro::update_py_2() {
 
         }
         
-        if (my >= DispMateOffsetD && my < NRMAXMATERIALS) {
-          mmy = my - DispMateOffsetD;
-          if (mmy >= ModLorentz && mmy < NonLinFreeElectron) { //Free Electron Hydrodynamics model
+        if (fdtd::materials::dispersive(my)) {
+          mmy = my;
+          if (fdtd::materials::is(mmy, fdtd::materials::Kind::hydrodynamic)) { //Free Electron Hydrodynamics model
 
             if (use_backwards_differences) {
 
@@ -1674,7 +1670,7 @@ void fdtd::materials::hydro::update_py_2() {
             }
           }
           
-          else if (mmy >= NonLinFreeElectron && mmy < NonlinearDrudeLorentz) {
+          else if (fdtd::materials::is(mmy, fdtd::materials::Kind::drude_lorentz)) {
             if (with_pressure) Grad_Div = lat.inv_d[1] * (nd_x[ii][jj + 1][kk] - nd_x[ii][jj][kk]);
             else Grad_Div = 0.0;
             ND1 = 0.5 * (nd_x[ii][jj][kk] + nd_x[ii][jj + 1][kk]);
@@ -1884,12 +1880,11 @@ void fdtd::materials::hydro::update_pz()
 						mz = background_y[j + subdomain.j_for_uni];
 				}
 
-				// if(mz==nl_code){mz=NL_mat; mz_=nl_code;} //(SHG || THG) &&
-				if (mz >= DispMateOffsetD && mz < NRMAXMATERIALS)
+				if (fdtd::materials::dispersive(mz))
 				{
-					mmz = mz - DispMateOffsetD;
+					mmz = mz;
 
-					if (mmz >= ModLorentz && mmz < NonLinFreeElectron)
+					if (fdtd::materials::is(mmz, fdtd::materials::Kind::hydrodynamic))
 					{ // Free Electron Hydrodynamics model
 						if (with_pressure)
 							Grad_Div = lat.inv_d[2] * (nd_x[ii][jj][kk + 1] - nd_x[ii][jj][kk]);
@@ -1913,7 +1908,7 @@ void fdtd::materials::hydro::update_pz()
 						}
 					}
 
-					else if (mmz >= NonLinFreeElectron && mmz < NonlinearDrudeLorentz)
+					else if (fdtd::materials::is(mmz, fdtd::materials::Kind::drude_lorentz))
 					{
 
 						gamma = fdtd::materials::thermal::damping_constant(fdtd::materials::thermal::electron_temp[i][j][k], fdtd::materials::thermal::lattice_temp[i][j][k]);
@@ -2063,11 +2058,10 @@ void fdtd::materials::hydro::update_pz_2() {
           else mz = background_y[j + subdomain.j_for_uni];
 
         }
-        //if(mz==nl_code){mz=NL_mat; mz_=nl_code;} //(SHG || THG) &&
-        if (mz >= DispMateOffsetD && mz < NRMAXMATERIALS) {
-          mmz = mz - DispMateOffsetD;
+        if (fdtd::materials::dispersive(mz)) {
+          mmz = mz;
 
-          if (mmz >= ModLorentz && mmz < NonLinFreeElectron) { //Free Electron Hydrodynamics model
+          if (fdtd::materials::is(mmz, fdtd::materials::Kind::hydrodynamic)) { //Free Electron Hydrodynamics model
 
             if (use_backwards_differences) {
               if (with_pressure) Grad_Div = lat.inv_d[2] * (nd_x[ii][jj][kk + 1] - nd_x[ii][jj][kk]);
@@ -2220,7 +2214,7 @@ void fdtd::materials::hydro::update_pz_2() {
 
           }
 
-          else if (mmz >= NonLinFreeElectron && mmz < NonlinearDrudeLorentz) {
+          else if (fdtd::materials::is(mmz, fdtd::materials::Kind::drude_lorentz)) {
             if (with_pressure) Grad_Div = lat.inv_d[2] * (nd_x[ii][jj][kk + 1] - nd_x[ii][jj][kk]);
             else Grad_Div = 0.0;
             ND1 = 0.5 * (nd_x[ii][jj][kk] + nd_x[ii][jj][kk + 1]);

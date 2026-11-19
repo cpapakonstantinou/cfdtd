@@ -9,16 +9,18 @@
 #include <stdexcept>
 #include "geometry/shapes.h"
 #include "sources/kinds.h"
-#include "config/exceptions.h"
+#include "config/errors.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cctype>
 #include <charconv>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <set>
 #include <sstream>
-#include "materials/codes.h"
+#include "materials/slots.h"
 
 namespace fdtd::config
 {
@@ -168,12 +170,10 @@ std::vector<std::string> shape_names()
 }
 
 const std::vector<std::string> SOURCES = {"plane_wave", "dipole", "gaussian_beam", "wave_superposition", "mode"};
-const std::vector<std::string> HARMONIC_MODES = {"none", "antenna", "bulk"};
 
 /** Every scalar setting, exactly once. V must provide
  *    field(section, key, T& ref, doc, required)
- *    choice(section, key, std::string& ref, choices, doc)
- *    refractive_indices(map) */
+ *    choice(section, key, std::string& ref, choices, doc) */
 /// [monitor.<name>]: one box of cells recorded in time or frequency
 template <class M, class V>
 void visit_monitor(M& m, V& v, const std::string& sect)
@@ -207,7 +207,7 @@ template <class B, class V>
 void visit_block(B& b, V& v, const std::string& sect)
 {
 	const char* s = sect.c_str();
-	v.field(s, "material", b.material, "material code", true);
+	v.field(s, "material", b.material_name, "material name", true);
 	v.field(s, "x_min", b.x_min, "[m] from the structure centre; +-1 m: past the domain");
 	v.field(s, "x_max", b.x_max, "[m]");
 	v.field(s, "y_min", b.y_min, "[m]");
@@ -355,36 +355,19 @@ void visit_sim_config(C& c, V& v)
 	v.field("multipoles", "sphere_phi", c.multipoles.sphere_phi, "");
 
 	v.choice("geometry", "shape", c.geometry.shape, shape_names(), "structure");
-	v.field("geometry", "material", c.geometry.material, "material of the structure");
+	v.field("geometry", "material", c.geometry.material, "material of the structure, by name: [material.<name>] or a catalog file");
 	v.field("geometry", "first_medium", c.geometry.first_medium, "entry layer material");
 	v.field("geometry", "middle_medium", c.geometry.middle_medium, "middle layer material");
 	v.field("geometry", "last_medium", c.geometry.last_medium, "exit layer material");
 	v.field("geometry", "middle_thickness", c.geometry.middle_thickness, "[m]");
 	v.field("geometry", "shift_y", c.geometry.shift_y, "structure offset along y [m]");
-	v.field("geometry", "shell_material", c.geometry.shell_material, "");
+	v.field("geometry", "shell_material", c.geometry.shell_material, "material of the shell, sphere_shell and cylinder_shell");
 
 	for (const auto& sh : SHAPE_SECTIONS)
 		for (const auto& k : sh.keys)
 			v.field(sh.name, k.key, shape_param(c, sh.name, k.key), k.doc);
 
-	v.field("materials", "carrier_density", c.materials.carrier_density, "");
-	v.field("materials", "carrier_density_back", c.materials.carrier_density_back, "");
-	v.field("materials", "stretch_x", c.materials.stretch_x, "graphene (material 102): scales the plasma frequency and critical-point amplitudes");
-	v.refractive_indices(c.materials.refractive_index);
-
-	v.field("custom_material", "eps_inf", c.custom_material.eps_inf, "");
-	v.field("custom_material", "plasma_frequency", c.custom_material.plasma_frequency, "");
-	v.field("custom_material", "plasma_damping", c.custom_material.plasma_damping, "");
-	v.field("custom_material", "cp_frequency", c.custom_material.cp_frequency, "critical point 1");
-	v.field("custom_material", "cp_frequency_2", c.custom_material.cp_frequency_2, "critical point 2");
-	v.field("custom_material", "cp_damping", c.custom_material.cp_damping, "");
-	v.field("custom_material", "cp_damping_2", c.custom_material.cp_damping_2, "");
-	v.field("custom_material", "cp_amplitude", c.custom_material.cp_amplitude, "");
-	v.field("custom_material", "cp_amplitude_2", c.custom_material.cp_amplitude_2, "");
-	v.field("custom_material", "cp_phase", c.custom_material.cp_phase, "");
-	v.field("custom_material", "cp_phase_2", c.custom_material.cp_phase_2, "");
-	v.field("custom_material", "fermi_velocity", c.custom_material.fermi_velocity, "");
-	v.field("custom_material", "electron_density", c.custom_material.electron_density, "");
+	v.field("materials", "catalog", c.materials.catalog, "directories of material files, ':' between them, relative to this file; then $FDTD_MATERIALS, then materials/ next to the executable");
 
 	v.field("anapole", "patch_edge", c.anapole.patch_edge, "[m] edge of the square patch");
 	v.field("anapole", "thickness", c.anapole.thickness, "[m] film thickness along y");
@@ -396,22 +379,17 @@ void visit_sim_config(C& c, V& v)
 	v.field("anapole", "gap_length", c.anapole.gap_length, "[m] gap between the lobes, along the lobe axis");
 	v.field("anapole", "gap_width", c.anapole.gap_width, "[m] gap across the lobe axis");
 	v.field("anapole", "rotation", c.anapole.rotation, "[deg] in-plane rotation, x-z");
-	v.field("anapole", "aperture_material", c.anapole.aperture_material, "fill of the whole aperture, lobes and gap; -1 = background");
-	v.field("anapole", "gap_material", c.anapole.gap_material, "fill of the gap alone; -1 = as the rest of the aperture");
+	v.field("anapole", "aperture_material", c.anapole_fill.aperture, "fill of the whole aperture, lobes and gap, a material name; unset = background");
+	v.field("anapole", "gap_material", c.anapole_fill.gap, "fill of the gap alone, a material name; unset = as the rest of the aperture");
 	v.field("anapole", "lobe_points", c.anapole.lobe_points, "polygon vertices per lobe edge");
 
-	v.choice("nonlinear", "shg", c.nonlinear.shg, HARMONIC_MODES, "second-harmonic generation: in the structure (antenna) or the layers (bulk)");
-	v.choice("nonlinear", "thg", c.nonlinear.thg, HARMONIC_MODES, "third-harmonic generation: in the structure (antenna) or the layers (bulk)");
+	v.field("nonlinear", "shg", c.nonlinear.shg, "second-harmonic generation in every material with a chi2 tensor");
+	v.field("nonlinear", "thg", c.nonlinear.thg, "third-harmonic generation in every material with a chi3 tensor");
 	v.choice("nonlinear", "update", c.nonlinear.update, {"field", "polarization"}, "how the nonlinearity enters the update");
-	v.field("nonlinear", "chi_structure", c.nonlinear.chi_structure, "tensor of the structure: a [chi2|chi3.<name>] section or a preset; unset = zero");
-	v.field("nonlinear", "chi_first", c.nonlinear.chi_first, "tensor name of the first medium");
-	v.field("nonlinear", "chi_middle", c.nonlinear.chi_middle, "tensor name of the middle medium");
-	v.field("nonlinear", "chi_last", c.nonlinear.chi_last, "tensor name of the last medium");
 	v.field("nonlinear", "graphene_optimization", c.nonlinear.graphene_optimization, "");
 
 	v.choice("electrons", "model", c.electrons.model, {"local", "nonlocal", "gnor", "hydrodynamic"}, "free-electron response; the hydrodynamic keys are in [hydrodynamic]");
-	v.field("electrons", "diffusion", c.electrons.diffusion, "diffusion coefficient (nonlocal, gnor, hydrodynamic)");
-	v.field("electrons", "fermi_velocity", c.electrons.fermi_velocity, "(nonlocal, gnor, hydrodynamic)");
+	v.field("electrons", "fermi_velocity", c.electrons.fermi_velocity, "factor on the fermi_velocity of every material, nonlocal, gnor, hydrodynamic");
 
 	v.field("hydrodynamic", "pressure", c.hydrodynamic.pressure, "quantum pressure term");
 	v.field("hydrodynamic", "convection", c.hydrodynamic.convection, "convective term");
@@ -429,21 +407,21 @@ void visit_sim_config(C& c, V& v)
 
 // Value codecs
 
-void parse_value(const Config& ini, const std::string& s, const std::string& k, int& out)
+void parse_value(const io::Ini& ini, const std::string& s, const std::string& k, int& out)
 {
-	out = Config::to_integer(s, k, ini.get(s, k));
+	out = io::Ini::to_integer(s, k, ini.get(s, k));
 }
-void parse_value(const Config& ini, const std::string& s, const std::string& k, double& out)
+void parse_value(const io::Ini& ini, const std::string& s, const std::string& k, double& out)
 {
-	out = Config::to_double(s, k, ini.get(s, k));
+	out = io::Ini::to_double(s, k, ini.get(s, k));
 }
-void parse_value(const Config& ini, const std::string& s, const std::string& k, bool& out)
+void parse_value(const io::Ini& ini, const std::string& s, const std::string& k, bool& out)
 {
 	out = ini.get_bool(s, k);
 }
-void parse_value(const Config& ini, const std::string& s, const std::string& k, std::string& out)
+void parse_value(const io::Ini& ini, const std::string& s, const std::string& k, std::string& out)
 {
-	out = Config::unquote(ini.get(s, k));
+	out = io::Ini::unquote(ini.get(s, k));
 }
 
 std::string format_value(int v) { return std::to_string(v); }
@@ -456,18 +434,13 @@ std::string format_value(double v)
 	return std::string(buf, res.ptr);
 }
 
-std::string lower(std::string s)
-{
-	for (auto& ch : s)
-		ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
-	return s;
-}
+std::string lower(std::string s) { return io::Ini::lower(std::move(s)); }
 
 // Visitors
 
 struct Loader
 {
-	const Config& ini;
+	const io::Ini& ini;
 	std::set<std::pair<std::string, std::string>> known;
 	std::vector<std::string> missing;
 
@@ -487,8 +460,6 @@ struct Loader
 		ref = lower(ref);
 		check_choice(s, k, ref, choices);
 	}
-
-	void refractive_indices(std::map<int, double>&) {} // loaded separately, dynamic keys
 
 	static void check_choice(const char* s, const char* k, const std::string& ref, const std::vector<std::string>& choices)
 	{
@@ -538,26 +509,7 @@ struct Writer
 		out << k << " = " << ref << "\n";
 	}
 
-	void refractive_indices(const std::map<int, double>& n)
-	{
-		header("materials");
-		if (with_docs)
-			out << "; refractive index of dispersionless material i (i = 0..99): n<i> = value, e.g.\n; n4 = 1.45\n";
-		for (const auto& [idx, val] : n)
-			out << "n" << idx << " = " << format_value(val) << "\n";
-	}
 };
-
-/// "n12" -> 12 ; anything else -> -1
-int refractive_index_key(const std::string& key)
-{
-	if (key.size() < 2 || key[0] != 'n')
-		return -1;
-	for (size_t i = 1; i < key.size(); ++i)
-		if (!std::isdigit(static_cast<unsigned char>(key[i])))
-			return -1;
-	return std::atoi(key.c_str() + 1);
-}
 
 } // namespace
 
@@ -664,11 +616,6 @@ int source_code(const std::string& name)
 				  name, "[source] type");
 }
 
-int harmonic_mode(const std::string& name)
-{
-	return lookup({{"none", 0}, {"antenna", 1}, {"bulk", 2}}, name, "[nonlinear] shg / thg");
-}
-
 int dft_plane_mask_bits(const OutputSection& o)
 {
 	const int planes = (o.dft_yz ? 1 : 0) | (o.dft_xz ? 2 : 0) | (o.dft_xy ? 4 : 0);
@@ -682,9 +629,7 @@ int harmonic_order(const std::string& name)
 
 int process_harmonic(const NonlinearSection& n)
 {
-	if (lower(n.shg) != "none") return 2;
-	if (lower(n.thg) != "none") return 3;
-	return 1;
+	return n.shg ? 2 : n.thg ? 3 : 1;
 }
 
 std::vector<double> spectrum_omegas(const SpectrumSection& s, double c0, double two_pi)
@@ -717,7 +662,7 @@ std::vector<int> parse_int_list(const std::string& sect, const std::string& key,
 	std::istringstream in(raw);
 	std::string tok;
 	while (in >> tok)
-		out.push_back(Config::to_integer(sect, key, tok));
+		out.push_back(io::Ini::to_integer(sect, key, tok));
 	return out;
 }
 
@@ -728,8 +673,8 @@ bool split_override(const std::string& spec, std::string& section, std::string& 
 		return false;
 	std::string path = spec.substr(0, eq);
 	value = spec.substr(eq + 1);
-	Config::trim(path);
-	Config::trim(value);
+	io::Ini::trim(path);
+	io::Ini::trim(value);
 	// split at the LAST dot so that dynamic sections, "probe.top.x", work
 	const auto dot = path.rfind('.');
 	if (dot == std::string::npos || dot == 0 || dot + 1 == path.size())
@@ -739,10 +684,10 @@ bool split_override(const std::string& spec, std::string& section, std::string& 
 	return true;
 }
 
-Config build_config(const std::string& ini_text, const std::string& name, const std::vector<std::string>& overrides,
+io::Ini build_config(const std::string& ini_text, const std::string& name, const std::vector<std::string>& overrides,
 						const std::string& input_dir, const std::string& output_dir)
 {
-	Config ini;
+	io::Ini ini;
 	ini.load_string(ini_text, name.empty() ? "<config>" : name);
 	for (const auto& spec : overrides)
 	{
@@ -760,22 +705,11 @@ Config build_config(const std::string& ini_text, const std::string& name, const 
 	return ini;
 }
 
-SimConfig load_sim_config(const Config& ini)
+SimConfig load_sim_config(const io::Ini& ini)
 {
 	SimConfig c;
 	Loader loader{ini, {}, {}};
 	visit_sim_config(c, loader);
-
-	// dynamic keys
-	for (const auto& key : ini.keys("materials"))
-	{
-		const int idx = refractive_index_key(key);
-		if (idx < 0)
-			continue;
-		if (idx > 99)
-			throw syntax_error("materials", key, "refractive indices are defined for material 0..99");
-		c.materials.refractive_index[idx] = Config::to_double("materials", key, ini.get("materials", key));
-	}
 
 	for (const auto& sect : ini.sections())
 	{
@@ -807,21 +741,6 @@ SimConfig load_sim_config(const Config& ini)
 			visit_dipole(d, loader, sect);
 			c.dipoles.push_back(d);
 		}
-		else if (sect.rfind("chi2.", 0) == 0 || sect.rfind("chi3.", 0) == 0)
-		{
-			ChiTensor t;
-			t.order = sect[3] - '0';
-			t.name = sect.substr(5);
-			for (const auto& key : ini.keys(sect))
-			{
-				const int i = chi_component_index(t.order, key);
-				if (i < 0)
-					throw syntax_error(sect, key, t.order == 2 ? "chi2 components are d11 ... d36 (d_mn in m/V)"
-																   : "chi3 components are xxxx, xxyy, ... zyzy (in m^2/V^2)");
-				t.values[i] = Config::to_double(sect, key, ini.get(sect, key));
-			}
-			c.chi_tensors.push_back(t);
-		}
 		else if (sect.rfind("wave.", 0) == 0)
 		{
 			WaveSpec w;
@@ -845,13 +764,11 @@ SimConfig load_sim_config(const Config& ini)
 	for (const auto& sect : ini.sections())
 	{
 		const bool is_probe = sect.rfind("probe.", 0) == 0;
-		if (sect.rfind("chi2.", 0) == 0 || sect.rfind("chi3.", 0) == 0)
-			continue; // components checked above
+		if (sect.rfind("chi2.", 0) == 0 || sect.rfind("chi3.", 0) == 0 || sect.rfind("material.", 0) == 0)
+			continue; // the materials check their own keys, materials::definition
 		for (const auto& key : ini.keys(sect))
 		{
 			if (is_probe && (key == "x" || key == "y" || key == "z"))
-				continue;
-			if (sect == "materials" && refractive_index_key(key) >= 0)
 				continue;
 			if (!loader.known.count({sect, key}))
 				unknown.push_back("[" + sect + "] " + key);
@@ -865,6 +782,25 @@ SimConfig load_sim_config(const Config& ini)
 		for (const auto& m : loader.missing)
 			msg += "\n  missing key:  " + m;
 		throw validation_error("configuration errors:" + msg);
+	}
+
+	// the materials by name, in slot order; every material section of the file is checked
+	for (std::string* name : {&c.geometry.material, &c.geometry.first_medium, &c.geometry.middle_medium, &c.geometry.last_medium,
+							  &c.geometry.shell_material, &c.anapole_fill.aperture, &c.anapole_fill.gap})
+		*name = lower(*name);
+	for (auto& b : c.blocks)
+		b.material_name = lower(b.material_name);
+	try
+	{
+		for (const auto& sect : ini.sections())
+			if (sect.rfind("material.", 0) == 0 && sect.find('.', 9) == std::string::npos)
+				materials::definition(ini, sect.substr(9));
+		for (const auto& name : material_names(c))
+			c.definitions.push_back(materials::definition(ini, name));
+	}
+	catch (const std::invalid_argument& e)
+	{
+		throw validation_error(e.what());
 	}
 
 	// resolve derived defaults so the resolved dump shows real values
@@ -911,12 +847,9 @@ void validate_sim_config(const SimConfig& c)
 
 	const int band = harmonic_order(s.harmonic_band);
 	const int process = process_harmonic(c.nonlinear);
-	require(lower(c.nonlinear.shg) == "none" || lower(c.nonlinear.thg) == "none", "[nonlinear] shg and thg cannot both be on");
-	if (process <= 1)
-		require(c.nonlinear.chi_structure.empty() && c.nonlinear.chi_first.empty() && c.nonlinear.chi_middle.empty() && c.nonlinear.chi_last.empty(),
-				"[nonlinear] chi_* are set, but shg and thg are none");
+	require(!(c.nonlinear.shg && c.nonlinear.thg), "[nonlinear] shg and thg cannot both be on");
 	if (band > 1 && lower(c.electrons.model) == "local" && lower(c.temperature.model) == "none")
-		require(process == band, "[spectrum] harmonic_band = " + s.harmonic_band + " requires [nonlinear] " + (band == 2 ? "shg" : "thg") + " = antenna or bulk");
+		require(process == band, "[spectrum] harmonic_band = " + s.harmonic_band + " requires [nonlinear] " + (band == 2 ? "shg" : "thg") + " = true");
 	if (process > 1)
 		require(band == process, std::string("[nonlinear] ") + (process == 2 ? "shg" : "thg") +
 									 " computes the harmonic: set [spectrum] harmonic_band = " + (process == 2 ? "second" : "third"));
@@ -927,8 +860,7 @@ void validate_sim_config(const SimConfig& c)
 			require(untouched, std::string("[") + section + "] has keys set, but " + selector + " does not use that section");
 		};
 		if (e == "local")
-			require(c.electrons.diffusion == ElectronsSection().diffusion && c.electrons.fermi_velocity == ElectronsSection().fermi_velocity,
-					"[electrons] diffusion and fermi_velocity need model = nonlocal, gnor or hydrodynamic");
+			require(c.electrons.fermi_velocity == ElectronsSection().fermi_velocity, "[electrons] fermi_velocity needs model = nonlocal, gnor or hydrodynamic");
 		if (e != "hydrodynamic")
 			unused(c.hydrodynamic == HydrodynamicSection(), "hydrodynamic", "[electrons] model = " + e);
 		const bool ttm = t == "two_temperature" || t == "pump" || t == "probe";
@@ -977,42 +909,20 @@ void validate_sim_config(const SimConfig& c)
 		}
 	}
 
-	for (int mat : {c.geometry.material, c.geometry.first_medium, c.geometry.middle_medium, c.geometry.last_medium})
-		if (mat > 0 && mat < 100)
-			require(c.materials.refractive_index.count(mat) > 0,
-					"[materials] n" + std::to_string(mat) + " is required (material " + std::to_string(mat) + " is in use)");
-
-	// [custom_material] fills one material code: the user hydrodynamic metal, slot 2 after the
-	// modified-Lorentz range, src/materials/parameters.cc
-	{
-		constexpr int custom = fdtd::materials::DispMateOffsetD + fdtd::materials::ModLorentz + 2;
-		bool used = false;
-		for (int mat : {c.geometry.material, c.geometry.first_medium, c.geometry.middle_medium, c.geometry.last_medium, c.geometry.shell_material,
-						c.anapole.aperture_material, c.anapole.gap_material})
-			used = used || mat == custom;
-		for (const auto &b : c.blocks)
-			used = used || b.material == custom;
-		require(used || c.custom_material == CustomMaterialSection(),
-				"[custom_material] has keys set, but no structure, layer, block or anapole part uses its material code " + std::to_string(custom));
-	}
-
 	if (process > 1)
 	{
-		const auto& n = c.nonlinear;
-		require(!n.chi_structure.empty() || !n.chi_first.empty() || !n.chi_middle.empty() || !n.chi_last.empty(),
-				"[nonlinear] SHG/THG needs a tensor: set chi_structure (and chi_first, chi_middle, chi_last for the media; unset = zero)");
-		const char* family = process == 2 ? "chi2" : "chi3";
-		for (const auto& [key, name] : {std::pair<const char*, const std::string&>{"chi_structure", n.chi_structure},
-										{"chi_first", n.chi_first}, {"chi_middle", n.chi_middle}, {"chi_last", n.chi_last}})
-		{
-			if (name.empty() || find_chi_tensor(process, name, c.chi_tensors))
-				continue;
-			std::string presets;
-			for (const auto& p : chi_preset_names(process))
-				presets += (presets.empty() ? "" : ", ") + p;
-			require(false, std::string("[nonlinear] ") + key + " = " + name + ": no [" + family + "." + name +
-							   "] section and no preset of that name (" + family + " presets: " + presets + ")");
-		}
+		bool any = false;
+		for (const auto& d : c.definitions)
+			any = any || !(process == 2 ? d.chi2 : d.chi3).empty();
+		require(any, std::string("[nonlinear] ") + (process == 2 ? "shg" : "thg") + " needs a material with a " + (process == 2 ? "chi2" : "chi3") +
+						 " tensor: chi" + std::to_string(process) + " = <name> in its [material.<name>] section");
+	}
+	if (lower(c.electrons.model) == "hydrodynamic")
+	{
+		bool any = false;
+		for (const auto& d : c.definitions)
+			any = any || d.kind >= materials::Kind::hydrodynamic;
+		require(any, "[electrons] model = hydrodynamic needs a material of model hydrodynamic, drude_lorentz or magnetic_lorentz");
 	}
 
 	const int sphere = (c.multipoles.sphere_radius > 0) + (c.multipoles.sphere_theta > 0) + (c.multipoles.sphere_phi > 0);
@@ -1192,23 +1102,19 @@ std::string to_ini(const SimConfig& c)
 		visit_dipole(d, w, "dipole." + d.name);
 	for (auto b : c.blocks)
 		visit_block(b, w, "block." + b.name);
-	for (const auto& t : c.chi_tensors)
+	// the materials, extends resolved, and the tensors they name: the run repeats without the catalog
+	std::set<std::string> tensors;
+	for (const auto& d : c.definitions)
 	{
-		w.out << "\n[chi" << t.order << "." << t.name << "]\n";
-		const auto& names = chi_components(t.order);
-		for (size_t i = 0; i < names.size(); ++i)
-			if (t.values[i] != 0)
-				w.out << names[i] << " = " << format_value(t.values[i]) << "\n";
+		if (d.name == "vacuum")
+			continue;
+		w.out << materials::to_ini(d);
+		if (!d.chi2.empty() && tensors.insert("chi2." + d.chi2).second)
+			w.out << materials::tensor_to_ini(2, d.chi2, d.chi2_values.data());
+		if (!d.chi3.empty() && tensors.insert("chi3." + d.chi3).second)
+			w.out << materials::tensor_to_ini(3, d.chi3, d.chi3_values.data());
 	}
 	return w.out.str();
-}
-
-static std::string join_names(const std::vector<std::string>& v)
-{
-	std::string s;
-	for (const auto& n : v)
-		s += (s.empty() ? "" : ", ") + n;
-	return s;
 }
 
 std::string template_ini()
@@ -1225,17 +1131,169 @@ std::string template_ini()
 			 "; center_x = 100\n; center_y = 100\n; center_z = 100\n; size_x = 20\n; size_y = 20\n; size_z = 20\n; step = 1\n";
 	w.out << "\n; point dipoles of [source] type = dipole, one section each:\n; [dipole.a]\n; x = 100\n; y = 100\n; z = 100\n; e_x = 0\n; e_y = 0\n; e_z = 1\n";
 	w.out << "\n; boxes of one material, drawn before the [geometry] shape in file order (layers, gratings):\n; [block.substrate]\n"
-			 "; material = 1\n; y_max = -50e-9      ; bounds from the structure centre [m]; omitted: past the domain\n"
-			 "; [block.teeth]\n; material = 2\n; x_min = 0\n; x_max = 500e-9\n; y_min = -400e-9\n; y_max = 0\n; count = 10\n; pitch_x = 1e-6\n";
-	w.out << "\n; nonlinear tensors named by [nonlinear] chi_structure / chi_first / chi_middle / chi_last, one section each;\n"
-			 "; components not listed are zero. Built-in presets need no section (a section of the same name replaces one):\n"
-			 "; chi2: " + join_names(chi_preset_names(2)) + "; chi3: " + join_names(chi_preset_names(3)) + "\n"
-			 "; [chi2.my_crystal]   ; d11 ... d36 (d_mn in m/V; chi2 = 2 d)\n; d22 = 2.1e-12\n; d31 = 0.15e-12\n"
-			 "; [chi3.my_metal]     ; xxxx xxyy xyyx xyxy xxzz xzzx xzxz yyyy yyxx yxxy yxyx yyzz yzzy yzyz zzzz zzxx zxxz zxzx zzyy zyyz zyzy (m^2/V^2)\n"
-			 "; xxxx = 7.6e-19\n; yyyy = 7.6e-19\n; zzzz = 7.6e-19\n";
+			 "; material = glass\n; y_max = -50e-9      ; bounds from the structure centre [m]; omitted: past the domain\n"
+			 "; [block.teeth]\n; material = silicon\n; x_min = 0\n; x_max = 500e-9\n; y_min = -400e-9\n; y_max = 0\n; count = 10\n; pitch_x = 1e-6\n";
+	w.out << "\n; materials by name: a [material.<name>] section here, or <name>.ini in the catalog, docs/Materials.md.\n"
+			 "; The model's keys follow its model; poles are [material.<name>.pole.1], .2, ...\n"
+			 "; [material.glass]\n; model = dielectric\n; n = 1.45\n"
+			 "; [material.gold_kerr]\n; extends = gold_vial_d2cp\n; chi3 = au_isotropic   ; a [chi3.au_isotropic] section or catalog chi3/au_isotropic.ini\n"
+			 "; [chi2.my_crystal]   ; d11 ... d36, d_mn in m/V, chi2 = 2 d\n; d22 = 2.1e-12\n; d31 = 0.15e-12\n";
 	w.out << "\n; plane waves of [source] type = wave_superposition, one section each:\n; [wave.a]\n"
 			 "; direction_x = 0\n; direction_y = 1\n; direction_z = 0\n; e_x = 0\n; e_y = 0\n; e_z = 1\n; h_x = 1\n; h_y = 0\n; h_z = 0\n";
 	return w.out.str();
+}
+
+namespace
+{
+/// the material names of a run in slot order, each once: vacuum, structure, the three media, the
+/// shell of the shell shapes, the anapole fills, the blocks
+std::vector<std::string> names_in_slot_order(const std::string& shape, std::vector<std::string> named, const std::string& shell,
+											 const std::string& aperture, const std::string& gap, const std::vector<std::string>& blocks)
+{
+	const std::string sh = lower(shape);
+	if (sh == "sphere_shell" || sh == "cylinder_shell")
+		named.push_back(shell);
+	if (sh == "anapole")
+		named.push_back(aperture), named.push_back(gap);
+	named.insert(named.end(), blocks.begin(), blocks.end());
+	std::vector<std::string> out = {"vacuum"};
+	for (auto n : named)
+	{
+		n = lower(n);
+		if (!n.empty() && std::find(out.begin(), out.end(), n) == out.end())
+			out.push_back(n);
+	}
+	return out;
+}
+
+/// the file of catalog section `sect` in directory `dir`: material.<name> is <name>.ini, chi2.<name> chi2/<name>.ini
+std::string catalog_file(const std::string& dir, const std::string& sect)
+{
+	const auto dot = sect.find('.');
+	const std::string family = sect.substr(0, dot);
+	const std::string name = sect.substr(dot + 1);
+	return family == "material" ? dir + "/" + name + ".ini" : dir + "/" + family + "/" + name + ".ini";
+}
+
+std::vector<std::string> split_paths(const std::string& list)
+{
+	std::vector<std::string> out;
+	std::stringstream ss(list);
+	std::string item;
+	while (std::getline(ss, item, ':'))
+		if (!item.empty())
+			out.push_back(item);
+	return out;
+}
+} // namespace
+
+std::vector<std::string> material_names(const SimConfig& c)
+{
+	std::vector<std::string> blocks;
+	for (const auto& b : c.blocks)
+		blocks.push_back(b.material_name);
+	const auto& g = c.geometry;
+	return names_in_slot_order(g.shape, {g.material, g.first_medium, g.middle_medium, g.last_medium}, g.shell_material,
+							   c.anapole_fill.aperture, c.anapole_fill.gap, blocks);
+}
+
+int material_slot(const SimConfig& c, const std::string& name)
+{
+	const std::string n = lower(name);
+	for (size_t s = 0; s < c.definitions.size(); ++s)
+		if (c.definitions[s].name == n)
+			return int(s);
+	return -1;
+}
+
+std::vector<std::string> materials_catalog(const io::Ini& ini, const std::string& config_file)
+{
+	namespace fsys = std::filesystem;
+	std::vector<std::string> dirs;
+	const fsys::path base = config_file.empty() ? fsys::current_path() : fsys::path(config_file).parent_path();
+	for (const auto& d : split_paths(ini.get("materials", "catalog")))
+		dirs.push_back(fsys::path(d).is_absolute() ? d : (base / d).string());
+	if (const char* env = std::getenv("FDTD_MATERIALS"))
+		for (const auto& d : split_paths(env))
+			dirs.push_back(d);
+	std::error_code ec;
+	const fsys::path exe = fsys::read_symlink("/proc/self/exe", ec);
+	if (!ec)
+		dirs.push_back((exe.parent_path() / "materials").string());
+	return dirs;
+}
+
+std::string with_catalog(const std::string& ini_text, const std::string& name, const std::vector<std::string>& overrides)
+{
+	std::string text = ini_text;
+	io::Ini ini = build_config(text, name, overrides);
+	const std::vector<std::string> dirs = materials_catalog(ini, name);
+	std::vector<std::string> blocks;
+	for (const auto& sect : ini.sections_in_file_order())
+		if (sect.rfind("block.", 0) == 0)
+			blocks.push_back(ini.get(sect, "material"));
+	auto key = [&](const char* sect, const char* k, const char* dflt) {
+		const std::string v = ini.get(sect, k);
+		return v.empty() ? std::string(dflt) : v;
+	};
+	std::vector<std::string> wanted;
+	for (const auto& n : names_in_slot_order(key("geometry", "shape", "none"),
+											 {key("geometry", "material", "vacuum"), key("geometry", "first_medium", "vacuum"),
+											  key("geometry", "middle_medium", "vacuum"), key("geometry", "last_medium", "vacuum")},
+											 key("geometry", "shell_material", "vacuum"), key("anapole", "aperture_material", ""),
+											 key("anapole", "gap_material", ""), blocks))
+		if (n != "vacuum")
+			wanted.push_back(materials::material_section(n));
+	// every material the file defines is checked, so what it extends and names is read too
+	for (const auto& sect : ini.sections())
+		if (sect.rfind("material.", 0) == 0 && sect.find('.', 9) == std::string::npos)
+			wanted.push_back(sect);
+	std::set<std::string> done;
+	while (!wanted.empty())
+	{
+		const std::string sect = wanted.back();
+		wanted.pop_back();
+		if (!done.insert(sect).second)
+			continue;
+		io::Ini plain;
+		plain.load_string(text, name);
+		const bool by_overrides = ini.is_section(sect) && (sect.rfind("material.", 0) != 0 || ini.is_key(sect, "model") || ini.is_key(sect, "extends"));
+		if (!plain.is_section(sect))
+		{
+			std::string found;
+			for (const auto& dir : dirs)
+				if (std::filesystem::exists(catalog_file(dir, sect)))
+				{
+					found = catalog_file(dir, sect);
+					break;
+				}
+			if (found.empty() && by_overrides)
+				;
+			else if (found.empty())
+			{
+				std::string where;
+				for (const auto& dir : dirs)
+					where += "\n  " + catalog_file(dir, sect);
+				throw std::invalid_argument("[" + sect + "] is neither in the run file nor in the catalog; looked for" + where);
+			}
+			else
+			{
+				std::ifstream in(found);
+				std::ostringstream ss;
+				ss << in.rdbuf();
+				text += "\n; " + found + "\n" + ss.str();
+				ini = build_config(text, name, overrides);
+				io::Ini check;
+				check.load_string(text, name);
+				if (!check.is_section(sect))
+					throw std::invalid_argument(found + " does not define [" + sect + "]");
+			}
+		}
+		if (sect.rfind("material.", 0) == 0)
+			for (const auto& r : materials::references(ini, sect.substr(9)))
+				wanted.push_back(r);
+	}
+	return text;
 }
 
 } // namespace fdtd::config

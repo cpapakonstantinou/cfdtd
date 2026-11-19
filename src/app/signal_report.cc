@@ -79,7 +79,7 @@ int fdtd::app::signal_report(int argc, char *argv[])
 	try
 	{
 		overrides.push_back("source.allow_truncated_signal=true"); // this tool reports instead of failing
-		auto config = fdtd::config::load_sim_config(fdtd::config::build_config(text.str(), file, overrides));
+		auto config = fdtd::config::load_sim_config(fdtd::config::build_config(fdtd::config::with_catalog(text.str(), file, overrides), file, overrides));
 		fdtd::config::validate_sim_config(config);
 		fdtd::config::apply_sim_config(config, 1, true);
 		fdtd::app::set_time_step();
@@ -177,7 +177,7 @@ int fdtd::app::signal_report(int argc, char *argv[])
 			return std::string(b);
 		};
 		std::printf("harmonic: fundamental %.4f nm (%s); [nonlinear] shg = %s, thg = %s\n", fdtd::constants::C0 / f0 * 1e9,
-					carrier ? "signal carrier" : "[spectrum] centre", config.nonlinear.shg.c_str(), config.nonlinear.thg.c_str());
+					carrier ? "signal carrier" : "[spectrum] centre", config.nonlinear.shg ? "true" : "false", config.nonlinear.thg ? "true" : "false");
 		for (int h = 2; h <= 3; ++h)
 			std::printf("harmonic: %s %.4f nm floor %s (pump power at %d f relative to f, %d steps)\n", h == 2 ? "shg" : "thg",
 						fdtd::constants::C0 / (h * f0) * 1e9, show(floor_db(h, configured)).c_str(), h, configured);
