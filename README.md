@@ -1,4 +1,4 @@
-# 3D-FDTD {#README}
+# 3D-FDTD
 
 A parallel (MPI) finite-difference time-domain solver for nano-optics: scattering and absorption
 of nanoantennas, layered and periodic structures, dispersive and nonlinear materials.
