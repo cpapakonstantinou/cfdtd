@@ -496,7 +496,7 @@ bool fdtd::geometry::create_cylinder(const int &centerx, const int &centery, con
 }
 
 /**
- * @brief Two coaxial cylinders along z: the shell (radius_shell, shell_length) first, the core (radius_core, core_length) over it
+ * @brief Two coaxial cylinders along y, the propagation axis: the shell (radius_shell, shell_length) first, the core (radius_core, core_length) over it
  * @image html cylinder_shell.png "[cylinder_shell] keys on the mesh, docs/geometry/Shapes.md"
  * The two lengths are independent: a shell longer than the core closes the ends, a shorter one leaves the
  * ends of the core bare. A length of 0 runs that cylinder through the whole domain.
@@ -510,8 +510,10 @@ bool fdtd::geometry::create_cylinder_shell(int centerx, int centery, int centerz
 {
 	if (!sc.draw)
 		return true;
+	// a disc in the x-z plane extruded along y; length 0 spans the domain, as cylinder_z
 	auto cylinder = [](double radius, double length) {
-		return length > 0 ? geom::cylinder_z(0, 0, radius, -0.5 * length, 0.5 * length) : geom::cylinder_z(0, 0, radius);
+		const double half = length > 0 ? 0.5 * length : 1e3;
+		return radius > 0 ? geom::extrude(geom::circle(0, 0, radius), -half, half) : geom::Solid();
 	};
 	// in this order: the core overwrites the shell where they overlap
 	render_parts({{cylinder(radius_shell, shell_length), shell_index}, {cylinder(radius_core, core_length), index}}, centerx, centery, centerz);

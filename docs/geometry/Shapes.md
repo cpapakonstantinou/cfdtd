@@ -74,10 +74,10 @@ along y. Setting a key in the section of another shape is an error.
 
 | key | meaning |
 |---|---|
-| `radius_core` | [m] radius of the core; both cylinders are along z, on the same axis |
-| `core_length` | [m] of the core along z; 0 = through the whole domain |
+| `radius_core` | [m] radius of the core; both cylinders are along y, on the same axis |
+| `core_length` | [m] of the core along y; 0 = through the whole domain |
 | `radius_shell` | [m] outer radius of the shell ([geometry] shell_material); the core is drawn over it |
-| `shell_length` | [m] of the shell along z; 0 = through the whole domain; shorter than the core leaves the core ends bare |
+| `shell_length` | [m] of the shell along y; 0 = through the whole domain; shorter than the core leaves the core ends bare |
 
 ## ellipse
 
@@ -358,8 +358,8 @@ along y. Setting a key in the section of another shape is an error.
 | `gap_length` | [m] gap between the lobes, along the lobe axis |
 | `gap_width` | [m] gap across the lobe axis |
 | `rotation` | [deg] in-plane rotation, x-z |
-| `aperture_material` | fill of the whole aperture, lobes and gap; -1 = background |
-| `gap_material` | fill of the gap alone; -1 = as the rest of the aperture |
+| `aperture_material` | fill of the whole aperture, lobes and gap, a material name; unset = background |
+| `gap_material` | fill of the gap alone, a material name; unset = as the rest of the aperture |
 | `lobe_points` | polygon vertices per lobe edge |
 
 ## two_films_spacer
