@@ -13,10 +13,10 @@ SRC = main.cc $(patsubst src/%,%,$(wildcard src/*/*.cc src/*/*/*.cc)) $(EXTERN_S
 EXTERN_SRC = ../extern/config/config.cc
 CPPFLAGS += -isystem extern/carray -isystem extern/config
 
-TEST_TARGETS = test_config test_machine test_array test_h5io test_geometry
+TEST_TARGETS = test_config test_machine test_array test_h5io test_geometry test_spectrum
 TEST_SRC = $(TEST_TARGETS:%=%.cc)
 # the tests link the modules without solver state
-TEST_DEPS = $(addprefix src/,io/ini.o ../extern/config/config.o core/memory.o config/sim_config.o materials/definition.o io/h5io.o geometry/csg.o geometry/anapole.o)
+TEST_DEPS = $(addprefix src/,io/ini.o ../extern/config/config.o core/memory.o core/quadrature.o sources/sampled_signal.o config/sim_config.o materials/definition.o io/h5io.o geometry/csg.o geometry/anapole.o)
 
 # parallel HDF5 through pkg-config; another name: make HDF5_PKG=hdf5-openmpi
 HDF5_PKG ?= hdf5

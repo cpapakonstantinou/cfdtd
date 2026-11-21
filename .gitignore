@@ -44,6 +44,7 @@ test_machine
 test_array
 test_h5io
 test_geometry
+test_spectrum
 
 # build outputs
 *.o

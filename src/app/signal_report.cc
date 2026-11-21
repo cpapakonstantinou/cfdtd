@@ -241,29 +241,30 @@ int fdtd::app::signal_report(int argc, char *argv[])
 			std::printf("config: [grid] time_steps = %d\n", std::max(configured, recommended));
 		}
 
-		// amplitude of the signal at the analysed frequencies
+		// amplitude of the signal at the analysed frequencies, the DFT over the run's steps as the monitors take it
 		const auto omegas = fdtd::config::spectrum_omegas(config.spectrum, fdtd::constants::C0, fdtd::constants::PI2);
-		const int span = steady ? configured : e.last_on + 1;
+		const std::size_t pump_points = std::size_t(config.spectrum.points);
 		std::vector<double> amplitude(omegas.size());
 		for (std::size_t m = 0; m < omegas.size(); ++m)
 		{
 			std::complex<double> sum = 0;
-			for (int n = 0; n <= span; ++n)
+			for (int n = 0; n < configured; ++n)
 				sum += fdtd::sources::signal_value(n * dt) * std::exp(std::complex<double>(0, omegas[m] * n * dt));
 			amplitude[m] = std::abs(sum) * dt;
 		}
-		const double top = omegas.empty() ? 0 : *std::max_element(amplitude.begin(), amplitude.end());
+		// the linear spectra divide by the pump points; the harmonic band is the raw DFT, not normalised
+		const double top = omegas.empty() ? 0 : *std::max_element(amplitude.begin(), amplitude.begin() + std::min(pump_points, omegas.size()));
 		int weak = 0;
 		for (std::size_t m = 0; m < omegas.size(); ++m)
 		{
 			const double rel = top > 0 ? amplitude[m] / top : 0;
-			weak += rel < 1e-2;
-			std::printf("spectrum: %.4f nm amplitude %.4e relative %.4f%s\n", 2 * M_PI * fdtd::constants::C0 / omegas[m] * 1e9, amplitude[m], rel,
-						rel < 1e-2 ? " WEAK" : "");
+			const bool pump = m < pump_points;
+			weak += pump && rel < 1e-2;
+			std::printf("spectrum: %.4f nm amplitude %.4e relative %.4e%s\n", 2 * M_PI * fdtd::constants::C0 / omegas[m] * 1e9, amplitude[m], rel,
+						!pump ? " harmonic (raw DFT, not normalised)" : rel < 1e-2 ? " WEAK" : "");
 		}
 		if (weak)
-			std::printf("spectrum: %d of %zu points below 1e-2 of the strongest: normalised spectra are noisy there (harmonic-band points are expected to be weak)\n",
-						weak, omegas.size());
+			std::printf("spectrum: %d of %zu pump points below 1e-2 of the strongest: the normalised spectra are noisy there\n", weak, pump_points);
 
 		// The pump's own spectral power at 2 f and 3 f, from a DFT over the run's steps as the solver's
 		// monitors take it: the floor below which a harmonic is not seen. Cutting the signal off, or,

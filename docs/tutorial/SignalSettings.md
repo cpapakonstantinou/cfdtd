@@ -20,7 +20,7 @@ Every line starts with a key, so `grep '^config:'` gives the lines to put in the
 | `signal: steps_recommended` | signal plus two transits; resonant structures ring longer than this |
 | `signal: verdict` | `covered` or `TRUNCATED` |
 | `config: [grid] time_steps = N` | the line to use |
-| `spectrum: <nm> amplitude ... relative ...` | the signal amplitude at each analysed wavelength; `WEAK` below 1e-2 of the strongest |
+| `spectrum: <nm> amplitude ... relative ...` | the signal amplitude at each analysed wavelength, DFT over the configured steps as the monitors take it; `WEAK` marks a pump point below 1e-2 of the strongest, where the normalised linear spectra are noisy; harmonic-band points are the raw DFT, not normalised, and are marked `harmonic` |
 
 The same test runs in two more places:
 
