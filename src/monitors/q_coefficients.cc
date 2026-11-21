@@ -284,8 +284,8 @@ void write_q_coefficients()
 		{
 			for (m = 0.5 * sp.nr_frequencies; m < sp.nr_frequencies; ++m)
 			{
-				transm_nl_power += 2 * sp.dt * sp.dt * qscattering[m] * harmonic_step_frequency;//J
-				refl_nl_power += 2 * sp.dt * sp.dt * qabsorption[m] * harmonic_step_frequency;//J
+				transm_nl_power += 2 * sp.dt * sp.dt * qscattering[m] * harmonic_point_width[m - sp.nr_frequencies / 2];//J
+				refl_nl_power += 2 * sp.dt * sp.dt * qabsorption[m] * harmonic_point_width[m - sp.nr_frequencies / 2];//J
 			}
 			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
@@ -432,8 +432,8 @@ void write_art_tfsf()
 		{
 			for (m = 0.5 * sp.nr_frequencies; m < sp.nr_frequencies; ++m)
 			{
-				transm_nl_power += 2 * sp.dt * sp.dt * (-q_face[0][0][1][0][m]) * harmonic_step_frequency;//J
-				refl_nl_power += 2 * sp.dt * sp.dt * q_face[0][1][1][1][m] * harmonic_step_frequency;//J
+				transm_nl_power += 2 * sp.dt * sp.dt * (-q_face[0][0][1][0][m]) * harmonic_point_width[m - sp.nr_frequencies / 2];//J
+				refl_nl_power += 2 * sp.dt * sp.dt * q_face[0][1][1][1][m] * harmonic_point_width[m - sp.nr_frequencies / 2];//J
 			}
 			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));

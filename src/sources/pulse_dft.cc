@@ -87,6 +87,14 @@ int fdtd::sources::transform_pulse(int steps)
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 		sigfile = fdtd::io::open_report(sp.reports_dir + "/source_signal.txt", "signal\tcarrier, one row per step from the DFT start");
 
+	// the incident fluence from the signal itself, integral of E^2 dt; the band only weights the index
+	double time_fluence = 0.0; // V^2 s/m^2
+	for (int n = n_start; n < n_max; ++n)
+	{
+		const double e = fdtd::sources::signal_value(n * sp.dt);
+		time_fluence += e * e * sp.dt;
+	}
+
 	for (m = 0; m < sp.nr_frequencies; ++m)
 	{
 		signal_transform = std::complex<double>(0.);
@@ -135,12 +143,21 @@ int fdtd::sources::transform_pulse(int steps)
 	if ((sp.thg || sp.shg || (sp.hydrodynamics && !sp.harmonic)) && (sp.nr_frequencies > 2))
 	{
 		int max_index = 0.5 * sp.nr_frequencies;
-		input_intensity = double(0.);
-		input_power = double(0.);
+		// fluence n/eta0 * integral of E^2 dt, with n the index of the incidence medium averaged over the
+		// sampled pump spectrum: exact for a non-dispersive medium, and the band truncation cancels in the mean
+		double weight = 0.0;
+		double weighted_index = 0.0;
 		for (m = 0; m < max_index; ++m)
 		{
-			input_intensity += 2 * sp.dt * sp.dt * fdtd::sources::amplitude_normalization[m] * fdtd::sources::amplitude_normalization[m] * fundamental_step_frequency;															// s*V^2/m^2
-			input_power += 2 * sp.dt * sp.dt * fdtd::sources::amplitude_normalization[m] * fdtd::sources::amplitude_normalization[m] * fundamental_step_frequency * INVVACIMP * fdtd::materials::refractive_index(sp.medium[0], fdtd::sources::analysis_omega[m]).real(); // J/m^2
+			const double s2 = fdtd::sources::amplitude_normalization[m] * fdtd::sources::amplitude_normalization[m] * fundamental_point_width[m];
+			weight += s2;
+			weighted_index += s2 * fdtd::materials::refractive_index(sp.medium[0], fdtd::sources::analysis_omega[m]).real();
+		}
+		const double index = weight > 0 ? weighted_index / weight : fdtd::materials::refractive_index(sp.medium[0], fdtd::sources::analysis_omega[0]).real();
+		input_intensity = time_fluence;							  // s*V^2/m^2
+		input_power = time_fluence * INVVACIMP * index; // J/m^2
+		for (m = 0; m < max_index; ++m)
+		{
 			fdtd::sources::amplitude_normalization[m + max_index] = double(1.);																											// amplitude_normalization[m];
 			fdtd::sources::dft_normalization[m + max_index] = std::complex<double>(1, 0);																												// dft_normalization[m];
 			PhaseNormalization[m + max_index] = double(0.);																												// PhaseNormalization[m];

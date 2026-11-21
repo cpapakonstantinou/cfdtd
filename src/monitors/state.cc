@@ -16,7 +16,7 @@ bool dft_plane_yz;
 bool dft_plane_xy;
 bool dft_h;
 bool phase_normalization;
-double harmonic_step_frequency;
+std::vector<double> harmonic_point_width;
 FILE *f_art = NULL;
 double transm_nl_power;
 double refl_nl_power;

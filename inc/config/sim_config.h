@@ -427,6 +427,14 @@ std::string template_ini();                                ///< commented templa
 
 /** \brief Angular frequencies of the requested spectrum: fundamental band, then the harmonic band, if any. */
 std::vector<double> spectrum_omegas(const SpectrumSection& s, double c0 = 299792458.0, double two_pi = 6.283185307179586);
+/**
+ * \brief Quadrature weights in Hz of the fundamental band, one per point, for integrals over frequency
+ *
+ * `gauss`: the Gauss-Legendre weights of the nodes spectrum_omegas places; otherwise the trapezoid
+ * rule, half the gaps to the neighbours. The integral covers [c0/lambda_max, c0/lambda_min]. The
+ * harmonic band k*w has the weights times k. One point: 0.
+ */
+std::vector<double> spectrum_weights(const SpectrumSection& s, double c0 = 299792458.0, double two_pi = 6.283185307179586);
 
 int pulse_code(const std::string& name);           ///< legacy signal_type
 /** \brief Start index of every rank along one axis, PML included.

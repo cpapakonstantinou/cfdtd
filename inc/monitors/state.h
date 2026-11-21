@@ -28,7 +28,7 @@ extern bool dft_plane_yz;                                         ///< Record DF
 extern bool dft_plane_xy;                                         ///< Record DFTs on the xy output plane.
 extern bool dft_h;                                          ///< Also record H on the output planes.
 extern bool phase_normalization;                            ///< Remove the source phase when normalising DFTs.
-extern double harmonic_step_frequency;                        ///< Frequency step of the harmonic band in Hz.
+extern std::vector<double> harmonic_point_width; ///< The frequency width in Hz each point of the harmonic band stands for.
 extern FILE *f_art;                                         ///< Output file of absorption/reflection/transmission.
 extern double transm_nl_power;                                ///< Harmonic energy scattered or transmitted in J.
 extern double refl_nl_power;                                  ///< Harmonic energy reflected or absorbed in J.

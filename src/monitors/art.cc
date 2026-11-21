@@ -202,8 +202,8 @@ void write_art_spectra(int step)
 		{
 			for (m = 0.5 * sp.nr_frequencies; m < sp.nr_frequencies; ++m)
 			{
-				transm_nl_power += 2 * sp.dt * sp.dt * tran[m] * harmonic_step_frequency;
-				refl_nl_power += 2 * sp.dt * sp.dt * refl[m] * harmonic_step_frequency;
+				transm_nl_power += 2 * sp.dt * sp.dt * tran[m] * harmonic_point_width[m - sp.nr_frequencies / 2];
+				refl_nl_power += 2 * sp.dt * sp.dt * refl[m] * harmonic_point_width[m - sp.nr_frequencies / 2];
 			}
 			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * AreaR, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * AreaR), refl_nl_power / (fdtd::sources::input_power * AreaR));

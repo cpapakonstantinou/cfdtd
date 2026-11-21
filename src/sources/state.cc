@@ -29,7 +29,7 @@ std::vector<DipoleInput> dipole_input;
 bool plane_wave_dispersion = true;
 int n_start;
 std::vector<double> spectrum_omega;
-double fundamental_step_frequency;
+std::vector<double> fundamental_point_width;
 bool xpol;
 bool zpol;
 double input_power;

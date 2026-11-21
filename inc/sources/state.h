@@ -42,10 +42,10 @@ extern std::vector<DipoleInput> dipole_input;               ///< Point dipoles a
 extern bool plane_wave_dispersion;                          ///< Correct the plane-wave source for numerical dispersion.
 extern int n_start;                                         ///< First time step included in the source-signal DFT.
 extern std::vector<double> spectrum_omega;                    ///< Angular frequencies of the spectrum points in rad/s.
-extern double fundamental_step_frequency;                     ///< Frequency step of the fundamental band in Hz.
+extern std::vector<double> fundamental_point_width; ///< The frequency width in Hz each point of the fundamental band stands for.
 extern bool xpol;                                           ///< Source polarised along x.
 extern bool zpol;                                           ///< Source polarised along z.
-extern double input_power;                                    ///< Incident fluence integrated over the spectrum in J/m^2.
+extern double input_power;                                    ///< Incident fluence in J/m^2: n/eta0 times the integral of E_inc^2 dt.
 extern double analysis_omega[fdtd::max_frequencies];                      ///< Analysed angular frequencies in rad/s.
 extern double amplitude_normalization[fdtd::max_frequencies];    ///< |DFT of the source signal| per frequency, used to normalise spectra.
 extern std::complex<double> dft_normalization[fdtd::max_frequencies];         ///< Complex DFT of the source signal per frequency.

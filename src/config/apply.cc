@@ -235,8 +235,11 @@ void apply_sim_config(const SimConfig& c, int /*world_size*/, bool is_root)
 		run_cfg.analysis.sweep_lambda_long = double(n == 1 ? s.lambda_min : s.lambda_max);
 		run_cfg.source.fundamental_frequency = n == 1 ? C0 / run_cfg.analysis.sweep_lambda_short : double(0.5) * (C0 / run_cfg.analysis.sweep_lambda_long + C0 / run_cfg.analysis.sweep_lambda_short);
 		run_cfg.source.highest_frequency = k * (C0 / run_cfg.analysis.sweep_lambda_short);
-		fdtd::sources::fundamental_step_frequency = n > 1 ? (C0 / run_cfg.analysis.sweep_lambda_short - C0 / run_cfg.analysis.sweep_lambda_long) / (n - 1) : 0;
-		fdtd::monitors::harmonic_step_frequency = k * fdtd::sources::fundamental_step_frequency;
+		// quadrature weights in Hz of the band integrals: Gauss-Legendre or trapezoid, spectrum_weights
+		fdtd::sources::fundamental_point_width = spectrum_weights(s, C0, PI2);
+		fdtd::monitors::harmonic_point_width.clear();
+		for (double width : fdtd::sources::fundamental_point_width)
+			fdtd::monitors::harmonic_point_width.push_back(k * width);
 
 		// circular polarisation: the z part leads, rhcp, or lags, lhcp, by a quarter period of the carrier
 		if (run_cfg.source.circ_rh || run_cfg.source.circ_lh)

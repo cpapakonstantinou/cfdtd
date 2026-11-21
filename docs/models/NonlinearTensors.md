@@ -84,5 +84,20 @@ Optics*, 3rd ed.
 
 ## Output
 
-`reports/harmonic_efficiency*.txt` holds the conversion efficiency; the cross-section, DFT and multipole
+`reports/harmonic_efficiency*.txt` holds the conversion efficiency, the harmonic energy over the
+input energy:
+
+- The input fluence is n/eta0 times the integral of E_inc(t)^2 dt over the incident signal, summed
+  in time over every step of the source: no band, nothing missed. n is the index of the incidence
+  medium, averaged over the sampled pump spectrum when the medium is dispersive. For a Gaussian
+  pulse with field FWHM w it is I0 * w * sqrt(pi / (8 ln 2)), I0 the peak intensity n E0^2 / (2 eta0).
+- The harmonic exists only inside the run, so its energy comes from the DFTs: the harmonic flux at
+  each point of the harmonic band, integrated over the band with the quadrature weights of the
+  `[spectrum] spacing`. The harmonic band is k times every pump point, so it spans k times the pump
+  band; the harmonic of a pulse is about sqrt(k) times wider than the pump, so a pump band that
+  covers the pump spectrum gives a harmonic band that covers the harmonic. `spacing = gauss`
+  integrates it with the fewest points.
+
+Before 2026-11-21 the input energy came from the DFT of the source over the pump band only and both
+integrals used a rectangle rule, see `docs/dev/Roadmap.md` section 7. The cross-section, DFT and multipole
 outputs cover the harmonic band as well. `examples/dimer_shg.ini` is a complete configuration.

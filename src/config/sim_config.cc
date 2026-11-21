@@ -332,7 +332,8 @@ void visit_sim_config(C& c, V& v)
 	v.field("spectrum", "lambda_min", c.spectrum.lambda_min, "shortest DFT wavelength [m]", true);
 	v.field("spectrum", "lambda_max", c.spectrum.lambda_max, "longest DFT wavelength [m]", true);
 	v.field("spectrum", "points", c.spectrum.points, "samples in [lambda_min, lambda_max]; 1 needs lambda_min = lambda_max");
-	v.choice("spectrum", "spacing", c.spectrum.spacing, {"wavelength", "frequency"}, "uniform step in");
+	v.choice("spectrum", "spacing", c.spectrum.spacing, {"wavelength", "frequency", "gauss"},
+			 "uniform step in wavelength or frequency, or gauss: Gauss-Legendre nodes in frequency, the most accurate band integrals for the points");
 	v.choice("spectrum", "harmonic_band", c.spectrum.harmonic_band, {"none", "second", "third"}, "extra DFT band at 2w / 3w of every point");
 
 	v.field("output", "dft_xy", c.output.dft_xy, "frequency-domain E on the XY plot plane (fields/E_<wl>nm_XY.h5)");
@@ -632,14 +633,84 @@ int process_harmonic(const NonlinearSection& n)
 	return n.shg ? 2 : n.thg ? 3 : 1;
 }
 
+namespace
+{
+/// Gauss-Legendre nodes, ascending, and weights on [-1, 1], n >= 2: Newton on P_n from the Chebyshev guesses
+void gauss_legendre(int n, std::vector<double>& x, std::vector<double>& w)
+{
+	const double pi = 3.14159265358979323846;
+	x.assign(n, 0.0);
+	w.assign(n, 0.0);
+	for (int i = 0; i < (n + 1) / 2; ++i)
+	{
+		double z = std::cos(pi * (i + 0.75) / (n + 0.5));
+		double dp = 0.0;
+		for (int it = 0; it < 100; ++it)
+		{
+			double p0 = 1.0;
+			double p1 = z;
+			for (int k = 2; k <= n; ++k)
+			{
+				const double p2 = ((2.0 * k - 1.0) * z * p1 - (k - 1.0) * p0) / k;
+				p0 = p1;
+				p1 = p2;
+			}
+			dp = n * (z * p1 - p0) / (z * z - 1.0);
+			const double dz = p1 / dp;
+			z -= dz;
+			if (std::fabs(dz) < 1e-16)
+				break;
+		}
+		x[i] = -z;
+		x[n - 1 - i] = z;
+		w[i] = w[n - 1 - i] = 2.0 / ((1.0 - z * z) * dp * dp);
+	}
+}
+} // namespace
+
+std::vector<double> spectrum_weights(const SpectrumSection& s, double c0, double two_pi)
+{
+	const int n = s.points;
+	std::vector<double> q(n, 0.0);
+	if (n < 2)
+		return q;
+	if (lower(s.spacing) == "gauss")
+	{
+		std::vector<double> x;
+		gauss_legendre(n, x, q);
+		const double half = 0.5 * (c0 / s.lambda_min - c0 / s.lambda_max);
+		for (double& v : q)
+			v *= half;
+		return q;
+	}
+	const std::vector<double> w = spectrum_omegas(s, c0, two_pi);
+	for (int m = 0; m + 1 < n; ++m)
+	{
+		const double half = 0.5 * (w[m + 1] - w[m]) / two_pi;
+		q[m] += half;
+		q[m + 1] += half;
+	}
+	return q;
+}
+
 std::vector<double> spectrum_omegas(const SpectrumSection& s, double c0, double two_pi)
 {
 	std::vector<double> w;
 	const int n = s.points;
+	std::vector<double> nodes;
+	std::vector<double> unused;
+	if (n > 1 && lower(s.spacing) == "gauss")
+		gauss_legendre(n, nodes, unused);
 	for (int m = 0; m < n; ++m)
 	{
 		if (n == 1)
 			w.push_back(two_pi * (c0 / s.lambda_min));
+		else if (lower(s.spacing) == "gauss")
+		{
+			const double f0 = c0 / s.lambda_max;
+			const double f1 = c0 / s.lambda_min;
+			w.push_back(two_pi * (0.5 * (f0 + f1) + 0.5 * (f1 - f0) * nodes[m]));
+		}
 		else if (lower(s.spacing) == "frequency")
 		{
 			const double f0 = c0 / s.lambda_max;
@@ -880,9 +951,6 @@ void validate_sim_config(const SimConfig& c)
 	}
 	if (c.output.dft_magnetic)
 		require(c.output.dft_xy || c.output.dft_xz || c.output.dft_yz, "[output] dft_magnetic needs at least one of dft_xy, dft_xz, dft_yz");
-	// the nonlinear energy balance, Parseval, needs a constant frequency step in a harmonic band
-	if (harmonic_order(s.harmonic_band) > 1 && s.points > 1)
-		require(lower(s.spacing) == "frequency", "[spectrum] a harmonic band over several points needs spacing = frequency");
 
 	auto check_chunks = [&](const std::string& key, const std::string& raw, int nproc, int ncell) {
 		if (raw.empty())

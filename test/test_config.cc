@@ -263,8 +263,47 @@ int main()
 		// no mystery mutations: a harmonic without an explicit band is rejected, not silently doubled
 		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, base); }, "harmonic_band = second"));
 		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, {"--set", "spectrum.harmonic_band=third"}); }, "requires [nonlinear] thg"));
-		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, with({"--set", "spectrum.harmonic_band=second"})); }, "spacing = frequency"));
+		w = fdtd::config::spectrum_omegas(load(BASIC, with({"--set", "spectrum.harmonic_band=second"})).spectrum); // band uniform in wavelength
+		CHECK(w.size() == 82 && !close(w[1] - w[0], w[2] - w[1]) && close(w[41], 2 * w[0]) && close(w[81], 2 * w[40]));
 		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, {"--set", "spectrum.points=1"}); }, "lambda_min = lambda_max"));
+
+		// Gauss-Legendre: nodes inside the band, symmetric in frequency, odd counts at its middle; exact for
+		// polynomials of degree 2n - 1; the trapezoid weights sum to the band too
+		for (int n : {2, 5, 8})
+		{
+			const char* gauss[] = {"--set", "spectrum.spacing=gauss", "--set", "spectrum.lambda_min=400e-9", "--set", "spectrum.lambda_max=800e-9"};
+			std::vector<const char*> args(std::begin(gauss), std::end(gauss));
+			const std::string points = "spectrum.points=" + std::to_string(n);
+			args.push_back("--set");
+			args.push_back(points.c_str());
+			const auto s = load(BASIC, args).spectrum;
+			const double two_pi = 6.283185307179586;
+			const std::vector<double> w = fdtd::config::spectrum_omegas(s);
+			const std::vector<double> q = fdtd::config::spectrum_weights(s);
+			const double a = 299792458.0 / 800e-9;
+			const double b = 299792458.0 / 400e-9;
+			double sum = 0;
+			double moment = 0;
+			bool inside = true;
+			for (int m = 0; m < n; ++m)
+			{
+				const double f = w[m] / two_pi;
+				const double u = (f - a) / (b - a);
+				inside &= f > a && f < b && (m == 0 || w[m] > w[m - 1]);
+				sum += q[m];
+				moment += q[m] * std::pow(u, 2 * n - 1);
+			}
+			CHECK(inside && close(sum, b - a) && std::fabs(moment / (b - a) - 1.0 / (2 * n)) < 1e-12);
+			if (n == 5)
+				CHECK(close(w[2] / two_pi, 0.5 * (a + b)));
+		}
+		{
+			const auto s = load(BASIC, {"--set", "spectrum.spacing=wavelength"}).spectrum;
+			double sum = 0;
+			for (double v : fdtd::config::spectrum_weights(s))
+				sum += v;
+			CHECK(close(sum, 299792458.0 / s.lambda_min - 299792458.0 / s.lambda_max));
+		}
 	}
 
 	// the catalog: files outside the binary, named by the materials and tensors they define
