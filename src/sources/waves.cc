@@ -80,12 +80,11 @@ bool build_waves(std::vector<PlaneWave> &waves, WaveFrame &frame)
 
 		if (fdtd::grid::world_rank == ROOTPROCESS)
 		{
-			std::string beamMessage = ("GAUSSIAN BEAM INFORMATION:\n\tWAIST:\t"
-								  + std::to_string(beamData.beamWaist / 1.E-9)
-								  + " nm\n\tFOCAL LENGTH:\t"
-								  + std::to_string(beamData.focalLength / 1.E-9)
-								  + " nm\n");
-			fdtd::io::write_log(beamMessage, sp.reports_dir, sp.log_start, true);
+			fdtd::io::log("beam", "waist_nm,focal_length_nm");
+			fdtd::io::log("beam", "%g,%g", beamData.beamWaist * 1e9, beamData.focalLength * 1e9);
+			char text[128];
+			std::snprintf(text, sizeof text, "Gaussian beam waist %g nm, focal length %g nm", beamData.beamWaist * 1e9, beamData.focalLength * 1e9);
+			fdtd::io::write_log(text, sp.reports_dir, sp.log_start);
 		}
 
 		if (sp.theta_intervals == 0 && sp.phi_intervals == 0)

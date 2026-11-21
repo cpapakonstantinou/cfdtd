@@ -31,6 +31,14 @@ FILE *open_report(const std::string &path, const std::string &columns);
  * several lines gives one record per line; blank lines and lines of dashes are dropped.
  */
 void log(const char *key, const char *format, ...) __attribute__((format(printf, 2, 3)));
+/**
+ * @brief The array memory as two tables: `memory:` per group and in all, largest rank and total in
+ *        GiB, then `bytes:` with the exact byte counts of all arrays
+ *
+ * `fdtd memory` and the geometry report of `fdtd mesh` print the same tables, so they compare line by line.
+ */
+std::string memory_table(const std::vector<unsigned long long> &largest, const std::vector<unsigned long long> &total, unsigned long long largest_all,
+						 unsigned long long total_all);
 inline bool log_muted = false; ///< log() prints nothing, `fdtd memory`: the set-up runs once per rank
 /// the first space-separated word of the next line
 std::string read_text_entry(std::fstream &file);

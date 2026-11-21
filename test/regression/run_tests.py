@@ -116,18 +116,16 @@ MEMORY_CASES = ("ThinFilm", "MieScattering", "Anapole")  # `fdtd memory` against
 
 
 def array_table(text):
-    """{group: (largest rank, total)} of an 'arrays [GiB]' table (geometry report or `fdtd memory`)."""
-    table, on = {}, False
-    for line in text.splitlines():
-        if line.startswith("arrays [GiB]"):
-            on = True
-        elif on:
-            m = re.match(r"\s+([A-Za-z ]+?)\s*:?\s+([0-9.]+)\s+([0-9.]+)\s*$", line)
-            if not m:
-                if "smallest rank" in line:
-                    continue
-                break
-            table[m.group(1).strip()] = (float(m.group(2)), float(m.group(3)))
+    """{group: (largest rank, total)} of the `memory:` table, and the exact `bytes:` row as "bytes"
+    (geometry report or `fdtd memory`)."""
+    table = {}
+    for key in ("memory", "bytes"):
+        rows = [line.split(": ", 1)[1].split(",") for line in text.splitlines() if line.startswith(key + ": ")]
+        for row in rows[1:]:  # the first row is the header
+            if key == "memory":
+                table[row[0]] = (float(row[1]), float(row[2]))
+            else:
+                table["bytes"] = (int(row[0]), int(row[1]))
     return table
 
 
@@ -151,9 +149,9 @@ def run_memory_case(name, args, tmp_dir):
         return False
     measured = array_table(open(os.path.join(out_dir, "materials", "geometry_report.txt")).read())
     estimated = array_table(est.stdout)
-    good = "in bytes" in measured and measured == estimated  # the byte line makes the comparison exact
+    good = "bytes" in measured and measured == estimated  # the byte row makes the comparison exact
     if good:
-        print(f"  matches the mesh: {measured['all arrays'][1]:.3f} GiB of arrays on {ranks} ranks")
+        print(f"  matches the mesh: {measured['all'][1]:.3f} GiB of arrays on {ranks} ranks")
     else:
         for group in sorted(set(measured) | set(estimated)):
             if measured.get(group) != estimated.get(group):

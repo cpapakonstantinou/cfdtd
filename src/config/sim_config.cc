@@ -79,7 +79,7 @@ const double ROUND_DIPOLE_ZERO = 90; ///< [deg] the builder turns the top arm fr
 using G = GeometrySection;
 const std::vector<ShapeSection> SHAPE_SECTIONS = {
 	{"sphere", {{"radius", &G::width, "[m]"}}},
-	{"sphere_shell", {{"radius", &G::width, "[m] radius of the core; the shell ([geometry] shell_material) is 13 cells thicker"}}},
+	{"sphere_shell", {{"radius", &G::width, "[m] radius of the core; the shell of [geometry] shell_material is 13 cells thicker"}}},
 	{"two_spheres", {{"radius", &G::width, "[m]"}, {"separation", &G::shift_y, "[m] centre to centre, along y"}}},
 	{"sphere_dimer", {{"radius", &G::width, "[m]"}, {"spacing", &G::length, "[m] centre to centre, along z"}}},
 	{"sphere_trimer", {{"radius", &G::width, "[m]"}, {"spacing", &G::length, "[m] centre to centre, along z"}}},
@@ -88,14 +88,14 @@ const std::vector<ShapeSection> SHAPE_SECTIONS = {
 	{"cylinder_3d", {{"radius", &G::width, "[m] disc in the x-z plane"}, {"height", &G::length, "[m] along y"}}},
 	{"cylinder_shell", {{"radius_core", &G::width, "[m] radius of the core; both cylinders are along y, on the same axis"},
 						{"core_length", &G::length, "[m] of the core along y; 0 = through the whole domain"},
-						{"radius_shell", &G::length_2, "[m] outer radius of the shell ([geometry] shell_material); the core is drawn over it"},
+						{"radius_shell", &G::length_2, "[m] outer radius of the shell of [geometry] shell_material; the core is drawn over it"},
 						{"shell_length", &G::arm_length, "[m] of the shell along y; 0 = through the whole domain; shorter than the core leaves the core ends bare"}}},
 	{"ellipse", {{"radius_x", &G::width, "[m] semi-axis along x"}, {"radius_z", &G::length, "[m] semi-axis along z"}, {"thickness", &G::thickness, "[m] along y"},
-				 {"rotation", &G::rotation, "[deg] positive turns counter-clockwise in the top view (x right, z up)"}}},
+				 {"rotation", &G::rotation, "[deg] positive turns counter-clockwise in the top view, x right and z up"}}},
 	{"hole", {{"radius", &G::width, "[m] of the hole"}, {"thickness", &G::thickness, "[m] of the film that fills the x-z plane, along y"}}},
 	{"dipole", {{"width", &G::width, "[m] arm width, along x"}, {"thickness", &G::thickness, "[m] along y"}, {"gap", &G::gap, "[m] between the arms, along z"},
-				{"top_end", &G::length, "[m] end of the top arm, measured from the centre of the gap (+z)"},
-				{"bottom_end", &G::length_2, "[m] end of the bottom arm, measured from the centre of the gap (-z)"}}},
+				{"top_end", &G::length, "[m] end of the top arm along +z, measured from the centre of the gap"},
+				{"bottom_end", &G::length_2, "[m] end of the bottom arm along -z, measured from the centre of the gap"}}},
 	{"bowtie", {{"width", &G::width, "[m] base of each triangle, along x"}, {"thickness", &G::thickness, "[m] along y"},
 				{"length", &G::length, "[m] base to base, along z"}, {"gap", &G::gap, "[m] between the tips"}}},
 	{"triangle", {{"width", &G::width, "[m] base, along x"}, {"thickness", &G::thickness, "[m] along y"}, {"length", &G::length, "[m] base to apex, along z"}}},
@@ -109,15 +109,15 @@ const std::vector<ShapeSection> SHAPE_SECTIONS = {
 									  {"gap", &G::gap, "[m] between the arms"}, {"corner_radius", &G::arm_length, "[m] of the vertical edges"}}},
 	{"round_dipole", {{"width", &G::width, "[m] arm width"}, {"thickness", &G::thickness, "[m] along y"}, {"gap", &G::gap, "[m] between the arms"},
 					  {"top_length", &G::length_2, "[m] length of the top arm"}, {"bottom_length", &G::arm_width, "[m] length of the bottom arm"},
-					  {"corner_radius", &G::corner_radius, "[m] of every edge"}, {"rotation", &G::rotation, "[deg] 0: arms along z; positive turns counter-clockwise in the top view (x right, z up)", ROUND_DIPOLE_ZERO}}},
+					  {"corner_radius", &G::corner_radius, "[m] of every edge"}, {"rotation", &G::rotation, "[deg] 0: arms along z; positive turns counter-clockwise in the top view, x right and z up", ROUND_DIPOLE_ZERO}}},
 	{"one_side_round_dipole", {{"width", &G::width, "[m] arm width; the outer ends are half discs of this diameter"}, {"thickness", &G::thickness, "[m] along y"},
 							   {"gap", &G::gap, "[m] between the arms"},
 							   {"top_end", &G::length, "[m] centre of the top end disc, measured from the centre of the gap"},
 							   {"bottom_end", &G::arm_length, "[m] centre of the bottom end disc, measured from the centre of the gap"},
-							   {"rotation", &G::rotation, "[deg] 0: arms along z; positive turns counter-clockwise in the top view (x right, z up)", ROUND_DIPOLE_ZERO}}},
-	{"round_hybrid", {{"width", &G::width, "[m] arm width"}, {"thickness", &G::thickness, "[m] along y"}, {"gap", &G::gap, "[m] between the arms (filled with the gap material)"},
+							   {"rotation", &G::rotation, "[deg] 0: arms along z; positive turns counter-clockwise in the top view, x right and z up", ROUND_DIPOLE_ZERO}}},
+	{"round_hybrid", {{"width", &G::width, "[m] arm width"}, {"thickness", &G::thickness, "[m] along y"}, {"gap", &G::gap, "[m] between the arms, filled with the gap material"},
 					  {"arm_length", &G::length_2, "[m] length of each arm"}, {"corner_radius", &G::corner_radius, "[m] of every edge"},
-					  {"rotation", &G::rotation, "[deg] 0: arms along z; positive turns counter-clockwise in the top view (x right, z up)", ROUND_DIPOLE_ZERO}},
+					  {"rotation", &G::rotation, "[deg] 0: arms along z; positive turns counter-clockwise in the top view, x right and z up", ROUND_DIPOLE_ZERO}},
 	 // the builder takes the arm length as (length_2 + arm_width + width - gap) / 2
 	 [](GeometrySection& g) { g.length_2 = 2 * g.length_2 + g.gap - g.width; g.arm_width = 0; }},
 	{"u_shape", {{"width", &G::width, "[m] width of the three bars"}, {"thickness", &G::thickness, "[m] along y"}, {"length", &G::length, "[m] outer size along z"},
@@ -130,8 +130,8 @@ const std::vector<ShapeSection> SHAPE_SECTIONS = {
 				 {"corner_radius", &G::arm_length, "[m]"}}},
 	{"two_films_spacer", {{"thickness", &G::thickness, "[m] of the film, along y"}}},
 	{"l_antenna", {{"width", &G::width, "[m] width of the two bars"}, {"thickness", &G::thickness, "[m] along y"},
-				   {"length_x", &G::length, "[m] of the bar along x (at the -z end), from the outer corner to the centre of its round end"},
-				   {"length_z", &G::length_2, "[m] of the bar along z (at the -x end), from the outer corner to the centre of its round end"}}},
+				   {"length_x", &G::length, "[m] of the bar along x at the -z end, from the outer corner to the centre of its round end"},
+				   {"length_z", &G::length_2, "[m] of the bar along z at the -x end, from the outer corner to the centre of its round end"}}},
 	{"lateral_dipole", {{"width", &G::width, "[m] width of each bar, along x"}, {"thickness", &G::thickness, "[m] along y"},
 						{"gap", &G::gap, "[m] between the two bars, along x"},
 						{"left_length", &G::length, "[m] of the bar at -x; it reaches toward +z"},
@@ -139,16 +139,16 @@ const std::vector<ShapeSection> SHAPE_SECTIONS = {
 						{"overlap", &G::arm_length, "[m] length along z over which the two bars face each other; the facing corners are cut at 45 deg"}}},
 	{"round_butterfly", {{"width", &G::width, "[m] bar width"}, {"thickness", &G::thickness, "[m] along y"}, {"gap", &G::gap, "[m] between the two halves; each half is one z bar and one x bar joined by a diagonal neck"},
 						 {"length_z", &G::length_2, "[m] of each bar along z, measured from width / 2 off the centre"}, {"length_x", &G::arm_width, "[m] of each bar along x, measured the same way"},
-						 {"corner_radius", &G::corner_radius, "[m] of every edge and of the two arcs"}, {"rotation", &G::rotation, "[deg] 0: bars along x and z; positive turns counter-clockwise in the top view (x right, z up)", BUTTERFLY_ZERO}}},
+						 {"corner_radius", &G::corner_radius, "[m] of every edge and of the two arcs"}, {"rotation", &G::rotation, "[deg] 0: bars along x and z; positive turns counter-clockwise in the top view, x right and z up", BUTTERFLY_ZERO}}},
 	{"round_tripole", {{"width", &G::width, "[m] bar width"}, {"thickness", &G::thickness, "[m] along y"},
-					   {"center_length", &G::length, "[m] of the middle bar; the three bars are in line"}, {"top_length", &G::length_2, "[m] of the top bar (+z at rotation 0)"}, {"bottom_length", &G::arm_width, "[m] of the bottom bar"},
+					   {"center_length", &G::length, "[m] of the middle bar; the three bars are in line"}, {"top_length", &G::length_2, "[m] of the top bar, along +z at rotation 0"}, {"bottom_length", &G::arm_width, "[m] of the bottom bar"},
 					   {"top_gap", &G::arm_length, "[m] between the middle and the top bar"}, {"bottom_gap", &G::gap, "[m] between the middle and the bottom bar"},
-					   {"corner_radius", &G::corner_radius, "[m] of every edge"}, {"rotation", &G::rotation, "[deg] 0: bars along z; positive turns counter-clockwise in the top view (x right, z up)", ROUND_DIPOLE_ZERO}}},
+					   {"corner_radius", &G::corner_radius, "[m] of every edge"}, {"rotation", &G::rotation, "[deg] 0: bars along z; positive turns counter-clockwise in the top view, x right and z up", ROUND_DIPOLE_ZERO}}},
 	{"x_shape", {{"thickness", &G::thickness, "[m] along y"},
 				 {"fixed_length", &G::length_2, "[m] of the fixed bar, along x"}, {"fixed_width", &G::width, "[m] of the fixed bar"},
 				 {"rotated_length", &G::length, "[m] of the second bar, which crosses the fixed one at its centre"}, {"rotated_width", &G::gap, "[m] of the second bar"},
 				 {"corner_radius", &G::corner_radius, "[m] of every edge"},
-				 {"angle", &G::rotation, "[deg] from the fixed bar to the second bar, counter-clockwise in the top view (x right, z up); 90 is a cross"}}},
+				 {"angle", &G::rotation, "[deg] from the fixed bar to the second bar, counter-clockwise in the top view, x right and z up; 90 is a cross"}}},
 };
 
 const double ZERO = 0;
@@ -198,7 +198,7 @@ void visit_dipole(D& d, V& v, const std::string& sect)
 	v.field(s, "x", d.x, "position [cells, PML excluded]", true);
 	v.field(s, "y", d.y, "", true);
 	v.field(s, "z", d.z, "", true);
-	v.field(s, "e_x", d.e_x, "amplitude of the injected Ex (times the pulse)");
+	v.field(s, "e_x", d.e_x, "amplitude of the injected Ex, times the pulse");
 	v.field(s, "e_y", d.e_y, "");
 	v.field(s, "e_z", d.e_z, "");
 }
@@ -232,7 +232,7 @@ void visit_wave(P& w, V& v, const std::string& sect)
 	v.field(s, "e_x", w.e_x, "E amplitude");
 	v.field(s, "e_y", w.e_y, "");
 	v.field(s, "e_z", w.e_z, "");
-	v.field(s, "h_x", w.h_x, "H amplitude (vacuum units; scaled by n of the first medium)");
+	v.field(s, "h_x", w.h_x, "H amplitude in vacuum units, scaled by n of the first medium");
 	v.field(s, "h_y", w.h_y, "");
 	v.field(s, "h_z", w.h_z, "");
 }
@@ -248,7 +248,7 @@ void visit_sim_config(C& c, V& v)
 	v.field("paths", "input_dir", c.paths.input_dir, "data files: mode profiles, electron temperature; CLI -i");
 	v.field("paths", "output_dir", c.paths.output_dir, "output root; CLI -o");
 
-	v.field("grid", "nx", c.grid.nx, "interior cells along x (PML added on top)", true);
+	v.field("grid", "nx", c.grid.nx, "interior cells along x, without the PML", true);
 	v.field("grid", "ny", c.grid.ny, "interior cells along y", true);
 	v.field("grid", "nz", c.grid.nz, "interior cells along z", true);
 	v.field("grid", "dx", c.grid.dx, "cell size along x [m]", true);
@@ -264,7 +264,7 @@ void visit_sim_config(C& c, V& v)
 	v.field("grid", "origin_z", c.grid.origin_z, "structure origin [cells]; -1 = centre");
 	v.field("grid", "periodic_x", c.grid.periodic_x, "periodic boundary along x");
 	v.field("grid", "periodic_z", c.grid.periodic_z, "periodic boundary along z");
-	v.field("grid", "staircase", c.grid.staircase, "staircased (true) or per-component (false) material assignment");
+	v.field("grid", "staircase", c.grid.staircase, "true: staircased material assignment; false: per Yee component");
 
 	v.field("parallel", "ranks_x", c.parallel.ranks_x, "MPI ranks along x");
 	v.field("parallel", "ranks_y", c.parallel.ranks_y, "MPI ranks along y");
@@ -286,7 +286,7 @@ void visit_sim_config(C& c, V& v)
 	v.choice("source", "type", c.source.type, SOURCES, "source; its keys are in the section of the same name");
 	v.choice("source", "signal", c.source.signal, PULSES, "time signal; its keys are in [signal.<name>]");
 	v.field("source", "peak_field", c.source.peak_field, "[V/m]");
-	v.field("source", "allow_truncated_signal", c.source.allow_truncated_signal, "run even when the time steps do not cover the signal (the run stops otherwise)");
+	v.field("source", "allow_truncated_signal", c.source.allow_truncated_signal, "run even when the time steps do not cover the signal");
 	v.field("source", "aux_steps", c.source.aux_steps, "1D auxiliary grid of plane_wave and wave_superposition: steps; -1 = [grid] time_steps");
 	v.field("source", "aux_length_factor", c.source.aux_length_factor, "1D auxiliary grid: length as a multiple of the 3D y extent");
 
@@ -308,10 +308,10 @@ void visit_sim_config(C& c, V& v)
 	v.field("signal.gaussian", "chirp_quadratic", c.signal.gaussian.chirp_quadratic, "quadratic chirp");
 	v.field("signal.gaussian_alt", "center_wavelength", c.signal.gaussian_alt.center_wavelength, "carrier [m]");
 	v.field("signal.gaussian_alt", "width", c.signal.gaussian_alt.width, "[s]");
-	v.field("mode", "efield", c.mode.efield, "MPB E-field file of the band (e.k01.b01.h5), relative to [paths] input_dir");
-	v.field("mode", "hfield", c.mode.hfield, "MPB H-field file of the band (h.k01.b01.h5)");
+	v.field("mode", "efield", c.mode.efield, "MPB E-field file of the band, e.k01.b01.h5, relative to [paths] input_dir");
+	v.field("mode", "hfield", c.mode.hfield, "MPB H-field file of the band, h.k01.b01.h5");
 	v.field("mode", "unit_length", c.mode.unit_length, "[m] MPB's length unit a");
-	v.field("mode", "effective_index", c.mode.effective_index, "n_eff = k / frequency of the band (MPB units)");
+	v.field("mode", "effective_index", c.mode.effective_index, "n_eff = k / frequency of the band in MPB units");
 	v.choice("mode", "propagation_axis", c.mode.propagation_axis, {"x", "y", "z"}, "the mode travels along + this axis");
 	v.field("mode", "position", c.mode.position, "[m] injection plane along the propagation axis, from the structure centre");
 	v.field("mode", "mpb_x_axis", c.mode.mpb_x_axis, "FDTD axis of MPB's x; empty: z for propagation along x, x otherwise");
@@ -337,10 +337,10 @@ void visit_sim_config(C& c, V& v)
 			 "uniform step in wavelength or frequency, or gauss: Gauss-Legendre nodes in frequency, the most accurate band integrals for the points");
 	v.choice("spectrum", "harmonic_band", c.spectrum.harmonic_band, {"none", "second", "third"}, "extra DFT band at 2w / 3w of every point");
 
-	v.field("output", "dft_xy", c.output.dft_xy, "frequency-domain E on the XY plot plane (fields/E_<wl>nm_XY.h5)");
+	v.field("output", "dft_xy", c.output.dft_xy, "frequency-domain E on the XY plot plane: fields/E_<wl>nm_XY.h5");
 	v.field("output", "dft_xz", c.output.dft_xz, "frequency-domain E on the XZ plot plane");
 	v.field("output", "dft_yz", c.output.dft_yz, "frequency-domain E on the YZ plot plane");
-	v.field("output", "dft_magnetic", c.output.dft_magnetic, "also H on the enabled planes (fields/H_<wl>nm_<plane>.h5)");
+	v.field("output", "dft_magnetic", c.output.dft_magnetic, "also H on the enabled planes: fields/H_<wl>nm_<plane>.h5");
 	v.field("output", "volume_dft", c.output.volume_dft, "full-volume E/H DFT");
 	v.field("output", "frames_xy", c.output.frames_xy, "time-domain XY frame period [steps]; 0 = off");
 	v.field("output", "frames_xz", c.output.frames_xz, "");
@@ -350,8 +350,8 @@ void visit_sim_config(C& c, V& v)
 	v.field("output", "xdmf", c.output.xdmf, "write a .xmf next to every HDF5 output, for ParaView / VisIt");
 	v.field("output", "sigma_absorption", c.output.sigma_absorption, "absorption from the sigma|E|^2 volume integral");
 
-	v.field("multipoles", "exact", c.multipoles.exact, "exact multipole decomposition (Alaee et al. 2018)");
-	v.field("multipoles", "lwa", c.multipoles.lwa, "long-wavelength multipoles (kr -> 0 limit of the same integrals); any material model");
+	v.field("multipoles", "exact", c.multipoles.exact, "exact multipole decomposition of Alaee et al. 2018");
+	v.field("multipoles", "lwa", c.multipoles.lwa, "long-wavelength multipoles, the kr -> 0 limit of the same integrals; any material model");
 	v.field("multipoles", "sphere_radius", c.multipoles.sphere_radius, "legacy sphere-sampled multipoles: radius [cells]; 0 = off");
 	v.field("multipoles", "sphere_theta", c.multipoles.sphere_theta, "");
 	v.field("multipoles", "sphere_phi", c.multipoles.sphere_phi, "");
@@ -401,7 +401,7 @@ void visit_sim_config(C& c, V& v)
 	v.choice("temperature", "model", c.temperature.model, {"none", "two_temperature", "load", "pump", "probe"},
 			 "electron temperature: two-temperature model, load <input_dir>/electron_temperature.h5, pump-probe");
 
-	v.field("two_temperature", "save_frames", c.two_temperature.save_frames, "write temperature frames (model = two_temperature)");
+	v.field("two_temperature", "save_frames", c.two_temperature.save_frames, "write temperature frames of model = two_temperature");
 	v.field("two_temperature", "rk_stages", c.two_temperature.rk_stages, "Runge-Kutta stages");
 
 	v.field("pump_probe", "delay", c.pump_probe.delay, "[s]");
@@ -470,7 +470,7 @@ struct Loader
 			std::string all;
 			for (const auto& c : choices)
 				all += (all.empty() ? "" : ", ") + c;
-			throw syntax_error(s, k, "invalid value '" + ref + "' (expected one of: " + all + ")");
+			throw syntax_error(s, k, "invalid value '" + ref + "', expected one of: " + all);
 		}
 	}
 };
@@ -494,7 +494,7 @@ struct Writer
 	{
 		header(s);
 		if (with_docs && (required || (doc && *doc)))
-			out << "; " << (required ? "(required) " : "") << (doc ? doc : "") << "\n";
+			out << "; " << (required ? "required: " : "") << (doc ? doc : "") << "\n";
 		out << k << " = " << format_value(ref) << "\n";
 	}
 
@@ -556,7 +556,7 @@ std::vector<int> rank_starts(const char* axis, int total, int ranks, const std::
 	if (ranks < 1 || 2 * ranks > total)
 		throw validation_error("[parallel] ranks_" + std::string(axis) + " = " + std::to_string(ranks) +
 									": every rank needs at least 2 of the " + std::to_string(total) +
-									" cells along " + axis + " (PML included); use at most " + std::to_string(total / 2));
+									" cells along " + axis + ", PML included; use at most " + std::to_string(total / 2));
 	std::vector<int> start;
 	if (!chunks.empty())
 	{
@@ -565,7 +565,7 @@ std::vector<int> rank_starts(const char* axis, int total, int ranks, const std::
 			if (on_plane(start[r]))
 				throw validation_error("[parallel] " + key + ": the rank boundary at cell " + std::to_string(start[r]) +
 											" lies on the TF/SF plane along " + axis +
-											"; move it by one cell (e.g. " + std::to_string(start[r] + 1) + ")");
+											"; move it by one cell, to " + std::to_string(start[r] + 1));
 		return start;
 	}
 	const int base = total / ranks;
@@ -871,7 +871,7 @@ void validate_sim_config(const SimConfig& c)
 	require(c.run.checkpoint_count >= 1, "[run] checkpoint_count must be >= 1");
 	require(c.run.wallclock_limit_hours >= 0, "[run] wallclock_limit_hours must be >= 0");
 	require(c.boxes.scattering_x >= 0 && c.boxes.scattering_y >= 0 && c.boxes.scattering_z >= 0,
-			"[boxes] scattering_* must be >= 0 (tfsf_* too small?)");
+			"[boxes] scattering_* must be >= 0: tfsf_* may be too small");
 
 	// spectrum: each key means one thing
 	const auto& s = c.spectrum;
@@ -993,7 +993,7 @@ void validate_sim_config(const SimConfig& c)
 		require(a.corner_radius >= 0 && 2 * a.corner_radius <= a.patch_edge, "[anapole] corner_radius must be in [0, patch_edge / 2]");
 		require(a.lobe_length > 0 && a.lobe_height > 0 && a.lobe_exponent > 0, "[anapole] lobe_length, lobe_height and lobe_exponent must be > 0");
 		require(a.gap_length > 0 && a.gap_width > 0, "[anapole] gap_length and gap_width must be > 0");
-		require(s_gap > 0 && s_gap < 1, "[anapole] the gap must end on the lobes: 0 < (gap_length / (2 patch_edge) - lobe_offset) / lobe_length < 1");
+		require(s_gap > 0 && s_gap < 1, "[anapole] the gap must end on the lobes: 0 < (gap_length / 2 / patch_edge - lobe_offset) / lobe_length < 1");
 		require(a.lobe_points >= 8, "[anapole] lobe_points must be >= 8");
 		require(a.lobe_offset + a.lobe_length < 0.5, "[anapole] the lobes must end inside the patch: lobe_offset + lobe_length < 1/2");
 	}
@@ -1017,17 +1017,17 @@ void validate_sim_config(const SimConfig& c)
 	if (type == "mode")
 	{
 		const auto& m = c.mode;
-		require(!m.efield.empty() && !m.hfield.empty(), "[mode] efield and hfield (MPB field files of the band) are required for [source] type = mode");
-		require(m.effective_index > 0, "[mode] effective_index (k / frequency of the band) is required for [source] type = mode");
+		require(!m.efield.empty() && !m.hfield.empty(), "[mode] efield and hfield, the MPB field files of the band, are required for [source] type = mode");
+		require(m.effective_index > 0, "[mode] effective_index, k over the frequency of the band, is required for [source] type = mode");
 		require(m.unit_length > 0, "[mode] unit_length must be > 0");
 		require(signal != "raised_cosine" && signal != "raised_cosine_derivative" && signal != "rectangular" && signal != "sinc" && signal != "constant",
-				"[source] type = mode needs a signal with a carrier at the mode's wavelength (gaussian, gaussian_alt, continuous_wave, cw_pulse)");
+				"[source] type = mode needs a signal with a carrier at the mode's wavelength: gaussian, gaussian_alt, continuous_wave or cw_pulse");
 		const std::string n = lower(m.propagation_axis);
 		const std::string a = lower(m.mpb_x_axis);
 		const std::string b = lower(m.mpb_y_axis);
 		for (const std::string& t : {a, b})
 			require(t.empty() || ((t == "x" || t == "y" || t == "z") && t != n), "[mode] mpb_x_axis and mpb_y_axis must be x, y or z, across the propagation axis");
-		require(a.empty() == b.empty() && (a.empty() || a != b), "[mode] set both mpb_x_axis and mpb_y_axis (different axes) or neither");
+		require(a.empty() == b.empty() && (a.empty() || a != b), "[mode] set both mpb_x_axis and mpb_y_axis, on different axes, or neither");
 	}
 	if (type != "plane_wave" && type != "wave_superposition")
 		require(c.source.aux_length_factor == 1, "[source] aux_length_factor is for type = plane_wave or wave_superposition");
@@ -1048,13 +1048,13 @@ void validate_sim_config(const SimConfig& c)
 	{
 		const auto& p = c.plane_wave;
 		const std::string axis = lower(p.polarization_axis);
-		require(p.propagation_angle == 0, "[plane_wave] propagation_angle must be 0 (oblique incidence: [source] type = wave_superposition)");
+		require(p.propagation_angle == 0, "[plane_wave] propagation_angle must be 0; oblique incidence is [source] type = wave_superposition");
 		require(p.polarization_angle >= -180 && p.polarization_angle <= 180, "[plane_wave] polarization_angle must be in [-180, 180]");
 		if (axis == "rhcp" || axis == "lhcp")
 		{
 			require(p.polarization_angle == 0, "[plane_wave] polarization_angle has no meaning with polarization_axis = " + axis);
 			require(signal == "gaussian" || signal == "gaussian_alt" || signal == "continuous_wave" || signal == "cw_pulse",
-					"[plane_wave] polarization_axis = " + axis + " needs a signal with a carrier (gaussian, gaussian_alt, continuous_wave, cw_pulse)");
+					"[plane_wave] polarization_axis = " + axis + " needs a signal with a carrier: gaussian, gaussian_alt, continuous_wave or cw_pulse");
 		}
 	}
 	if (type == "dipole")
@@ -1085,7 +1085,7 @@ void validate_sim_config(const SimConfig& c)
 		require(c.gaussian_beam.theta_steps > 0 && c.gaussian_beam.phi_steps > 0,
 				"[gaussian_beam] theta_steps and phi_steps are required for type = gaussian_beam");
 		require(c.gaussian_beam.focal_factor > 0 && c.gaussian_beam.waist_factor > 0 && c.gaussian_beam.theta_max > 0,
-				"[gaussian_beam] focal_factor, waist_factor and theta_max must be > 0 for type = gaussian_beam (a zero focal length or waist gives 0/0 amplitudes)");
+				"[gaussian_beam] focal_factor, waist_factor and theta_max must be > 0 for type = gaussian_beam: a zero focal length or waist gives 0/0 amplitudes");
 	}
 
 	if (!err.empty())
@@ -1156,15 +1156,13 @@ std::string template_ini()
 	SimConfig c;
 	Writer w;
 	w.with_docs = true;
-	w.out << "; 3D-FDTD configuration template (generated by `fdtd template`).\n"
-			 "; Every key is optional unless marked (required); values shown are the defaults.\n"
-			 "; Any key can be overridden from the command line: --set section.key=value\n";
+	w.out << "; 3D-FDTD configuration template, every key with its default; required keys are marked\n";
 	visit_sim_config(c, w);
-	w.out << "\n; time-domain probes, one section each (at most 10):\n; [probe.center]\n; x = 100\n; y = 100\n; z = 100\n";
+	w.out << "\n; time-domain probes, one section each, at most 10:\n; [probe.center]\n; x = 100\n; y = 100\n; z = 100\n";
 	w.out << "\n; monitor boxes, one section each:\n; [monitor.gap]\n; type = frequency    ; frequency | time\n"
 			 "; center_x = 100\n; center_y = 100\n; center_z = 100\n; size_x = 20\n; size_y = 20\n; size_z = 20\n; step = 1\n";
 	w.out << "\n; point dipoles of [source] type = dipole, one section each:\n; [dipole.a]\n; x = 100\n; y = 100\n; z = 100\n; e_x = 0\n; e_y = 0\n; e_z = 1\n";
-	w.out << "\n; boxes of one material, drawn before the [geometry] shape in file order (layers, gratings):\n; [block.substrate]\n"
+	w.out << "\n; boxes of one material, layers and gratings, drawn before the [geometry] shape in file order:\n; [block.substrate]\n"
 			 "; material = glass\n; y_max = -50e-9      ; bounds from the structure centre [m]; omitted: past the domain\n"
 			 "; [block.teeth]\n; material = silicon\n; x_min = 0\n; x_max = 500e-9\n; y_min = -400e-9\n; y_max = 0\n; count = 10\n; pitch_x = 1e-6\n";
 	w.out << "\n; materials by name: a [material.<name>] section here, or <name>.ini in the catalog, docs/Materials.md.\n"

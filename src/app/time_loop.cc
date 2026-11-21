@@ -120,8 +120,6 @@ void Driver::update_electric()
 	// nonlinearity added to the E update: also exchange the longitudinal components
 	if ((run_cfg.nonlinear.second_harmonic || run_cfg.nonlinear.third_harmonic) && !run_cfg.nonlinear.pnl_approach)
 	{
-		if (fdtd::grid::world_rank == ROOTPROCESS && fdtd::app::run_state().timestep == 1)
-			fdtd::io::log("run", "Nonlinearity added to the electric-field update\n");
 		fdtd::materials::nonlinear::update_field();
 		fields::exchange_longitudinal_e();
 	}
@@ -164,9 +162,17 @@ void Driver::print_trace()
 
 	if (_cfg.run.trace_interval <= 0 || fdtd::app::run_state().timestep % _cfg.run.trace_interval != 0)
 		return;
-	fdtd::io::log("trace", "step %d signal %.5e Ex %.5e Ey %.5e Ez %.5e", fdtd::app::run_state().timestep, fdtd::sources::signal_value(fdtd::app::run_state().t), Ex[I][J][K], Ey[I][J][K], Ez[I][J][K]);
-	if (run_cfg.thermal.two_temperature_model)
-		fdtd::io::log("trace", "Te %.5e Tl %.5e", fdtd::materials::thermal::electron_temp[I][J][K], fdtd::materials::thermal::lattice_temp[I][J][K]);
+	const bool ttm = run_cfg.thermal.two_temperature_model;
+	static bool header = true;
+	if (header)
+		fdtd::io::log("trace", "step,signal,ex,ey,ez%s", ttm ? ",te,tl" : "");
+	header = false;
+	if (ttm)
+		fdtd::io::log("trace", "%d,%.5e,%.5e,%.5e,%.5e,%.5e,%.5e", fdtd::app::run_state().timestep, fdtd::sources::signal_value(fdtd::app::run_state().t), Ex[I][J][K], Ey[I][J][K],
+					  Ez[I][J][K], fdtd::materials::thermal::electron_temp[I][J][K], fdtd::materials::thermal::lattice_temp[I][J][K]);
+	else
+		fdtd::io::log("trace", "%d,%.5e,%.5e,%.5e,%.5e", fdtd::app::run_state().timestep, fdtd::sources::signal_value(fdtd::app::run_state().t), Ex[I][J][K], Ey[I][J][K],
+					  Ez[I][J][K]);
 }
 
 /// Collective wall-clock guard, was: hardcoded 23.5 h measured with CPU clock().
@@ -181,14 +187,14 @@ bool Driver::wallclock_exceeded()
 		{
 			const double elapsed = MPI_Wtime() - c.loop_start_wtime;
 			c.stop_at_step = int(std::ceil(_cfg.run.wallclock_limit_hours * 3600.0 * fdtd::app::run_state().timestep / std::max(elapsed, 1e-9)));
-			fdtd::io::log("run", "wall-clock limit %.2f h -> stopping at step %d at the latest\n", _cfg.run.wallclock_limit_hours, c.stop_at_step);
+			fdtd::io::log("run", "wall-clock limit %.2f h, the run stops at step %d at the latest", _cfg.run.wallclock_limit_hours, c.stop_at_step);
 		}
 		MPI_Bcast(&c.stop_at_step, 1, MPI_INT, ROOTPROCESS, MPI_COMM_WORLD);
 	}
 	if (c.stop_at_step > 0 && fdtd::app::run_state().timestep >= c.stop_at_step)
 	{
 		if (fdtd::grid::world_rank == ROOTPROCESS)
-			fdtd::io::log("run", "run interrupted at step %d (wall-clock limit)\n", fdtd::app::run_state().timestep);
+			fdtd::io::log("run", "wall-clock limit reached at step %d", fdtd::app::run_state().timestep);
 		return true;
 	}
 	return false;
@@ -267,7 +273,7 @@ void Driver::run_time_loop()
 	max_time_itr = fdtd::app::run_state().nr_max_time_steps;
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("run", "Time loop: %d steps, dt = %e s\n", max_time_itr, run_cfg.time.dt);
+		fdtd::io::log("run", "time loop of %d steps, dt %e s", max_time_itr, run_cfg.time.dt);
 
 	bool stopped = false;
 	for (fdtd::app::run_state().timestep = _completed_steps + 1; fdtd::app::run_state().timestep <= max_time_itr; ++fdtd::app::run_state().timestep)
@@ -288,7 +294,7 @@ void Driver::run_time_loop()
 		if ((_signal = app::agree_signal(MPI_COMM_WORLD)) != 0)
 		{
 			if (fdtd::grid::world_rank == ROOTPROCESS)
-				fdtd::io::log("run", "Signal %d received: stopping after step %d of %d, writing the outputs\n", _signal, fdtd::app::run_state().timestep, max_time_itr);
+				fdtd::io::log("run", "signal %d received, stopping after step %d of %d and writing the outputs", _signal, fdtd::app::run_state().timestep, max_time_itr);
 			stopped = true;
 		}
 		if (wallclock_exceeded()) // the step is complete either way: a restart continues with the next one
@@ -321,7 +327,7 @@ void Driver::save_state()
 	if (!written)
 		fdtd::io::log("state", "not written: %s", why.c_str());
 	else if (fdtd::grid::world_rank == ROOTPROCESS && every)
-		fdtd::io::log("state", "written after step %d to %s: continue with simulate --restart", fdtd::app::run_state().timestep, run_cfg.output.state_dir.c_str());
+		fdtd::io::log("state", "written after step %d to %s, continue with simulate --restart", fdtd::app::run_state().timestep, run_cfg.output.state_dir.c_str());
 }
 
 /// Restart: the run is set up; load what the interrupted run left and continue after its last step.

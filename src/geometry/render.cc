@@ -88,13 +88,13 @@ void create_plasmonic_anapole(const geom::AnapoleSpec &a, int material, int ci, 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
 		const double s_gap = (0.5 * a.gap_length / a.patch_edge - a.lobe_offset) / a.lobe_length;
-		fdtd::io::log("geometry", "Plasmonic anapole: patch %.4g nm, thickness %.4g nm, corner radius %.4g nm, gap %.4g x %.4g nm, lobe tip %.4g nm, "
-					"lobe half-height at the gap %.4g nm\n",
+		fdtd::io::log("anapole", "patch_nm,thickness_nm,corner_radius_nm,gap_length_nm,gap_width_nm,lobe_tip_nm,lobe_half_height_nm");
+		fdtd::io::log("anapole", "%.4g,%.4g,%.4g,%.4g,%.4g,%.4g,%.4g",
 					a.patch_edge * 1e9, a.thickness * 1e9, a.corner_radius * 1e9, a.gap_length * 1e9, a.gap_width * 1e9,
 					a.patch_edge * (a.lobe_offset + a.lobe_length) * 1e9,
 					a.patch_edge * a.lobe_height * std::pow(s_gap, a.lobe_exponent) * std::sqrt(1 - s_gap * s_gap) * 1e9);
 		if (a.gap_length < 2 * lat.d[0] || a.gap_width < 2 * lat.d[2])
-			fdtd::io::log("geometry", "  warning: the gap is less than two cells wide, %.3g nm cells\n", lat.d[0] * 1e9);
+			fdtd::io::log("warning", "the anapole gap is less than two cells wide, %.3g nm cells", lat.d[0] * 1e9);
 	}
 	render_parts(parts, ci, cj, ck, Staircase::CellCentre);
 }

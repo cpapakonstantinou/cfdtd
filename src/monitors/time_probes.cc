@@ -94,8 +94,8 @@ void TimeProbes::write(int step) const
 		const int x = P.x - subdomain.inner_org_x;
 		const int y = P.y - subdomain.inner_org_y;
 		const int z = P.z - subdomain.inner_org_z;
-		std::fprintf(f, "# material slots of Ex, Ey, Ez: %d %d %d\n", matind_x[x][y][z], matind_y[x][y][z], matind_z[x][y][z]);
-		std::fprintf(f, "# Ex\tEy\tEz\tHx\tHy\tHz, one row per step\n");
+		std::fprintf(f, "# material slots: %d %d %d\n", matind_x[x][y][z], matind_y[x][y][z], matind_z[x][y][z]);
+		std::fprintf(f, "# ex\tey\tez\thx\thy\thz\n");
 		for (int s = 0; s < step; s++)
 			std::fprintf(f, "%e\t%e\t%e\t%e\t%e\t%e\n", E[0](p, s), E[1](p, s), E[2](p, s), H[0](p, s), H[1](p, s), H[2](p, s));
 		std::fclose(f);

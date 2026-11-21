@@ -8,7 +8,8 @@
  *
  *  It builds the signal exactly as the solver does, the `sources` module, from the same
  *  configuration, and samples it. No MPI, no fields: it runs on a login node in well under a second.
- *  Every output line starts with a key, so `grep '^signal:'` or `grep '^config:'` extracts a part.
+ *  Every table is one key: its first line the comma-separated header, then one line per row, so
+ *  `grep '^band:'` extracts a CSV table.
  **/
 #include "app/signal_report.h"
 #include "app/run_config.h"
@@ -22,6 +23,7 @@
 #include "sources/state.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -29,6 +31,7 @@
 #include <fstream>
 #include <getopt.h>
 #include <limits>
+#include <string>
 #include <sstream>
 #include <vector>
 #include "app/signal_config.h"
@@ -38,34 +41,36 @@ namespace
 void print_usage(std::FILE *to)
 {
 	std::fprintf(to,
-				 "usage: fdtd signal [options] run.ini\n"
+				 "usage: fdtd signal [-s SECTION.KEY=VALUE]... [-t X] [-c X] [-e X] run.ini\n"
+				 "Report the source signal, the time steps it needs, its spectrum and the harmonic noise floors.\n"
 				 "\n"
-				 "Reports the length of the source signal of a run, the time steps it needs and the\n"
-				 "signal amplitude at the analysed wavelengths, and the pump's own power at the second and\n"
-				 "third harmonic, the floor a harmonic signal must exceed, for the configured time steps.\n"
-				 "With a [spectrum] harmonic_band, the share of the pump and of the harmonic inside the bands,\n"
-				 "the accuracy of the band rule and the noise efficiency of the harmonic band.\n"
-				 "\n"
-				 "options:\n"
-				 "  -s, --set SECTION.KEY=VAL  override a configuration key, repeatable, e.g. -s signal.gaussian.width=20e-15\n"
-				 "  -t, --threshold X          the signal counts as on above X of its peak, default 1e-3\n"
-				 "  -c, --capture X            share of the harmonic the band should hold, default 0.999\n"
-				 "  -e, --efficiency X         expected harmonic efficiency, for the margin above the noise\n"
-				 "  -h, --help                 show this help\n");
+				 "  -s, --set SECTION.KEY=VALUE  override a configuration key\n"
+				 "  -t, --threshold X            level that ends the signal, relative to its peak; default 1e-3\n"
+				 "  -c, --capture X              share of the harmonic the harmonic band must hold; default 0.999\n"
+				 "  -e, --efficiency X           expected harmonic efficiency, for the noise margin\n"
+				 "  -h, --help                   print this help\n");
+}
+
+/// one row of the config table: section, key, value
+using ConfigRow = std::array<std::string, 3>;
+
+std::string number(const char *format, double v)
+{
+	char b[64];
+	std::snprintf(b, sizeof b, format, v);
+	return b;
 }
 
 /// The a priori estimates for the bands of [spectrum]: the share of the pump and of the harmonic the
 /// bands hold, the accuracy of the band rule, and the noise efficiency of the harmonic band. The
 /// harmonic is that of an instantaneous response, flat over the band: the k-th power of the signal.
-void band_report(const fdtd::config::SpectrumSection &s, bool carrier, double f0, double dt, int configured, int span, double capture, double expected)
+void band_report(const fdtd::config::SpectrumSection &s, bool carrier, double f0, double dt, int configured, int span, double capture, double expected,
+				 std::vector<ConfigRow> &config_rows)
 {
 	using fdtd::constants::C0;
 	using fdtd::constants::PI2;
 	if (s.points < 2)
-	{
-		std::printf("band: a single wavelength, no band\n");
 		return;
-	}
 	const int k = fdtd::config::harmonic_order(s.harmonic_band);
 	const double fa = C0 / s.lambda_max;
 	const double fb = C0 / s.lambda_min;
@@ -89,49 +94,36 @@ void band_report(const fdtd::config::SpectrumSection &s, bool carrier, double f0
 		samples.push_back(fdtd::sources::signal_value(n * dt));
 	const fdtd::sources::SampledSignal pulse(std::move(samples), stride * dt);
 
-	std::printf("band: pump %.4f to %.4f nm, %.4f to %.4f THz, %d points, %s spacing\n", s.lambda_min * 1e9, s.lambda_max * 1e9, fa / 1e12, fb / 1e12,
-				s.points, s.spacing.c_str());
-	const double pump_fwhm = carrier ? pulse.fwhm(0.5 * f0, 1.5 * f0) : pulse.fwhm(0, 2 * fb);
-	if (std::isfinite(pump_fwhm))
-		std::printf("band: pump_fwhm %.3f THz, %.2f nm at the fundamental (spectral intensity of the signal)\n", pump_fwhm / 1e12, C0 * pump_fwhm / (f0 * f0) * 1e9);
-	else
-		std::printf("band: pump_fwhm wider than the search range\n");
+	auto row = [&](const char *name, int order, double fwhm, double in_band, double rule_error, const char *verdict) {
+		const double c = order * f0;
+		std::printf("band: %s,%.4f,%.4f,%.4f,%.4f,%s,%s,%s,%s,%s\n", name, s.lambda_min / order * 1e9, s.lambda_max / order * 1e9, order * fa / 1e12,
+					order * fb / 1e12, std::isfinite(fwhm) ? number("%.3f", fwhm / 1e12).c_str() : "", std::isfinite(fwhm) ? number("%.2f", C0 * fwhm / (c * c) * 1e9).c_str() : "",
+					std::isfinite(in_band) ? number("%.4f", in_band).c_str() : "", std::isfinite(rule_error) ? number("%.2e", rule_error).c_str() : "", verdict);
+	};
+	std::printf("band: band,lambda_min_nm,lambda_max_nm,f_min_thz,f_max_thz,fwhm_thz,fwhm_nm,in_band,rule_error,verdict\n");
 	const double pump_band = pulse.band_energy(fa, fb);
-	std::printf("band: pump_in_band %.4f (share of the input fluence; the efficiency takes its input from the time signal, so this limits only the linear spectra)\n",
-				pump_band / pulse.fluence());
-	std::printf("band: pump_rule_error %.2e (the %d-point rule of the band against a converged integral)\n",
-				std::fabs(pulse.rule_energy(pump_f, weights) / pump_band - 1), s.points);
+	row("pump", 1, carrier ? pulse.fwhm(0.5 * f0, 1.5 * f0) : pulse.fwhm(0, 2 * fb), pump_band / pulse.fluence(),
+		std::fabs(pulse.rule_energy(pump_f, weights) / pump_band - 1), "");
 	if (k < 2)
 		return;
 
-	std::printf("band: harmonic %s %.4f to %.4f nm, %.4f to %.4f THz\n", s.harmonic_band.c_str(), s.lambda_min / k * 1e9, s.lambda_max / k * 1e9, k * fa / 1e12,
-				k * fb / 1e12);
+	const double nan = std::numeric_limits<double>::quiet_NaN();
 	if (!carrier)
-		std::printf("band: harmonic share not estimated: the signal has no carrier, its harmonics overlap\n");
+		row(s.harmonic_band.c_str(), k, nan, nan, nan, "");
 	else
 	{
 		const fdtd::sources::SampledSignal harmonic = pulse.power(k);
 		const double lobe = harmonic.band_energy((k - 0.5) * f0, (k + 0.5) * f0);
 		const double in_band = harmonic.band_energy(k * fa, k * fb);
-		const double harmonic_fwhm = harmonic.fwhm((k - 0.5) * f0, (k + 0.5) * f0);
-		if (std::isfinite(harmonic_fwhm))
-			std::printf("band: harmonic_fwhm %.3f THz, %.2f nm at %d f (spectral intensity of the signal to the power %d)\n", harmonic_fwhm / 1e12,
-						C0 * harmonic_fwhm / (k * f0 * k * f0) * 1e9, k, k);
-		std::printf("band: harmonic_in_band %.4f (share of the harmonic energy near %d f; the harmonic efficiency is low by this factor)\n", in_band / lobe, k);
-		std::printf("band: harmonic_rule_error %.2e (the %d-point rule of the harmonic band against a converged integral)\n",
-					std::fabs(harmonic.rule_energy(harmonic_f, harmonic_w) / in_band - 1), s.points);
-		if (in_band >= capture * lobe)
-			std::printf("band: verdict covered (the band holds at least %g of the harmonic)\n", capture);
-		else
+		const bool covered = in_band >= capture * lobe;
+		row(s.harmonic_band.c_str(), k, harmonic.fwhm((k - 0.5) * f0, (k + 0.5) * f0), in_band / lobe,
+			std::fabs(harmonic.rule_energy(harmonic_f, harmonic_w) / in_band - 1), covered ? "covered" : "narrow");
+		// a band centred on the carrier in frequency that holds the share asked for
+		const double h = covered ? nan : harmonic.half_width_for(k * f0, capture * lobe, 0.5 * f0);
+		if (std::isfinite(h))
 		{
-			std::printf("band: verdict NARROW: %.1f %% of the harmonic falls outside the band; widen the band or lengthen the pulse\n", 100 * (1 - in_band / lobe));
-			const double h = harmonic.half_width_for(k * f0, capture * lobe, 0.5 * f0);
-			if (std::isfinite(h))
-			{
-				std::printf("band: the band below is centred on the carrier in frequency and holds %g of the harmonic\n", capture);
-				std::printf("config: [spectrum] lambda_min = %.4e\n", C0 / (f0 + h / k));
-				std::printf("config: [spectrum] lambda_max = %.4e\n", C0 / (f0 - h / k));
-			}
+			config_rows.push_back({"spectrum", "lambda_min", number("%.6e", C0 / (f0 + h / k))});
+			config_rows.push_back({"spectrum", "lambda_max", number("%.6e", C0 / (f0 - h / k))});
 		}
 	}
 
@@ -145,11 +137,9 @@ void band_report(const fdtd::config::SpectrumSection &s, bool carrier, double f0
 	// rounding of N terms of the DFT sum, a random walk of eps |s_n|: energy 2 eps^2 dt^2 sum s_n^2 per Hz
 	const double eps = 0.5 * std::numeric_limits<double>::epsilon();
 	const double rounding = 2 * eps * eps * dt * k * (fb - fa);
-	std::printf("band: noise_efficiency %.3e (the pump's own energy in the harmonic band over the input fluence, %d steps; for a linear response of 1 a harmonic efficiency near this is the pump)\n",
-				noise, configured);
-	std::printf("band: rounding_efficiency %.3e (double rounding of the DFT sums alone, %d steps)\n", rounding, configured);
-	if (expected > 0)
-		std::printf("band: margin %.1f dB (expected efficiency %g over the larger of the two)\n", 10 * std::log10(expected / std::max(noise, rounding)), expected);
+	std::printf("noise: steps,noise_efficiency,rounding_efficiency,expected_efficiency,margin_db\n");
+	std::printf("noise: %d,%.3e,%.3e,%s,%s\n", configured, noise, rounding, expected > 0 ? number("%g", expected).c_str() : "",
+				expected > 0 ? number("%.1f", 10 * std::log10(expected / std::max(noise, rounding))).c_str() : "");
 }
 } // namespace
 
@@ -204,11 +194,7 @@ int fdtd::app::signal_report(int argc, char *argv[])
 		// time for light to cross the longest side of the domain in vacuum
 		const double side = std::max({rc.grid.nr_cells_tot_x * rc.grid.dx, rc.grid.nr_cells_tot_y * rc.grid.dy, rc.grid.nr_cells_tot_z * rc.grid.dz});
 		const int transit = int(std::ceil(side / (fdtd::constants::C0 * dt)));
-
-		std::printf("signal: type %s\n", config.source.signal.c_str());
-		std::printf("signal: dt %.6e s\n", dt);
-		std::printf("signal: steps_configured %d (%.4e s)\n", configured, configured * dt);
-		std::printf("signal: transit_steps %d (vacuum, longest side %.4e m)\n", transit, side);
+		std::vector<ConfigRow> config_rows;
 
 		// widen the window until the signal ends well inside it; last_on -1 when no end is found
 		auto find_extent = [&](double level) {
@@ -222,23 +208,24 @@ int fdtd::app::signal_report(int argc, char *argv[])
 		};
 		fdtd::sources::SignalExtent e{};
 		if (steady)
-			std::printf("signal: steady (no end): the step count is set by the settling time, not by the signal\n");
+		{
+			std::printf("signal: type,dt_s,steps,transit_steps,verdict\n");
+			std::printf("signal: %s,%.6e,%d,%d,steady\n", config.source.signal.c_str(), dt, configured, transit);
+		}
 		else
 		{
 			e = find_extent(threshold);
 			if (e.last_on < 0)
 			{
-				std::printf("signal: no end found within 50000000 steps\n");
+				std::fprintf(stderr, "error: the signal does not end within 50000000 steps\n");
 				return 1;
 			}
 			const int needed = e.last_on + std::max(1, e.last_on / 50) + 1;
 			const int recommended = ((needed + 2 * transit) / 10 + 1) * 10;
-			std::printf("signal: peak %.6e at step %d (%.4e s)\n", e.peak, e.peak_step, e.peak_step * dt);
-			std::printf("signal: last_step_on %d (%.4e s, above %g of the peak)\n", e.last_on, e.last_on * dt, threshold);
-			std::printf("signal: steps_minimum %d (the solver's guard: the signal ends before the last 2 %% of the run)\n", needed);
-			std::printf("signal: steps_recommended %d (signal + 2 transits; resonant structures ring longer)\n", recommended);
-			std::printf("signal: verdict %s\n", configured >= needed ? "covered" : "TRUNCATED: the run would stop at the guard");
-			std::printf("config: [grid] time_steps = %d\n", std::max(configured, recommended));
+			std::printf("signal: type,dt_s,steps,transit_steps,peak,peak_step,last_on_step,steps_minimum,steps_recommended,verdict\n");
+			std::printf("signal: %s,%.6e,%d,%d,%.6e,%d,%d,%d,%d,%s\n", config.source.signal.c_str(), dt, configured, transit, e.peak, e.peak_step, e.last_on,
+						needed, recommended, configured >= needed ? "covered" : "truncated");
+			config_rows.push_back({"grid", "time_steps", std::to_string(std::max(configured, recommended))});
 		}
 
 		// amplitude of the signal at the analysed frequencies, the DFT over the run's steps as the monitors take it
@@ -255,16 +242,15 @@ int fdtd::app::signal_report(int argc, char *argv[])
 		// the linear spectra divide by the pump points; the harmonic band is the raw DFT, not normalised
 		const double top = omegas.empty() ? 0 : *std::max_element(amplitude.begin(), amplitude.begin() + std::min(pump_points, omegas.size()));
 		int weak = 0;
+		std::printf("spectrum: lambda_nm,band,amplitude,relative,flag\n");
 		for (std::size_t m = 0; m < omegas.size(); ++m)
 		{
 			const double rel = top > 0 ? amplitude[m] / top : 0;
 			const bool pump = m < pump_points;
 			weak += pump && rel < 1e-2;
-			std::printf("spectrum: %.4f nm amplitude %.4e relative %.4e%s\n", 2 * M_PI * fdtd::constants::C0 / omegas[m] * 1e9, amplitude[m], rel,
-						!pump ? " harmonic (raw DFT, not normalised)" : rel < 1e-2 ? " WEAK" : "");
+			std::printf("spectrum: %.4f,%s,%.4e,%.4e,%s\n", 2 * M_PI * fdtd::constants::C0 / omegas[m] * 1e9, pump ? "pump" : "harmonic", amplitude[m], rel,
+						!pump ? "raw" : rel < 1e-2 ? "weak" : "ok");
 		}
-		if (weak)
-			std::printf("spectrum: %d of %zu pump points below 1e-2 of the strongest: the normalised spectra are noisy there\n", weak, pump_points);
 
 		// The pump's own spectral power at 2 f and 3 f, from a DFT over the run's steps as the solver's
 		// monitors take it: the floor below which a harmonic is not seen. Cutting the signal off, or,
@@ -278,24 +264,14 @@ int fdtd::app::signal_report(int argc, char *argv[])
 				sum += fdtd::sources::signal_value(n * dt) * std::exp(std::complex<double>(0, w * n));
 			return std::norm(sum);
 		};
+		// -250 dB stands for double-precision rounding and below
 		auto floor_db = [&](int harmonic, int steps) {
 			const double p1 = power_at(f0, steps);
 			const double ph = power_at(harmonic * f0, steps);
-			return p1 > 0 && ph > 0 ? 10 * std::log10(ph / p1) : -INFINITY;
+			return p1 > 0 && ph > 0 ? std::max(-250.0, 10 * std::log10(ph / p1)) : -250.0;
 		};
-		auto show = [](double db) {
-			char b[64];
-			if (db < -250)
-				std::snprintf(b, sizeof b, "< -250 dB (double-precision rounding)");
-			else
-				std::snprintf(b, sizeof b, "%.1f dB", db);
-			return std::string(b);
-		};
-		std::printf("harmonic: fundamental %.4f nm (%s); [nonlinear] shg = %s, thg = %s\n", fdtd::constants::C0 / f0 * 1e9,
-					carrier ? "signal carrier" : "[spectrum] centre", config.nonlinear.shg ? "true" : "false", config.nonlinear.thg ? "true" : "false");
-		for (int h = 2; h <= 3; ++h)
-			std::printf("harmonic: %s %.4f nm floor %s (pump power at %d f relative to f, %d steps)\n", h == 2 ? "shg" : "thg",
-						fdtd::constants::C0 / (h * f0) * 1e9, show(floor_db(h, configured)).c_str(), h, configured);
+		std::printf("harmonic: fundamental_nm,reference\n");
+		std::printf("harmonic: %.4f,%s\n", fdtd::constants::C0 / f0 * 1e9, carrier ? "carrier" : "centre");
 		// how the floor moves with the number of steps
 		const int complete = steady ? 0 : e.last_on + std::max(1, e.last_on / 50) + 1;
 		std::vector<int> trial = {configured / 2, configured, 2 * configured, 4 * configured};
@@ -303,14 +279,20 @@ int fdtd::app::signal_report(int argc, char *argv[])
 			trial.push_back(complete);
 		std::sort(trial.begin(), trial.end());
 		trial.erase(std::unique(trial.begin(), trial.end()), trial.end());
+		std::printf("floor: steps,shg_db,thg_db,note\n");
 		for (int n : trial)
 			if (n > 0)
-				std::printf("harmonic: steps %d shg_floor %s thg_floor %s%s\n", n, show(floor_db(2, n)).c_str(), show(floor_db(3, n)).c_str(),
-							n == configured ? " (configured)" : n == complete ? " (signal above the threshold covered)" : "");
-		if (!steady && configured < e.last_on)
-			std::printf("harmonic: the signal is cut off at the last step: its spectrum spreads and the floors are raised; run to the signal's end\n");
+				std::printf("floor: %d,%.1f,%.1f,%s\n", n, floor_db(2, n), floor_db(3, n), n == configured ? "configured" : n == complete ? "signal_end" : "");
 
-		band_report(config.spectrum, carrier, f0, dt, configured, steady ? configured : find_extent(1e-8).last_on + 1, capture, expected);
+		band_report(config.spectrum, carrier, f0, dt, configured, steady ? configured : find_extent(1e-8).last_on + 1, capture, expected, config_rows);
+
+		std::printf("config: section,key,value\n");
+		for (const ConfigRow &r : config_rows)
+			std::printf("config: %s,%s,%s\n", r[0].c_str(), r[1].c_str(), r[2].c_str());
+		if (weak)
+			std::printf("warning: %d of %zu pump points are below 1e-2 of the strongest, the normalised spectra are noisy there\n", weak, pump_points);
+		if (!steady && configured < e.last_on)
+			std::printf("warning: the last step cuts the signal off, which raises the harmonic floors\n");
 	}
 	catch (const std::exception &e)
 	{

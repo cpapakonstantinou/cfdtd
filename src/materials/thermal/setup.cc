@@ -24,12 +24,10 @@ void fdtd::materials::thermal::load_probe_temperature_1d(){
 	std::fstream pfin;
 	pfin.open(strS.c_str(), std::ios::in);
 	if (pfin.is_open()) {
-		fdtd::io::log("thermal", "%s\t%s\n", strS.c_str(), "LOADED");
+		fdtd::io::log("thermal", "loaded %s", strS.c_str());
 		for (timestep = 1; timestep <= nr_max_time_steps_pump; timestep++) {
 			for (j = 0; j <= subdomain.cells_y; j++) {
 				temp_save[0][timestep][j] = double(atof(fdtd::io::read_text_entry(pfin).c_str()));
-				if (fdtd::grid::world_rank == 30 && timestep == 100000)
-					fdtd::io::log("thermal", "Temp Here = %e\n", temp_save[0][timestep][j]);
 			}
 		}
 	}
@@ -50,11 +48,10 @@ void fdtd::materials::thermal::load_static_temperature(){
 	MPI_Barrier(MPI_COMM_WORLD);
 	fdtd::materials::thermal::read_temperature();
 	MPI_Barrier(MPI_COMM_WORLD);
-	fdtd::io::log("thermal", "LOADING: %d\t%d\t%d\n", fdtd::grid::lattice().inner(0), fdtd::grid::lattice().inner(1), fdtd::grid::lattice().inner(2));
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	if (fdtd::grid::world_rank == ROOTPROCESS) {
-		fdtd::io::log("thermal", "Temperature Field Loaded!\n");
+		fdtd::io::log("thermal", "temperature field loaded");
 	}
 
 	for (i = 0; i <= subdomain.inner_dim_x; ++i) {

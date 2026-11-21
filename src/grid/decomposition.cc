@@ -422,9 +422,15 @@ bool LatticeSetup::global_planes()
 	J_Animation2 = planes.plot_y2;
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("grid", "plot planes: x = %d, y = %d, z = %d, y1 = %d, y2 = %d\n", I_Animation, J_Animation, K_Animation, J_Animation1, J_Animation2);
+	{
+		fdtd::io::log("planes", "x,y,z,y1,y2");
+		fdtd::io::log("planes", "%d,%d,%d,%d,%d", I_Animation, J_Animation, K_Animation, J_Animation1, J_Animation2);
+	}
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("grid", "flux boxes along y: scattering %d to %d, total %d to %d\n", QSCAglobneaY, QSCAglobfarY, QTOTglobneaY, QTOTglobfarY);
+	{
+		fdtd::io::log("flux_y", "scattering_near,scattering_far,total_near,total_far");
+		fdtd::io::log("flux_y", "%d,%d,%d,%d", QSCAglobneaY, QSCAglobfarY, QTOTglobneaY, QTOTglobfarY);
+	}
 
 	return false;
 }
@@ -1570,14 +1576,15 @@ bool fdtd::grid::print_decomposition(){
 	auto list = [](const std::vector<int> &cells, int n) {
 		std::string text;
 		for (int i = 0; i < n; ++i)
-			text += (i ? ", " : "") + std::to_string(cells[i]);
+			text += (i ? " " : "") + std::to_string(cells[i]);
 		return text;
 	};
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
-		fdtd::io::log("grid", "subdomain cells x: %s", list(fdtd::grid::cells_per_rank_x, num_mpi_processes_x).c_str());
-		fdtd::io::log("grid", "subdomain cells y: %s", list(fdtd::grid::cells_per_rank_y, num_mpi_processes_y).c_str());
-		fdtd::io::log("grid", "subdomain cells z: %s", list(fdtd::grid::cells_per_rank_z, num_mpi_processes_z).c_str());
+		fdtd::io::log("subdomain", "axis,cells_per_rank");
+		fdtd::io::log("subdomain", "x,%s", list(fdtd::grid::cells_per_rank_x, num_mpi_processes_x).c_str());
+		fdtd::io::log("subdomain", "y,%s", list(fdtd::grid::cells_per_rank_y, num_mpi_processes_y).c_str());
+		fdtd::io::log("subdomain", "z,%s", list(fdtd::grid::cells_per_rank_z, num_mpi_processes_z).c_str());
 	}
 	//
 	return false;

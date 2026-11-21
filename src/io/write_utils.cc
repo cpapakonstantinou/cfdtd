@@ -38,7 +38,7 @@ bool ensure_directory(std::string &dirPath)
 	{
 		if (!fs::is_directory(dirPath))
 		{
-			printf("\nERROR: Path exists but is not a directory\n\n");
+			std::fprintf(stderr, "error: %s exists and is not a directory\n", dirPath.c_str());
 			return true;
 		}
 		else
@@ -102,7 +102,7 @@ bool fdtd::io::write_log(const std::string &text, const std::string &dir, clock_
 	fprintf(pFile, ("%4.0fh:%2.0fm:%2.0fs %s\n"), hours, minutes, seconds, text.c_str());
 	fclose(pFile);
 	if (verbose)
-		fdtd::io::log("run", "%s (elapsed %.0f h %.0f m %.0f s)", text.c_str(), hours, minutes, seconds);
+		fdtd::io::log("run", "%s, elapsed %.0f h %.0f m %.0f s", text.c_str(), hours, minutes, seconds);
 
 	return error;
 }

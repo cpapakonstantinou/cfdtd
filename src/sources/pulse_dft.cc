@@ -85,7 +85,7 @@ int fdtd::sources::transform_pulse(int steps)
 	SignalTransformVec = fdtd::vector1<std::complex<double>>(sp.nr_frequencies);
 	FILE *sigfile = nullptr;
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		sigfile = fdtd::io::open_report(sp.reports_dir + "/source_signal.txt", "signal\tcarrier, one row per step from the DFT start");
+		sigfile = fdtd::io::open_report(sp.reports_dir + "/source_signal.txt", "signal\tcarrier");
 
 	// the incident fluence from the signal itself, integral of E^2 dt; the band only weights the index
 	double time_fluence = 0.0; // V^2 s/m^2
@@ -117,9 +117,9 @@ int fdtd::sources::transform_pulse(int steps)
 
 	if (fdtd::grid::world_rank == ROOTPROCESS && !sp.grating)
 	{
-		fdtd::io::log("sources", "Time steps required for excitation: %d, DFT calculated from step %d\n", n_max, n_start);
+		fdtd::io::log("sources", "excitation of %d steps, the DFT starts at step %d", n_max, n_start);
 
-		if (FILE *string_DFT = fdtd::io::open_report(sp.reports_dir + "/source_spectrum.txt", "LAMBDA[nm]\t DFT_module\t DFT_phase\t N_samples\t DFT_re\t DFT_im"))
+		if (FILE *string_DFT = fdtd::io::open_report(sp.reports_dir + "/source_spectrum.txt", "lambda_nm\tdft_abs\tdft_phase\tsamples\tdft_re\tdft_im"))
 		{
 			for (m = 0; m < sp.nr_frequencies; ++m)
 			{
@@ -167,15 +167,17 @@ int fdtd::sources::transform_pulse(int steps)
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
+	if (fdtd::grid::world_rank == ROOTPROCESS)
+		fdtd::io::log("n_avg", "slot,material,index");
 	for (n = 0; n < fdtd::materials::slot_count(); ++n)
 	{
 		sum_n = double(0.);
 		for (m = 0; m < sp.nr_frequencies; ++m)
 			sum_n += fdtd::materials::refractive_index(n, fdtd::sources::analysis_omega[m]).real();
 		if (fdtd::grid::world_rank == ROOTPROCESS && sum_n > 0)
-			fdtd::io::log("n_avg", "material %d %s index %f", n, fdtd::materials::slot_name(n).c_str(), sum_n / sp.nr_frequencies);
+			fdtd::io::log("n_avg", "%d,%s,%f", n, fdtd::materials::slot_name(n).c_str(), sum_n / sp.nr_frequencies);
 		if (fdtd::grid::world_rank == ROOTPROCESS && (sp.shg || sp.thg) && fdtd::materials::nonlinear::nl[n])
-			fdtd::io::log("sources", "material %d %s is nonlinear\n", n, fdtd::materials::slot_name(n).c_str());
+			fdtd::io::log("sources", "slot %d %s is nonlinear", n, fdtd::materials::slot_name(n).c_str());
 	}
 
 	return steps;

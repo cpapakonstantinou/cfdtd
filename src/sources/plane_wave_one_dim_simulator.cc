@@ -44,9 +44,7 @@ bool PlaneWaveOneDimensionalSimulator::init(PlaneWave &tmpWave, const WaveFrame 
 bool PlaneWaveOneDimensionalSimulator::set_geometry_parameters(PlaneWave &tmpWave)
 {
 	if (tmpWave.Dir_Y < 0.0)
-		fdtd::io::log("sources",  "WARNING: You use a plane wave that is propagating in negative y-direction. "
-				"The implementation assumes a wave propagating in postive y-direction. Hence"
-				"this might lead to problems! \n"); 
+		fdtd::io::log("warning", "the plane wave propagates along -y, the 1D simulator assumes +y");
 
 	// calculate mx and mz
 	if (std::abs(tmpWave.Dir_X) < 1e-5 && std::abs(tmpWave.Dir_Z) < 1e-5)

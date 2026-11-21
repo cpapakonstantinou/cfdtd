@@ -236,11 +236,8 @@ void sample_nonlinear_polarisation(double t)
 		static bool warned = false;
 		if (!warned && fdtd::grid::world_rank == ROOTPROCESS)
 		{
-			fdtd::io::log("monitors", "[Exact_Multipoles] WARNING: RePNL*/ImPNL* not allocated for the "
-				   "harmonic band (m>=%d of %d). Skipping the nonlinear-polarization DFT; "
-				   "the full-current output file will not be produced. Add the RePNL*/ImPNL* "
-				   "allocation in setupSimulation.cpp.\n",
-				   mstart, sp.nr_frequencies);
+			fdtd::io::log("warning", "the exact multipoles have no nonlinear polarization DFT for points %d to %d, the full-current file is not written", mstart,
+						  sp.nr_frequencies - 1);
 			fflush(stdout);
 			warned = true;
 		}
@@ -444,7 +441,7 @@ static inline void multipole_cross_sections(const double *M, const double &k, do
  */
 static void write_cross_section_file(const std::string &path, const double *M, int m0, int m1, int STRIDE)
 {
-	FILE *f = fdtd::io::open_report(path, "LAMBDA[nm]\tCp\tCm\tCpq\tCmq\tCtot\tf_pd\tf_md\tf_pq\tf_mq");
+	FILE *f = fdtd::io::open_report(path, "lambda_nm\tc_p\tc_m\tc_pq\tc_mq\tc_tot\tf_pd\tf_md\tf_pq\tf_mq");
 	if (f == NULL)
 		return;
 	for (int m = m0; m < m1; ++m)
@@ -465,16 +462,16 @@ static void write_cross_section_file(const std::string &path, const double *M, i
 	return;
 }
 
-/// one row per frequency in [m0, m1): LAMBDA[nm] and the 36 moment values, Re, Im pairs
+/// one row per frequency in [m0, m1): the wavelength in nm and the 36 moment values, Re, Im pairs
 static void write_moment_file(const std::string &path, const double *M, int m0, int m1, int STRIDE)
 {
-	FILE *f = fdtd::io::open_report(path, "LAMBDA[nm]\t"
-										  "Re_px\tIm_px\tRe_py\tIm_py\tRe_pz\tIm_pz\t"
-										  "Re_mx\tIm_mx\tRe_my\tIm_my\tRe_mz\tIm_mz\t"
-										  "Re_Qexx\tIm_Qexx\tRe_Qeyy\tIm_Qeyy\tRe_Qezz\tIm_Qezz\t"
-										  "Re_Qexy\tIm_Qexy\tRe_Qexz\tIm_Qexz\tRe_Qeyz\tIm_Qeyz\t"
-										  "Re_Qmxx\tIm_Qmxx\tRe_Qmyy\tIm_Qmyy\tRe_Qmzz\tIm_Qmzz\t"
-										  "Re_Qmxy\tIm_Qmxy\tRe_Qmxz\tIm_Qmxz\tRe_Qmyz\tIm_Qmyz");
+	FILE *f = fdtd::io::open_report(path, "lambda_nm\t"
+										  "re_px\tim_px\tre_py\tim_py\tre_pz\tim_pz\t"
+										  "re_mx\tim_mx\tre_my\tim_my\tre_mz\tim_mz\t"
+										  "re_qexx\tim_qexx\tre_qeyy\tim_qeyy\tre_qezz\tim_qezz\t"
+										  "re_qexy\tim_qexy\tre_qexz\tim_qexz\tre_qeyz\tim_qeyz\t"
+										  "re_qmxx\tim_qmxx\tre_qmyy\tim_qmyy\tre_qmzz\tim_qmzz\t"
+										  "re_qmxy\tim_qmxy\tre_qmxz\tim_qmxz\tre_qmyz\tim_qmyz");
 	if (f == NULL)
 		return;
 	for (int m = m0; m < m1; ++m)
@@ -520,10 +517,7 @@ void write_exact_multipoles()
 	{
 		if (fdtd::grid::world_rank == ROOTPROCESS)
 		{
-			fdtd::io::log("monitors", "[Exact_Multipoles] ERROR: volume E-field DFT (ReTFEx) is not allocated. "
-				   "Add ||EXACT_MULTIPOLES to the allocation gate in setupSimulation.cpp "
-				   "(integration step 4) and to the accumulation gate in updateDFT.cpp "
-				   "(step 5). No multipole output written.\n");
+			fdtd::io::log("warning", "the exact multipoles have no volume E-field DFT, no multipole output is written");
 			fflush(stdout);
 		}
 		return;
@@ -536,8 +530,7 @@ void write_exact_multipoles()
 	{
 		if (fdtd::grid::world_rank == ROOTPROCESS)
 		{
-			fdtd::io::log("monitors", "[Exact_Multipoles] WARNING: RePNL*/ImPNL* not allocated; writing "
-				   "contrast-current multipoles only (no full-current file).\n");
+			fdtd::io::log("warning", "the exact multipoles have no nonlinear polarization DFT, only the contrast-current multipoles are written");
 			fflush(stdout);
 		}
 		nl_run = false;

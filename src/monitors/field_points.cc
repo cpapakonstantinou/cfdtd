@@ -36,7 +36,7 @@ namespace
 /// one file: Ex, Ez of the E set of plane P at cell (i, j, k), for every frequency
 void write_point(const std::string &name, const DftPlane &P, int i, int j, int k)
 {
-	FILE *f = fdtd::io::open_report(sp.reports_dir + "/" + name + ".txt", "LAMBDA[nm]\t |Ex|\t |Ez|\t |Ex|/|Ez|\t Ex_ph\t Ez_ph\t Ex-Ez_ph");
+	FILE *f = fdtd::io::open_report(sp.reports_dir + "/" + name + ".txt", "lambda_nm\tabs_ex\tabs_ez\tabs_ex_over_ez\tphase_ex\tphase_ez\tphase_ex_minus_ez");
 	if (!f)
 		return;
 	const view4<double> rex = P.re[0][0][0];

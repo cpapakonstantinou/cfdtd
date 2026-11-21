@@ -82,11 +82,6 @@ void fdtd::update::update_e()
 
 	if ((up.shg || up.thg) && up.pnl_polarisation)
 	{
-		static bool logged = false; // once per run
-		if (fdtd::grid::world_rank == ROOTPROCESS && !logged && (logged = true))
-		{
-			fdtd::io::log("update", "NONLINEARITY IS ADDED TO THE POLARIZATION UPDATE (APPROACH: 1=POLARIZATION UPDATE).\n");
-		}
 		fdtd::materials::nonlinear::update_polarisation();
 	}
 

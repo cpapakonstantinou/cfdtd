@@ -561,8 +561,8 @@ bool fdtd::sources::Signal::fits(int steps, std::string &why) const
 	}
 	if (e.last_on > steps - std::max(1, steps / 50))
 	{
-		why = "the source signal is still on at the end of the run (" + std::to_string(steps) + " time steps, signal above 1e-3 of its peak at step " +
-			  std::to_string(e.last_on) + "): increase [grid] time_steps (see fdtd signal), or set [source] allow_truncated_signal = true";
+		why = "the source signal is still on at the end of the run: above 1e-3 of its peak at step " + std::to_string(e.last_on) + " of " + std::to_string(steps) +
+			  "; increase [grid] time_steps, see fdtd signal, or set [source] allow_truncated_signal = true";
 		return false;
 	}
 	return true;

@@ -81,7 +81,7 @@ CustomBox make_box(const MonitorBox &in)
 	int mine = member ? 1 : 0;
 	MPI_Allreduce(&mine, &any, 1, MPI_INT, MPI_LOR, MPI_COMM_WORLD);
 	if (!any && fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("monitors", "Custom Monitor outside of domain, ignoring...");
+		fdtd::io::log("warning", "a custom monitor lies outside the domain and is ignored");
 	MPI_Comm_split(MPI_COMM_WORLD, member ? 0 : MPI_UNDEFINED, fdtd::grid::world_rank, &B.comm);
 	return B;
 }

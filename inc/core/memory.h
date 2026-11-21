@@ -16,7 +16,7 @@ namespace fdtd::core::memory
 {
 enum Group { fields, material_maps, material_models, cpml, source, monitors, other, group_count };
 inline constexpr std::array<const char*, group_count> GROUP_NAMES = {
-	"fields", "material maps", "material models", "CPML", "source", "monitors", "other"};
+	"fields", "material_maps", "material_models", "cpml", "source", "monitors", "other"};
 
 inline std::array<std::size_t, group_count> live{}; ///< bytes held now, per group
 inline Group current = other; ///< group of the charges made now

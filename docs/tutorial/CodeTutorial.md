@@ -145,25 +145,25 @@ runs on a laptop for a job of any size:
 ```
 
 ```
-memory of run.ini: 4 x 4 x 4 = 64 ranks
-
-arrays [GiB]             largest rank           total
-  fields                        1.116          71.440
-  material maps                 0.187          11.953
-  material models               1.639          26.542
-  CPML                          0.054           1.741
-  source                        0.000           0.011
-  monitors                      0.234           9.169
-  other                         0.000           0.000
-  all arrays                    3.022         120.857
-  smallest rank                 1.628
-  in bytes                 3244590976    129769474048
-
-process overhead   : about 0.06 GiB per rank (MPI, HDF5 and other libraries; 0.04 to 0.065 GiB measured with Open MPI)
-job                : about 3.08 GiB on the largest rank, 124.61 GiB in total
+layout: ranks_x,ranks_y,ranks_z,ranks
+layout: 4,4,4,64
+memory: group,largest_rank_gib,total_gib
+memory: fields,1.116,71.440
+memory: material_maps,0.187,11.953
+memory: material_models,1.639,26.542
+memory: cpml,0.054,1.741
+memory: source,0.000,0.011
+memory: monitors,0.234,9.169
+memory: other,0.000,0.000
+memory: all,3.022,120.857
+bytes: largest_rank,total
+bytes: 3244590976,129769474048
+job: smallest_rank_gib,overhead_per_rank_gib,largest_rank_gib,total_gib
+job: 1.628,0.059,3.081,124.633
 ```
 
-(A 1000³ domain with a 400 nm gold sphere; the command took 11 s and 0.28 GiB. 1 GiB = 1024³ bytes, the unit of a scheduler's `--mem=...G`.)
+A 1000³ domain with a 400 nm gold sphere; the command took 11 s and 0.28 GiB. 1 GiB = 1024³ bytes,
+the unit of a scheduler's `--mem=...G`.
 
 - **Largest rank** is what the scheduler's memory per task has to cover; **total** is the job.
   Ranks are uneven: the ones that hold the structure, PML or monitor planes need more.
@@ -173,9 +173,10 @@ job                : about 3.08 GiB on the largest rank, 124.61 GiB in total
 - **The numbers are counted, not modelled.** The command runs the solver's own set-up for every rank
   in turn, up to and including the mesh, with arrays that take no memory until they are written.
   The array figures are therefore the ones a real run allocates; `fdtd mesh` prints the same table
-  in `materials/geometry_report.txt`, and a run logs its peak (`arrays: peak ...`) when it ends.
-- **Not counted:** the process overhead is a measured constant, and output buffers at the end of a
-  run come on top (about 5 % in a run with a volume DFT).
+  in `materials/geometry_report.txt`, and a run logs its peak in the `arrays:` table when it ends.
+- **Not counted:** the process overhead, MPI, HDF5 and the other libraries, is a measured
+  constant, 0.04 to 0.065 GiB per rank with Open MPI; output buffers at the end of a run come on
+  top, about 5 % in a run with a volume DFT.
 
 ## On a cluster
 

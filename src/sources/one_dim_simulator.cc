@@ -54,7 +54,7 @@ bool OneDimensionalSimulator::write_onedim_results()
 	FILE *f[6];
 	for (int c = 0; c < 6; ++c)
 		f[c] = fdtd::io::open_report(sp.reports_dir + "/aux_grid_" + name[c] + ".txt",
-									 "one row per frame period, one column per cell of the auxiliary grid along y");
+									 "rows: frames, columns: cells along y");
 
 	std::array<double, 6> fields;
 
@@ -121,14 +121,11 @@ void OneDimensionalSimulator::check_media_ordering()
 {
 	const auto &mp = fdtd::materials::model_parameters();
 	if (mp.n_refr_index[sp.medium[1]] < mp.n_refr_index[sp.medium[0]] && sp.middle_layer > 0.0)
-		fdtd::io::log("sources", "WARNING: Middle medium has lower refractive index than first medium. "
-			   "This functionality is currently not implemented and might cause problems! \n");
+		fdtd::io::log("warning", "the middle medium has a lower index than the first, which the 1D simulator does not handle");
 
 	if (mp.n_refr_index[sp.medium[2]] < mp.n_refr_index[sp.medium[0]])
-		fdtd::io::log("sources", "WARNING: Second medium has lower refractive index than first medium. "
-			   "This functionality is currently not implemented and might cause problems! \n");
+		fdtd::io::log("warning", "the last medium has a lower index than the first, which the 1D simulator does not handle");
 
 	if (mp.n_refr_index[sp.medium[2]] < mp.n_refr_index[sp.medium[1]] && sp.middle_layer > 0.0)
-		fdtd::io::log("sources", "WARNING: Second medium has lower refractive index than middle medium. "
-			   "This functionality is currently not implemented and might cause problems! \n");
+		fdtd::io::log("warning", "the last medium has a lower index than the middle one, which the 1D simulator does not handle");
 }

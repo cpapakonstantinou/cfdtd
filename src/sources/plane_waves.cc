@@ -146,8 +146,7 @@ double get_dispersion_factor(double kx, double ky, double kz)
 		if (std::abs(analyticalRoot) < std::abs(currRoot))
 		{
 			if (fdtd::grid::world_rank == ROOTPROCESS)
-				fdtd::io::log("sources", "Could not find numerical wave vector. Using Analytical "
-					   "expression! \n");
+				fdtd::io::log("warning", "no numerical wave vector found, the analytical one is used");
 			// Return 1.0 as dispersion factor, i.e. no correction for
 			// dispersion
 			return 1.0;

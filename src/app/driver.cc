@@ -84,30 +84,9 @@ namespace
 {
 
 /// What the run was, written above the column header of every report
-std::vector<std::string> report_metadata(const config::SimConfig &c, const CliOptions &o, double dt, int steps)
+std::vector<std::string> report_metadata(const CliOptions &o)
 {
-	char line[256];
-	std::vector<std::string> m;
-	m.push_back(std::string("3D-FDTD ") + FDTD_VERSION + ", double precision");
-	m.push_back("config: " + o.config_file);
-	for (const std::string &s : o.overrides)
-		m.push_back("override: " + s);
-	const std::string &axis = c.plane_wave.polarization_axis;
-	if (axis == "rhcp" || axis == "lhcp")
-		std::snprintf(line, sizeof line, "source: %s, %s, polarization %s", c.source.type.c_str(), c.source.signal.c_str(), axis.c_str());
-	else
-		std::snprintf(line, sizeof line, "source: %s, %s, polarization %s, %d deg toward the other transverse axis, propagation %s",
-					  c.source.type.c_str(), c.source.signal.c_str(), axis.c_str(), c.plane_wave.polarization_angle, c.plane_wave.propagation_axis.c_str());
-	m.push_back(line);
-	std::snprintf(line, sizeof line, "spectrum: %.6g to %.6g nm, %d points, %s spacing, harmonic band %s", c.spectrum.lambda_min * 1e9,
-				  c.spectrum.lambda_max * 1e9, c.spectrum.points, c.spectrum.spacing.c_str(), c.spectrum.harmonic_band.c_str());
-	m.push_back(line);
-	std::snprintf(line, sizeof line, "grid: %d x %d x %d cells of %.6g x %.6g x %.6g nm, cpml %d %d %d", c.grid.nx, c.grid.ny, c.grid.nz, c.grid.dx * 1e9,
-				  c.grid.dy * 1e9, c.grid.dz * 1e9, c.grid.pml_x, c.grid.pml_y, c.grid.pml_z);
-	m.push_back(line);
-	std::snprintf(line, sizeof line, "time: dt %.6e s, %d steps", dt, steps);
-	m.push_back(line);
-	return m;
+	return {std::string("3D-FDTD ") + FDTD_VERSION + " " + o.config_file};
 }
 
 /// The output tree below one root: reports/ text tables and logs, fields/ frequency-domain data,
@@ -211,7 +190,7 @@ bool Driver::agree(bool local_ok, const std::string& what)
 	// a failure on rank 0 is reported once by report_error(); failures only on other
 	// ranks, e.g. a file one rank cannot read, are printed by those ranks
 	if (!local_ok && root_ok)
-		std::fprintf(stderr, "[rank %d] error: %s\n", _rank, what.c_str());
+		std::fprintf(stderr, "error: rank %d: %s\n", _rank, what.c_str());
 	if (!all && _error.empty())
 		_error = what;
 	_ok = _ok && (all == 1);
@@ -223,9 +202,9 @@ void Driver::report_error()
 	if (_rank == ROOTPROCESS)
 	{
 		if (_error.empty())
-			std::fprintf(stderr, "\n3D-FDTD %s aborted: see messages above\n", command_name(_opt.command));
+			std::fprintf(stderr, "error: %s aborted, see the messages above\n", command_name(_opt.command));
 		else
-			std::fprintf(stderr, "\n3D-FDTD %s aborted: %s\n", command_name(_opt.command), _error.c_str());
+			std::fprintf(stderr, "error: %s aborted: %s\n", command_name(_opt.command), _error.c_str());
 	}
 }
 
@@ -285,8 +264,7 @@ void Driver::load_configuration()
 			for (const auto& d : output_directories(_cfg.paths.output_dir))
 				fs::create_directories(d);
 			std::ofstream(_cfg.paths.output_dir + "/resolved_config.ini")
-				<< "; resolved configuration of this run (" << command_name(_opt.command) << ", "
-				<< _size << " MPI processes, source: " << _opt.config_file << ")\n"
+				<< "; resolved configuration: " << command_name(_opt.command) << ", " << _opt.config_file << ", " << _size << " ranks\n"
 				<< config::to_ini(_cfg);
 		}
 		catch (const std::exception& e)
@@ -294,8 +272,9 @@ void Driver::load_configuration()
 			good = false;
 			err = std::string("cannot create the output tree: ") + e.what();
 		}
-		fdtd::io::log("run", "3D-FDTD %s | config %s | output %s | %d MPI processes (%d x %d x %d)\n", command_name(_opt.command),
-					_opt.config_file.c_str(), _cfg.paths.output_dir.c_str(), _size, _cfg.parallel.ranks_x, _cfg.parallel.ranks_y, _cfg.parallel.ranks_z);
+		fdtd::io::log("start", "version,command,config,output,ranks,ranks_x,ranks_y,ranks_z");
+		fdtd::io::log("start", "%s,%s,%s,%s,%d,%d,%d,%d", FDTD_VERSION, command_name(_opt.command), _opt.config_file.c_str(), _cfg.paths.output_dir.c_str(), _size,
+					  _cfg.parallel.ranks_x, _cfg.parallel.ranks_y, _cfg.parallel.ranks_z);
 	}
 	if (!agree(good, err))
 		return;
@@ -367,7 +346,7 @@ void Driver::decompose()
 	const bool good = !fdtd::grid::set_lattice_data(fdtd::app::global_planes(fdtd::grid::lattice()), why);
 	if (good)
 		fdtd::grid::print_decomposition();
-	if (!agree(good, "domain decomposition failed (" + why + ")"))
+	if (!agree(good, "domain decomposition failed: " + why))
 		return;
 
 }
@@ -390,7 +369,7 @@ void Driver::initialize_ranks()
 	if (run_cfg.source.oblique_incidence_with_medium && !mesh_only())
 	{
 		if (fdtd::grid::world_rank == ROOTPROCESS)
-			fdtd::io::log("run", "Running 1D Simulation\n");
+			fdtd::io::log("run", "1D auxiliary simulation");
 		c.ods.init(c.waves, c.frame);
 	}
 
@@ -420,7 +399,7 @@ void Driver::configure_run()
 	if (!mesh_only() && !run_cfg.source.allow_truncated_signal && !agree(fdtd::sources::signal_fits(fdtd::app::run_state().nr_max_time_steps, why), why))
 		return;
 
-	fdtd::io::set_report_metadata(report_metadata(_cfg, _opt, run_cfg.time.dt, fdtd::app::run_state().nr_max_time_steps));
+	fdtd::io::set_report_metadata(report_metadata(_opt));
 	if (_opt.command != Command::Memory) // the signal's spectrum and its files: not needed to size the arrays
 		fdtd::app::run_state().nr_max_time_steps = fdtd::sources::transform_pulse(fdtd::app::run_state().nr_max_time_steps);
 	{
@@ -498,15 +477,15 @@ bool Driver::allocate_sweep_memory()
 	if (!agree(fdtd::app::allocate_scattering_and_absorption(), "cannot allocate the scattering/absorption monitors"))
 		return false;
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("run", "Memory allocation complete\n");
+		fdtd::io::log("run", "arrays allocated");
 	return true;
 }
 
 void Driver::build_geometry()
 {
 	auto& c = *_ctx;
-	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("run", "Middle layer in y [nm]: %f\n", double(run_cfg.geometry.middle_layer / 1.E-9));
+	if (fdtd::grid::world_rank == ROOTPROCESS && run_cfg.geometry.middle_layer > 0)
+		fdtd::io::log("run", "middle layer %g nm along y", run_cfg.geometry.middle_layer * 1e9);
 
 	fdtd::app::create_structures();
 	++fdtd::materials::stretch::mesh_generation; // the E scans re-split their rows
@@ -555,23 +534,24 @@ void Driver::setup_sources_and_monitors()
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
 		if (run_cfg.source.tfsf)
-			fdtd::io::log("run", "Start FDTD cycle: %d polarization\n", run_cfg.source.polarization_deg);
+			fdtd::io::log("run", "polarization %d deg", run_cfg.source.polarization_deg);
 		if ((run_cfg.source.circ_lh || run_cfg.source.circ_rh) && fdtd::sources::xpol && fdtd::sources::zpol)
-			fdtd::io::log("run", "circular polarization: %15.5e s time shift\n", run_cfg.source.circ_time_shift);
+			fdtd::io::log("run", "circular polarization, time shift %.5e s", run_cfg.source.circ_time_shift);
 		if (run_cfg.source.gauss_beam)
-			fdtd::io::log("run", "Start FDTD cycle: Gaussian beam\n");
+			fdtd::io::log("run", "Gaussian beam");
 		else if (run_cfg.source.plane_wave_superposition)
-			fdtd::io::log("run", "Start FDTD cycle: Plane wave superposition\n");
-		fdtd::io::log("run", "E_peak= %15.5e\n", run_cfg.source.e_peak);
+			fdtd::io::log("run", "plane wave superposition");
+		fdtd::io::log("run", "peak field %.5e V/m", run_cfg.source.e_peak);
 
 		if (run_cfg.nonlinear.third_harmonic || run_cfg.nonlinear.second_harmonic)
 		{
-			fdtd::io::log("run", "nonlinear approach (0 = E-field update, 1 = polarization update) = %d\n", run_cfg.nonlinear.pnl_approach);
-			fdtd::io::log("run", "meshing (0 = per component, 1 = staircasing) = %d\n", run_cfg.geometry.sta_ir_casing);
+			fdtd::io::log("run", "nonlinear update %s, meshing %s", run_cfg.nonlinear.pnl_approach ? "polarization" : "field",
+						  run_cfg.geometry.sta_ir_casing ? "staircase" : "per_component");
+			fdtd::io::log("nonlinear", "slot,material,nonlinear,diagonal_only,chi_xx,chi_yy,chi_zz");
 			for (int m = 0; m < fdtd::materials::slot_count(); ++m)
 			{
 				const double* chi = run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::chi_2[m] : fdtd::materials::nonlinear::chi_3[m];
-				fdtd::io::log("run", "material %d %s: nonlinear %d, diagonal only %d, diagonal %15.5e %15.5e %15.5e\n", m, fdtd::materials::slot_name(m).c_str(),
+				fdtd::io::log("nonlinear", "%d,%s,%d,%d,%.5e,%.5e,%.5e", m, fdtd::materials::slot_name(m).c_str(),
 							  int(fdtd::materials::nonlinear::nl[m]), int(run_cfg.nonlinear.second_harmonic ? fdtd::materials::nonlinear::iso_chi_2[m] : fdtd::materials::nonlinear::iso_chi_3[m]),
 							  chi[0], chi[7], chi[14]);
 			}
@@ -586,7 +566,7 @@ void Driver::setup_sources_and_monitors()
 	if (run_cfg.materials.hydrodynamics || run_cfg.analysis.multipoles)
 	{
 		if (fdtd::grid::world_rank == ROOTPROCESS)
-			fdtd::io::log("run", "Setting up epsilon arrays\n");
+			fdtd::io::log("run", "hydrodynamic background permittivity");
 		fdtd::materials::hydro::setup_eps_inf_x();
 		fdtd::materials::hydro::setup_eps_inf_y();
 		fdtd::materials::hydro::setup_eps_inf_z();
@@ -656,7 +636,6 @@ void Driver::write_geometry_report()
 	MPI_Reduce(&rss, &rss_sum, 1, MPI_DOUBLE, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 
 	// the array tally, per group and in total, last entry
-	constexpr double GIB = 1024.0 * 1024.0 * 1024.0;
 	const int ng = core::memory::group_count + 1;
 	std::vector<unsigned long long> array_bytes(ng, 0);
 	std::vector<unsigned long long> array_max(ng, 0);
@@ -673,44 +652,35 @@ void Driver::write_geometry_report()
 	if (fdtd::grid::world_rank != ROOTPROCESS)
 		return;
 
-	std::ostringstream r;
 	const auto& d = _cfg.grid;
-	r << "3D-FDTD geometry report\n\n";
-	r << "grid (interior)     : " << d.nx << " x " << d.ny << " x " << d.nz << " cells\n";
-	r << "grid (with CPML)    : " << run_cfg.grid.nr_cells_tot_x << " x " << run_cfg.grid.nr_cells_tot_y << " x " << run_cfg.grid.nr_cells_tot_z << " cells\n";
-	r << "cell size           : " << d.dx * 1e9 << " x " << d.dy * 1e9 << " x " << d.dz * 1e9 << " nm\n";
-	r << "physical size       : " << d.nx * d.dx * 1e9 << " x " << d.ny * d.dy * 1e9 << " x " << d.nz * d.dz * 1e9 << " nm\n";
-	r << "time step           : " << run_cfg.time.dt << " s  (courant " << d.courant << ")\n";
-	r << "simulated time      : " << run_cfg.time.dt * fdtd::app::run_state().nr_max_time_steps << " s  (" << fdtd::app::run_state().nr_max_time_steps << " steps)\n";
-
+	const int steps = fdtd::app::run_state().nr_max_time_steps;
 	const double hmax = std::max({d.dx, d.dy, d.dz});
 	const double lmin = _cfg.spectrum.lambda_min;
 	const double n_host = std::max(1.0, double(fdtd::materials::refractive_index(run_cfg.materials.first_medium, double(PI2 * C0 / lmin)).real()));
-	r << "resolution          : " << lmin / hmax << " cells per vacuum wavelength, "
-	  << lmin / (n_host * hmax) << " in the first medium (n = " << n_host << ") at lambda_min = " << lmin * 1e9 << " nm\n";
-	if (lmin / (n_host * hmax) < 10.0)
-		r << "  WARNING: fewer than 10 cells per wavelength in the host medium -> expect numerical dispersion\n";
+	std::string r;
+	char line[320];
+	auto add = [&](const char* format, auto... v) {
+		std::snprintf(line, sizeof line, format, v...);
+		r += line;
+	};
+	r += "grid: nx,ny,nz,nx_total,ny_total,nz_total,dx_nm,dy_nm,dz_nm,lx_nm,ly_nm,lz_nm\n";
+	add("grid: %d,%d,%d,%d,%d,%d,%g,%g,%g,%g,%g,%g\n", d.nx, d.ny, d.nz, run_cfg.grid.nr_cells_tot_x, run_cfg.grid.nr_cells_tot_y, run_cfg.grid.nr_cells_tot_z,
+		d.dx * 1e9, d.dy * 1e9, d.dz * 1e9, d.nx * d.dx * 1e9, d.ny * d.dy * 1e9, d.nz * d.dz * 1e9);
+	r += "time: dt_s,courant,steps,duration_s\n";
+	add("time: %.6e,%g,%d,%.6e\n", run_cfg.time.dt, d.courant, steps, run_cfg.time.dt * steps);
+	r += "resolution: lambda_min_nm,n_first_medium,cells_per_wavelength,cells_per_wavelength_medium\n";
+	add("resolution: %g,%g,%.2f,%.2f\n", lmin * 1e9, n_host, lmin / hmax, lmin / (n_host * hmax));
+	r += "layout: ranks_x,ranks_y,ranks_z,ranks,cpml_only_ranks\n";
+	add("layout: %d,%d,%d,%d,%d\n", _cfg.parallel.ranks_x, _cfg.parallel.ranks_y, _cfg.parallel.ranks_z, _cfg.parallel.ranks_x * _cfg.parallel.ranks_y * _cfg.parallel.ranks_z,
+		cpml_only_all);
+	// resident memory at the end of the mesh: the arrays of a run, without the sources and monitors built after it
+	r += "peak: largest_rank_gib,total_gib\n";
+	add("peak: %.3f,%.3f\n", rss_max / 1024.0, rss_sum / 1024.0);
+	r += fdtd::io::memory_table(std::vector<unsigned long long>(array_max.begin(), array_max.end() - 1),
+								std::vector<unsigned long long>(array_sum.begin(), array_sum.end() - 1), array_max[ng - 1], array_sum[ng - 1]);
 
-	r << "\ndecomposition       : " << _cfg.parallel.ranks_x << " x " << _cfg.parallel.ranks_y << " x " << _cfg.parallel.ranks_z << " ranks, " << cpml_only_all << " rank(s) hold CPML only\n";
-	{
-		char line[128];
-		std::snprintf(line, sizeof line, "peak memory (mesh)  : %.3f GiB max per rank, %.3f GiB total\n", rss_max / 1024.0, rss_sum / 1024.0);
-		r << line;
-	}
-	r << "  (the mesh path allocates the same arrays as a simulation, so this is a good estimate of the run;\n"
-	     "   sources and monitors built after the mesh are not in it)\n";
-	r << "arrays [GiB]        :       largest rank           total\n";
-	for (int g = 0; g <= core::memory::group_count; ++g)
-	{
-		char line[128];
-		std::snprintf(line, sizeof line, "  %-18s: %18.3f %15.3f\n", g < core::memory::group_count ? core::memory::GROUP_NAMES[g] : "all arrays",
-					  double(array_max[g]) / GIB, double(array_sum[g]) / GIB);
-		r << line;
-	}
-	r << "  in bytes          : " << array_max[ng - 1] << " " << array_sum[ng - 1] << "\n";
-
-	r << "\nmaterial census (interior cells, per Yee component)\n";
-	r << "   slot        Ex-cells        Ey-cells        Ez-cells  material, note\n";
+	// interior cells per Yee component of every material slot that holds any
+	r += "census: slot,material,nonlinear,role,ex_cells,ey_cells,ez_cells\n";
 	long long structure_cells = 0;
 	for (int m = 0; m < ncodes; ++m)
 	{
@@ -719,36 +689,35 @@ void Driver::write_geometry_report()
 		const long long z = total[2 * ncodes + m];
 		if (x + y + z == 0)
 			continue;
-		std::string note = fdtd::materials::slot_name(m) + (fdtd::materials::nonlinear::nl[m] ? ", nonlinear" : "");
+		std::string role;
+		auto also = [&](const char* name) { role += (role.empty() ? "" : "+") + std::string(name); };
 		if (m == run_cfg.materials.antenna_material)
 		{
-			note += ", structure";
+			also("structure");
 			structure_cells += x + y + z;
 		}
 		if (m == run_cfg.materials.first_medium)
-			note += ", first medium";
+			also("first_medium");
 		if (m == run_cfg.materials.middle_medium && _cfg.geometry.middle_thickness > 0)
-			note += ", middle medium";
+			also("middle_medium");
 		if (m == run_cfg.materials.second_medium)
-			note += ", last medium";
-		char line[160];
-		std::snprintf(line, sizeof(line), "  %5d  %14lld  %14lld  %14lld  %s\n", m, x, y, z, note.c_str());
-		r << line;
+			also("last_medium");
+		add("census: %d,%s,%d,%s,%lld,%lld,%lld\n", m, fdtd::materials::slot_name(m).c_str(), int(fdtd::materials::nonlinear::nl[m]), role.c_str(), x, y, z);
 	}
+	if (lmin / (n_host * hmax) < 10.0)
+		r += "warning: fewer than 10 cells per wavelength in the first medium, expect numerical dispersion\n";
 	if (out_of_range_all)
-		r << "  WARNING: " << out_of_range_all << " cell components carry a material slot outside [0, " << ncodes << ")\n";
+		add("warning: %lld cell components carry a material slot outside 0 to %d\n", out_of_range_all, ncodes - 1);
 	if (config::shape_code(_cfg.geometry.shape) != 0 && structure_cells == 0)
-		r << "  WARNING: a structure was requested ([geometry] shape = " << _cfg.geometry.shape
-		  << ") but no cell carries [geometry] material = " << _cfg.geometry.material
-		  << " -> structure not resolved, check dx/dy/dz against the feature sizes\n";
+		add("warning: no cell carries the structure material %s, the shape %s is not resolved by the cell size\n", _cfg.geometry.material.c_str(),
+			_cfg.geometry.shape.c_str());
 	if (_cfg.multipoles.exact && structure_cells == 0)
-		r << "  WARNING: [multipoles] exact = true but the integration volume (structure) is empty\n";
-
-	r << "\nfiles: " << run_cfg.output.materials_dir << "/MaterialIndex*.h5\n";
+		r += "warning: the exact multipoles integrate over an empty structure\n";
 
 	const std::string path = run_cfg.output.materials_dir + "/geometry_report.txt";
-	std::ofstream(path) << r.str();
-	fdtd::io::log("run", "\n%s\nreport written to %s\n", r.str().c_str(), path.c_str());
+	std::ofstream(path) << r;
+	std::fputs(r.c_str(), stdout);
+	fdtd::io::log("run", "geometry report written to %s", path.c_str());
 }
 
 // Phase: finish the run
@@ -815,11 +784,12 @@ void Driver::finalize()
 	MPI_Reduce(&peak, &peak_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
-		fdtd::io::log("run", "arrays: peak %.3f GiB on the largest rank, %.3f GiB in total (process memory: add the MPI and library overhead per rank)\n",
-					  double(peak_max) / 1073741824.0, double(peak_sum) / 1073741824.0);
-		const std::string msg = mesh_only() ? std::string("Mesh written to ") + run_cfg.output.materials_dir
-						  : _signal ? "Interrupted by signal " + std::to_string(_signal) + " after " + std::to_string(fdtd::app::run_state().timestep) + " iterations; outputs written"
-											: "Process " + std::to_string(fdtd::grid::world_rank) + " regularly concluded after " + std::to_string(fdtd::app::run_state().timestep) + " iterations";
+		fdtd::io::log("arrays", "peak_largest_rank_gib,peak_total_gib");
+		fdtd::io::log("arrays", "%.3f,%.3f", double(peak_max) / 1073741824.0, double(peak_sum) / 1073741824.0);
+		const std::string steps = std::to_string(fdtd::app::run_state().timestep);
+		const std::string msg = mesh_only() ? "mesh written to " + run_cfg.output.materials_dir
+						  : _signal ? "interrupted by signal " + std::to_string(_signal) + " after " + steps + " steps, outputs written"
+											: "finished after " + steps + " steps";
 		fdtd::io::write_log(msg, run_cfg.output.reports_dir, fdtd::app::run_state().prgstart, true);
 		// keep only the directories this run wrote to
 		std::error_code ec;

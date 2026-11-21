@@ -21,6 +21,7 @@
 #include "app/run_state.h"
 #include "app/run_config.h"
 #include "io/binary.h"
+#include "io/text.h"
 #include "sources/one_dim_simulator.h"
 #include "sources/signal.h"
 
@@ -44,33 +45,25 @@ namespace
 void print_usage(std::FILE *to, const char *program)
 {
 	std::fprintf(to,
-				 "usage: %s <command> [options] [config.ini]\n"
+				 "usage: %s COMMAND [-c FILE] [-o DIR] [-i DIR] [-s SECTION.KEY=VALUE]... [-r] [FILE]\n"
 				 "\n"
 				 "commands:\n"
-				 "  simulate   build the mesh and run the FDTD simulation\n"
-				 "  mesh       build the mesh, write the material index maps and the geometry report\n"
-				 "  memory     count the memory the run needs, per rank and in total, without allocating it;\n"
-				 "             one process, no mpirun needed\n"
-				 "  signal     report the signal length, the time steps it needs and its spectrum, no MPI;\n"
-				 "             see fdtd signal --help\n"
-				 "  check      validate the configuration, test that the time steps cover the signal,\n"
-				 "             print the resolved INI, no MPI\n"
-				 "  template   print a commented INI template with every key and its default\n"
+				 "  simulate   run the simulation\n"
+				 "  mesh       build the mesh, write the material maps and the geometry report\n"
+				 "  memory     count the array memory of every rank without allocating it\n"
+				 "  signal     report the source signal and its spectrum, see signal -h\n"
+				 "  check      validate the configuration and print it resolved\n"
+				 "  template   print an INI file with every key and its default\n"
 				 "\n"
 				 "options:\n"
-				 "  -c, --config FILE          configuration file, or give it after the command\n"
-				 "  -o, --output DIR           output directory, overrides [paths] output_dir\n"
-				 "  -i, --input DIR            input/data directory, overrides [paths] input_dir\n"
-				 "  -s, --set SECTION.KEY=VAL  override a configuration key, repeatable\n"
-				 "  -r, --restart              simulate: continue from the state files an interrupted run left\n"
-				 "                             in <output>/state, same configuration and rank layout\n"
-				 "  -h, --help                 show this help\n"
-				 "  -V, --version              show the version\n"
-				 "\n"
-				 "precedence: config file < --set < -o/-i\n"
-				 "example:\n"
-				 "  mpirun -n 8 %s simulate run.ini -o /scratch/run42 -s grid.dx=2e-9 -s spectrum.points=51\n",
-				 program, program);
+				 "  -c, --config FILE            configuration file\n"
+				 "  -o, --output DIR             output directory\n"
+				 "  -i, --input DIR              input directory\n"
+				 "  -s, --set SECTION.KEY=VALUE  override a configuration key\n"
+				 "  -r, --restart                continue an interrupted run from its state files\n"
+				 "  -h, --help                   print this help\n"
+				 "  -V, --version                print the version\n",
+				 program);
 }
 
 /// `check`: validate on one process, test the signal against the time steps, print the resolved INI.
@@ -79,7 +72,7 @@ int check_configuration(const fdtd::CliOptions &opt)
 	std::ifstream in(opt.config_file);
 	if (!in)
 	{
-		std::fprintf(stderr, "cannot read configuration file '%s'\n", opt.config_file.c_str());
+		std::fprintf(stderr, "error: cannot read configuration file '%s'\n", opt.config_file.c_str());
 		return 1;
 	}
 	std::stringstream text;
@@ -89,10 +82,7 @@ int check_configuration(const fdtd::CliOptions &opt)
 	fdtd::config::validate_sim_config(config);
 
 	std::printf("%s", fdtd::config::to_ini(config).c_str());
-	const auto omegas = fdtd::config::spectrum_omegas(config.spectrum);
-	std::printf("\n; spectrum: %zu DFT points\n", omegas.size());
-	for (double w : omegas)
-		std::printf(";   %.6f nm\n", 2.0 * 3.141592653589793 * 299792458.0 / w * 1e9);
+	const std::size_t points = fdtd::config::spectrum_omegas(config.spectrum).size();
 
 	// the signal against the time steps, the same test the run makes before its time loop
 	fdtd::config::apply_sim_config(config, 1, true);
@@ -100,19 +90,17 @@ int check_configuration(const fdtd::CliOptions &opt)
 	fdtd::app::configure_signal();
 	std::string why;
 	const int steps = fdtd::app::run_state().nr_max_time_steps;
-	if (!fdtd::sources::signal_fits(steps, why))
+	const bool fits = fdtd::sources::signal_fits(steps, why);
+	if (!fits && !config.source.allow_truncated_signal)
 	{
-		if (!config.source.allow_truncated_signal)
-		{
-			std::fprintf(stderr, "error: %s\n", why.c_str());
-			return 1;
-		}
-		std::printf("; warning: %s\n", why.c_str());
+		std::fprintf(stderr, "error: %s\n", why.c_str());
+		return 1;
 	}
-	else
-		std::printf("; signal: covered by the %d time steps (dt = %.6e s)\n", steps, fdtd::app::run_config().time.dt);
-	std::printf("; configuration is valid (MPI ranks required: %d)\n",
-				config.parallel.ranks_x * config.parallel.ranks_y * config.parallel.ranks_z);
+	std::printf("\n; check: ranks,steps,dt_s,dft_points,signal\n");
+	std::printf("; check: %d,%d,%.6e,%zu,%s\n", config.parallel.ranks_x * config.parallel.ranks_y * config.parallel.ranks_z, steps, fdtd::app::run_config().time.dt,
+				points, fits ? "covered" : "truncated");
+	if (!fits)
+		std::printf("; warning: %s\n", why.c_str());
 	return 0;
 }
 /// Resident memory of this process now [MiB], 0 if /proc is not available.
@@ -143,44 +131,32 @@ int estimate_memory(const fdtd::CliOptions &opt)
 		driver.report_error();
 		return 1;
 	}
-	constexpr double GIB = 1073741824.0;
 	const auto &c = driver.config();
-	std::array<double, memory::group_count> largest{};
-	std::array<double, memory::group_count> total{};
-	double rank_max = 0;
-	double rank_min = 1e300;
-	double all = 0;
+	std::vector<unsigned long long> largest(memory::group_count, 0);
+	std::vector<unsigned long long> total(memory::group_count, 0);
 	unsigned long long bytes_max = 0;
+	unsigned long long bytes_min = ~0ull;
 	unsigned long long bytes_all = 0;
 	for (const auto &rank : per_rank)
 	{
 		unsigned long long bytes = 0;
-		for (unsigned long long b : rank)
-			bytes += b;
-		bytes_max = std::max(bytes_max, bytes), bytes_all += bytes;
-		double sum = 0;
 		for (int g = 0; g < memory::group_count; ++g)
 		{
-			const double gib = double(rank[g]) / GIB;
-			largest[g] = std::max(largest[g], gib), total[g] += gib, sum += gib;
+			bytes += rank[g];
+			largest[g] = std::max<unsigned long long>(largest[g], rank[g]);
+			total[g] += rank[g];
 		}
-		rank_max = std::max(rank_max, sum), rank_min = std::min(rank_min, sum), all += sum;
+		bytes_max = std::max(bytes_max, bytes);
+		bytes_min = std::min(bytes_min, bytes);
+		bytes_all += bytes;
 	}
+	constexpr double gib = 1073741824.0;
 	const int ranks = int(per_rank.size());
-	std::printf("memory of %s: %d x %d x %d = %d ranks\n\n", opt.config_file.c_str(), c.parallel.ranks_x, c.parallel.ranks_y, c.parallel.ranks_z, ranks);
-	std::printf("arrays [GiB]             largest rank           total\n");
-	for (int g = 0; g < memory::group_count; ++g)
-		std::printf("  %-18s %16.3f %15.3f\n", memory::GROUP_NAMES[g], largest[g], total[g]);
-	std::printf("  %-18s %16.3f %15.3f\n", "all arrays", rank_max, all);
-	std::printf("  smallest rank      %16.3f\n", rank_min);
-	std::printf("  in bytes           %16llu %15llu\n\n", bytes_max, bytes_all);
-	std::printf("process overhead   : about %.2f GiB per rank (MPI, HDF5 and other libraries; 0.04 to 0.065 GiB measured with Open MPI)\n", overhead);
-	std::printf("job                : about %.2f GiB on the largest rank, %.2f GiB in total\n\n", rank_max + overhead, all + ranks * overhead);
-	std::printf("The arrays are counted by running the solver's own set-up for each rank, up to the mesh, with\n"
-				"arrays that take no memory until written: the figures equal those of the geometry report of\n"
-				"`fdtd mesh`. Not included: buffers a run allocates after the mesh (a few percent at most in\n"
-				"the cases measured; the pre-computed fields of layered plane-wave sources can be larger).\n"
-				"Try another layout with -s parallel.ranks_x=.. -s parallel.ranks_y=.. -s parallel.ranks_z=..\n");
+	std::printf("layout: ranks_x,ranks_y,ranks_z,ranks\n");
+	std::printf("layout: %d,%d,%d,%d\n", c.parallel.ranks_x, c.parallel.ranks_y, c.parallel.ranks_z, ranks);
+	std::printf("%s", fdtd::io::memory_table(largest, total, bytes_max, bytes_all).c_str());
+	std::printf("job: smallest_rank_gib,overhead_per_rank_gib,largest_rank_gib,total_gib\n");
+	std::printf("job: %.3f,%.3f,%.3f,%.3f\n", double(bytes_min) / gib, overhead, double(bytes_max) / gib + overhead, double(bytes_all) / gib + ranks * overhead);
 	return 0;
 }
 } // namespace
@@ -231,7 +207,7 @@ int main(int argc, char *argv[])
 		opt.command = fdtd::Command::Help;
 	else
 	{
-		std::fprintf(stderr, "error: unknown command '%s' (expected simulate, mesh, memory, check or template)\n\n", command.c_str());
+		std::fprintf(stderr, "error: unknown command '%s'\n\n", command.c_str());
 		print_usage(stderr, program);
 		return 2;
 	}

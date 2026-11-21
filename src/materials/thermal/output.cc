@@ -66,7 +66,7 @@ void fdtd::materials::thermal::read_temperature()
 	if (size != std::vector<int>{fdtd::grid::lattice().inner(0), fdtd::grid::lattice().inner(1), fdtd::grid::lattice().inner(2)})
 	{
 		if (fdtd::grid::world_rank == ROOTPROCESS)
-			fprintf(stderr, "%s: domain_size does not match this simulation\n", file.path().c_str());
+			fprintf(stderr, "error: %s: domain_size does not match this simulation\n", file.path().c_str());
 		MPI_Abort(MPI_COMM_WORLD, 4);
 	}
 	h5io::read(file, "electron_temperature", temperature_block(), &electron_temp_tf[0][0][0]);

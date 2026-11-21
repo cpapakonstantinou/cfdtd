@@ -94,7 +94,7 @@ cells are nonlinear wherever it is drawn.
 Every array charges the blocks it allocates when it is created (`inc/core/array.h`) and returns
 the charge when its last copy releases the memory. The tally keeps the bytes held per group
 (`fdtd::core::memory`, `inc/core/memory.h`); a `Scope` names the group of the charges made while it
-is alive. Three things read the tally: the geometry report of `fdtd mesh`, the `arrays: peak` line
+is alive. Three things read the tally: the geometry report of `fdtd mesh`, the `arrays:` table
 at the end of a run, and `fdtd memory`. The last one plays every rank of the layout in one process
 (`Driver::estimate_memory`): it sets the rank, runs the decomposition, the per-rank initialisation,
 the allocations and the mesh, reads the tally, and releases everything. In its lazy mode large blocks

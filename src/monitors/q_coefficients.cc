@@ -166,8 +166,16 @@ void write_q_coefficients()
 
 	double Area_inc = (lat.inner(2) - 2 * lat.tfsf_inset[2]) * (lat.inner(0) - 2 * lat.tfsf_inset[0]) * lat.d[0] * lat.d[2];
 
-	if (fdtd::grid::world_rank == 0)
-		fdtd::io::log("monitors", "Area xz absorption box numeric= %e\t analytic= %e\n", q_normalisation_area, Area_inc);
+	// the tables of the console log: a header once, then one block of rows per pass, intermediate and final
+	static bool logged = false;
+	const bool first = !logged;
+	logged = true;
+	const int step = int(sp.steps / 10) + count_art * int(sp.steps / 10); // the step of the art_tfsf files
+	if (fdtd::grid::world_rank == 0 && first)
+	{
+		fdtd::io::log("q_area", "numeric_m2,analytic_m2");
+		fdtd::io::log("q_area", "%e,%e", q_normalisation_area, Area_inc);
+	}
 
 	if (sp.abs_sigma)
 	{
@@ -189,20 +197,23 @@ void write_q_coefficients()
 			std::string strDataPath_Qcoeff_sigma = sp.reports_dir + "/cross_sections_sigma.txt";
 			f_qcoeff_sigma = fdtd::io::open_report(strDataPath_Qcoeff_sigma, "");
 		}
-		fprintf(f_qcoeff, "# LAMBDA[nm]\t Qscatt\t Qabs\t Qextin\n");
+		fprintf(f_qcoeff, "# lambda_nm\tq_sca\tq_abs\tq_ext\n");
 		if (f_qcoeff_nl)
-			fprintf(f_qcoeff_nl, "# LAMBDA[nm]\t Qscatt\t Qabs\t Qextin\n");
+			fprintf(f_qcoeff_nl, "# lambda_nm\tq_sca\tq_abs\tq_ext\n");
 		if (f_qcoeff_sigma)
-			fprintf(f_qcoeff_sigma, "# LAMBDA[nm]\t Qscatt\t Qabs_sigma\t Qextin\n");
+			fprintf(f_qcoeff_sigma, "# lambda_nm\tq_sca\tq_abs_sigma\tq_ext\n");
 
-		if (geometric_cross_section > 0)
-			fdtd::io::log("monitors", "Q normalised by the geometric cross section %e m^2\n", geometric_cross_section);
-		else
-			fdtd::io::log("monitors", "Q normalised by %e m^2 (no geometric cross section declared for this shape)\n", compute_q_normalisation_area(Area_inc));
-		if (sp.abs_sigma)
-			fdtd::io::log("qcoeff", "lambda_nm Qscatt Qabs Qextin Qabs_sigma");
-		else
-			fdtd::io::log("qcoeff", "lambda_nm Qscatt Qabs Qextin");
+		if (first)
+		{
+			fdtd::io::log("q_norm", "area_m2,area");
+			if (geometric_cross_section > 0)
+				fdtd::io::log("q_norm", "%e,geometric", geometric_cross_section);
+			else
+				fdtd::io::log("q_norm", "%e,box", compute_q_normalisation_area(Area_inc));
+			fdtd::io::log("qcoeff", "step,lambda_nm,q_sca,q_abs,q_ext%s", sp.abs_sigma ? ",q_abs_sigma" : "");
+			if (sp.hydrodynamics && !sp.abs_sigma)
+				fdtd::io::log("qcoeff_nl", "step,lambda_nm,q_sca,q_abs,q_ext");
+		}
 
 		for (m = 0; m < sp.nr_frequencies; ++m)
 		{
@@ -254,13 +265,13 @@ void write_q_coefficients()
 			if (sp.abs_sigma)
 			{
 				fprintf(f_qcoeff_sigma, "%e\t%e\t%e\t%e\n", (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), qscattering[m], abs_sigma_spectrum[m], qscattering[m] + abs_sigma_spectrum[m]);
-				fdtd::io::log("qcoeff", "%e\t%e\t%e\t%e\t%e\n", (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), qscattering[m], -qabsorption[m], qscattering[m] - qabsorption[m], abs_sigma_spectrum[m]);
+				fdtd::io::log("qcoeff", "%d,%e,%e,%e,%e,%e", step, (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), qscattering[m], -qabsorption[m], qscattering[m] - qabsorption[m], abs_sigma_spectrum[m]);
 			}
 			else
 			{
-				fdtd::io::log("qcoeff", "%e\t%e\t%e\t%e\n", (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), qscattering[m], -qabsorption[m], qscattering[m] - qabsorption[m]);
+				fdtd::io::log("qcoeff", "%d,%e,%e,%e,%e", step, (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), qscattering[m], -qabsorption[m], qscattering[m] - qabsorption[m]);
 				if (sp.hydrodynamics)
-					fdtd::io::log("qcoeff_nl", "%e\t%e\t%e\t%e\n", (PI2 * C0 / (2.0 * fdtd::sources::analysis_omega[m])) * double(1.e9), qscattering_nl[m], -qabsorption_nl[m], qscattering_nl[m] - qabsorption_nl[m]);
+					fdtd::io::log("qcoeff_nl", "%d,%e,%e,%e,%e", step, (PI2 * C0 / (2.0 * fdtd::sources::analysis_omega[m])) * double(1.e9), qscattering_nl[m], -qabsorption_nl[m], qscattering_nl[m] - qabsorption_nl[m]);
 			}
 			fprintf(f_qcoeff, "%e\t%e\t%e\t%e\n", (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), qscattering[m], -qabsorption[m], qscattering[m] - qabsorption[m]);
 			if (sp.hydrodynamics)
@@ -287,14 +298,14 @@ void write_q_coefficients()
 				transm_nl_power += 2 * sp.dt * sp.dt * qscattering[m] * harmonic_point_width[m - sp.nr_frequencies / 2];//J
 				refl_nl_power += 2 * sp.dt * sp.dt * qabsorption[m] * harmonic_point_width[m - sp.nr_frequencies / 2];//J
 			}
-			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# e_peak_v_m\tinput_fluence_j_m2\tinput_energy_j\tscattered_energy_j\tabsorbed_energy_j\tscattered_efficiency\tabsorbed_efficiency\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		if (sp.nr_frequencies == 2)
 		{
 			transm_nl_power = qscattering[1];//W
 			refl_nl_power = qabsorption[1];//W
-			fprintf(f_art, "# Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# e_peak_v_m\tinput_intensity_w_m2\tinput_power_w\tscattered_power_w\tabsorbed_power_w\tscattered_efficiency\tabsorbed_efficiency\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		fclose(f_art);
@@ -336,8 +347,12 @@ void write_art_tfsf()
 	}
 
 	MPI_Allreduce(&area_loc, &q_normalisation_area, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	if (fdtd::grid::world_rank == 0)
-		fdtd::io::log("monitors", "flux faces: reflection %e m^2, transmission %e m^2 (TF box %e m^2)\n", area_r, q_normalisation_area, Area_inc);
+	static bool faces_logged = false;
+	if (fdtd::grid::world_rank == 0 && !faces_logged && (faces_logged = true))
+	{
+		fdtd::io::log("faces", "reflection_m2,transmission_m2,tf_box_m2");
+		fdtd::io::log("faces", "%e,%e,%e", area_r, q_normalisation_area, Area_inc);
+	}
 
 	if (sp.abs_sigma)
 	{
@@ -365,16 +380,16 @@ void write_art_tfsf()
 			std::string strDataPath_Qcoeff_sigma = sp.reports_dir + "/art_tfsf_sigma.txt";
 			f_qcoeff_sigma = fdtd::io::open_report(strDataPath_Qcoeff_sigma, "");
 		}
-		fprintf(f_qcoeff, "# LAMBDA[nm]\t T\t R\t A\n");
+		fprintf(f_qcoeff, "# lambda_nm\ttransmittance\treflectance\tabsorptance\n");
 		if (sp.hydrodynamics)
-			fprintf(f_qcoeff_nl, "# LAMBDA[nm]\t T\t R\t A\n");
+			fprintf(f_qcoeff_nl, "# lambda_nm\ttransmittance\treflectance\tabsorptance\n");
 
 		if (sp.abs_sigma)
 		{
 			if (single_photon)
-				fprintf(f_qcoeff_sigma, "# LAMBDA[nm]\t T\t R\t A_met\t A_Si\t Gain\n");
+				fprintf(f_qcoeff_sigma, "# lambda_nm\ttransmittance\treflectance\tabsorptance_metal\tabsorptance_si\tgain\n");
 			else
-				fprintf(f_qcoeff_sigma, "# LAMBDA[nm]\t T\t R\t A\n");
+				fprintf(f_qcoeff_sigma, "# lambda_nm\ttransmittance\treflectance\tabsorptance\n");
 		}
 
 		for (m = 0; m < sp.nr_frequencies; ++m)
@@ -435,14 +450,14 @@ void write_art_tfsf()
 				transm_nl_power += 2 * sp.dt * sp.dt * (-q_face[0][0][1][0][m]) * harmonic_point_width[m - sp.nr_frequencies / 2];//J
 				refl_nl_power += 2 * sp.dt * sp.dt * q_face[0][1][1][1][m] * harmonic_point_width[m - sp.nr_frequencies / 2];//J
 			}
-			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# e_peak_v_m\tinput_fluence_j_m2\tinput_energy_j\tscattered_energy_j\tabsorbed_energy_j\tscattered_efficiency\tabsorbed_efficiency\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		if (sp.nr_frequencies == 2)
 		{
 			transm_nl_power = -q_face[0][0][1][0][1];//W
 			refl_nl_power = q_face[0][1][1][1][1];//W
-			fprintf(f_art, "# Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# e_peak_v_m\tinput_intensity_w_m2\tinput_power_w\tscattered_power_w\tabsorbed_power_w\tscattered_efficiency\tabsorbed_efficiency\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		fclose(f_art);

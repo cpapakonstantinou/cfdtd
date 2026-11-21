@@ -77,7 +77,7 @@ void FieldTrackers::setup(int center_x, int center_y, int center_z)
 	int total = 0;
 	MPI_Reduce(&here, &total, 1, MPI_INT, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("monitors", "TOTAL POINTS = %d\n", total);
+		fdtd::io::log("monitors", "%d tracker points", total);
 
 	if (point.empty())
 		return;
@@ -126,7 +126,7 @@ void FieldTrackers::write() const
 				continue;
 			std::fprintf(f, "# cell from the centre: %ld %ld %ld\n", P.x + subdomain.output_start[0] - subdomain.inner_org_x - sp.centre[0],
 						 P.y + subdomain.output_start[1] - subdomain.inner_org_y - sp.centre[1], P.z + subdomain.output_start[2] - subdomain.inner_org_z - sp.centre[2]);
-			std::fprintf(f, "# lambda[m]\tRe_Ex\tIm_Ex\tRe_Ey\tIm_Ey\tRe_Ez\tIm_Ez\tRe_Hx\tIm_Hx\tRe_Hy\tIm_Hy\tRe_Hz\tIm_Hz\n");
+			std::fprintf(f, "# lambda_m\tre_ex\tim_ex\tre_ey\tim_ey\tre_ez\tim_ez\tre_hx\tim_hx\tre_hy\tim_hy\tre_hz\tim_hz\n");
 			const double harmonic = s == 0 ? 1.0 : 2.0;
 			const array3<double>(&a)[2][3] = dft[s];
 			for (int m = 0; m < sp.nr_frequencies; ++m)

@@ -85,7 +85,7 @@ struct MpbField
 std::vector<double> read_dataset(hid_t file, const std::string &name, std::vector<hsize_t> &dims, const std::string &path)
 {
 	if (H5Lexists(file, name.c_str(), H5P_DEFAULT) <= 0)
-		throw std::runtime_error("mode source: " + path + " has no dataset '" + name + "' (expected MPB field output: x.r, x.i, y.r, ...)");
+		throw std::runtime_error("mode source: " + path + " has no dataset '" + name + "'; MPB field output has x.r, x.i, y.r, ...");
 	const hid_t set = H5Dopen2(file, name.c_str(), H5P_DEFAULT);
 	const hid_t space = H5Dget_space(set);
 	dims.assign(H5Sget_simple_extent_ndims(space), 0);
@@ -122,7 +122,7 @@ MpbField read_mpb(const std::string &path, double unit)
 	component("x", f.x);
 	component("y", f.y);
 	if (dims.size() < 2 || (dims.size() == 3 && dims[2] != 1) || dims.size() > 3)
-		throw std::runtime_error("mode source: " + path + " is not a 2D cross-section (solve the mode in MPB with a cell of no size along the waveguide)");
+		throw std::runtime_error("mode source: " + path + " is not a 2D cross-section: solve the mode in MPB with a cell of no size along the waveguide");
 	f.nx = int(dims[0]), f.ny = int(dims[1]);
 	// MPB writes the lattice vectors, in units of a, with every field file
 	std::vector<hsize_t> ld;
@@ -242,8 +242,10 @@ void fdtd::sources::setup_mode_source()
 		flow += mpb(ex, ey, P.u, n) * mpb(hx, hy, P.v, n) - mpb(ex, ey, P.v, n) * mpb(hx, hy, P.u, n);
 	const double hs = flow < 0 ? -sh : sh;
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("sources", "mode source: %s, %d x %d samples over %.4g x %.4g um, n_eff %.6g, along +%c at %.4g um; MPB x along %c, y along %c\n",
-					  path(m.efield).c_str(), e.nx, e.ny, e.lx * 1e6, e.ly * 1e6, m.effective_index, "xyz"[P.n], m.position * 1e6, "xyz"[ax], "xyz"[ay]);
+	{
+		fdtd::io::log("mode", "file,nx,ny,lx_um,ly_um,n_eff,direction,position_um,mpb_x,mpb_y");
+		fdtd::io::log("mode", "%s,%d,%d,%.4g,%.4g,%.6g,+%c,%.4g,%c,%c", path(m.efield).c_str(), e.nx, e.ny, e.lx * 1e6, e.ly * 1e6, m.effective_index, "xyz"[P.n], m.position * 1e6, "xyz"[ax], "xyz"[ay]);
+	}
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
@@ -258,8 +260,9 @@ void fdtd::sources::setup_mode_source()
 				const double a2 = ex[n] * ex[n] + ey[n] * ey[n];
 				w += a2, cx += a2 * (-0.5 * e.lx + i * e.lx / e.nx), cy += a2 * (-0.5 * e.ly + j * e.ly / e.ny);
 			}
-		fdtd::io::log("sources", "mode source: |E_t|^2 centroid at MPB (x, y) = (%.4g, %.4g) um from the cell centre, i.e. %c %+.4g um, %c %+.4g um from the structure centre\n",
-					  cx / w * 1e6, cy / w * 1e6, "xyz"[ax], (cx / w + std::array<double, 3>{m.offset_x, m.offset_y, m.offset_z}[ax]) * 1e6, "xyz"[ay],
+		// the |E_t|^2 centroid from MPB's cell centre, and along the solver's axes from the structure centre
+		fdtd::io::log("centroid", "mpb_x_um,mpb_y_um,axis_a,a_um,axis_b,b_um");
+		fdtd::io::log("centroid", "%.4g,%.4g,%c,%+.4g,%c,%+.4g", cx / w * 1e6, cy / w * 1e6, "xyz"[ax], (cx / w + std::array<double, 3>{m.offset_x, m.offset_y, m.offset_z}[ax]) * 1e6, "xyz"[ay],
 					  (cy / w + std::array<double, 3>{m.offset_x, m.offset_y, m.offset_z}[ay]) * 1e6);
 	}
 

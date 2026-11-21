@@ -1,4 +1,4 @@
-# LAMBDA[nm]	 T	 R	 A
+# lambda_nm	transmittance	reflectance	absorptance
 8.000000e+02	3.538657e-05	2.984172e-39	9.999646e-01
 7.833333e+02	3.610568e-05	2.899860e-39	9.999639e-01
 7.666667e+02	3.683858e-05	2.827879e-39	9.999632e-01

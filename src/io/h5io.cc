@@ -20,7 +20,7 @@ namespace
 {
 	int rank = 0;
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	std::fprintf(stderr, "[rank %d] HDF5 error: %s (%s)\n", rank, what.c_str(), path.c_str());
+	std::fprintf(stderr, "error: rank %d: HDF5: %s: %s\n", rank, path.c_str(), what.c_str());
 	H5Eprint2(H5E_DEFAULT, stderr);
 	MPI_Abort(MPI_COMM_WORLD, 3);
 	std::abort();

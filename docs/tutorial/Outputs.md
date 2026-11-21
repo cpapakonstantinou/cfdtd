@@ -24,22 +24,20 @@ A directory the run does not write to is not kept. `resolved_config.ini` is in t
 
 ## Reports
 
-Every text report starts with comment lines: what the run was, then the column header.
+Every text report starts with two comment lines, the program and configuration file, then the
+column names; `resolved_config.ini` holds every setting of the run.
 
 ```
-# 3D-FDTD 9e76cd2, double precision
-# config: run.ini
-# override: grid.time_steps=1000
-# source: plane_wave, gaussian, polarization z, 0 deg toward the other transverse axis, propagation y
-# spectrum: 690 to 785 nm, 5 points, frequency spacing, harmonic band third
-# grid: 500 x 500 x 500 cells of 1 x 1 x 1 nm, cpml 16 16 16
-# time: dt 1.667820e-18 s, 65000 steps
-# LAMBDA[nm]	 Qscatt	 Qabs	 Qextin
-7.850000e+02	 ...
+# 3D-FDTD 9e76cd2 run.ini
+# lambda_nm	q_sca	q_abs	q_ext
+7.850000e+02	...
 ```
 
 `numpy.loadtxt(path)` and gnuplot skip them; with pandas,
-`pandas.read_csv(path, comment="#", sep=r"\s+", header=None)`.
+`pandas.read_csv(path, comment="#", sep=r"\s+", header=None)`, or with the names,
+`pandas.read_csv(path, sep="\t", skiprows=1).rename(columns=lambda c: c.lstrip("# "))`.
+
+Column names are snake_case with the unit last: `lambda_nm`, `e_peak_v_m`, `input_fluence_j_m2`.
 
 | File | Content |
 |---|---|
@@ -51,14 +49,38 @@ Every text report starts with comment lines: what the run was, then the column h
 | `harmonic_efficiency.txt` | harmonic conversion efficiency from the flux boxes; `harmonic_efficiency_art.txt` from the ART-TFSF estimate, `harmonic_efficiency_periodic.txt` from the planes |
 | `multipoles_<method>.txt` | multipole moments, `exact` or `lwa`; `multipoles_<method>_full_current.txt` at the harmonic |
 | `multipoles_<method>_cross_sections.txt` | the cross section of each multipole |
-| `source_signal.txt` | the source signal and its carrier, one row per step |
+| `source_signal.txt` | the source signal and its carrier, one row per step from the DFT start |
 | `source_spectrum.txt` | the source spectrum the DFTs are normalised by |
 | `far_field_forward.txt`, `far_field_backward.txt`, `near_field.txt` | Ex and Ez, amplitude and phase, at one point |
-| `aux_grid_ex.txt` ... `aux_grid_hz.txt` | the fields of the 1D auxiliary grid |
+| `aux_grid_ex.txt` ... `aux_grid_hz.txt` | the fields of the 1D auxiliary grid, one row per frame, one column per cell along y |
 | `run.log` | the end of the run, with the elapsed time |
 
-The probe traces are `frames/probe_<x>_<y>_<z>.txt`, the tracker spectra
+The probe traces are `frames/probe_<x>_<y>_<z>.txt`, one row per step, the tracker spectra
 `frames/tracker_<n>.txt`, with the same comment lines.
+
+## Console output
+
+Every line the commands and the solver print starts with a key. A table is one key: its first
+line holds the comma-separated column names, the next lines the rows, so
+
+```sh
+grep '^qcoeff:' run.out | cut -d' ' -f2- > cross_sections.csv
+```
+
+gives a CSV file with a header. Messages are `key: text`, warnings `warning: text`, errors go to
+stderr as `error: text`. A line from a rank other than 0 has the rank after the key, `key[3]: text`.
+
+| Key | Table or message |
+|---|---|
+| `start` | version, command, configuration, output directory and rank layout |
+| `domain`, `subdomain`, `planes`, `flux_y` | cells of the domain and of every rank, plot planes, flux-box planes |
+| `n_avg`, `nonlinear` | refractive index of every material over the spectrum; the χ of every nonlinear slot |
+| `grid`, `time`, `resolution`, `layout`, `peak`, `memory`, `bytes`, `census` | the geometry report, also in `materials/geometry_report.txt` |
+| `trace` | the fields at the plot-plane crossing every `[run] trace_interval` steps |
+| `qcoeff`, `qcoeff_nl`, `q_area`, `q_norm`, `faces`, `art_area` | the cross sections and their normalisation areas |
+| `arrays` | the peak array memory of the run |
+| `run`, `setup`, `sources`, `monitors`, `state` | messages |
+
 
 ## Layout of the HDF5 files
 

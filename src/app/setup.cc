@@ -141,7 +141,7 @@ bool fdtd::app::initialise_run()
 	run_cfg.materials.magnetic_lorentz = fdtd::materials::is(run_cfg.materials.antenna_material, fdtd::materials::Kind::magnetic_lorentz);
 
 	if (run_cfg.materials.magnetic_lorentz && fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("setup", "Magnetic Lorentz model\n");
+		fdtd::io::log("setup", "magnetic Lorentz model");
 
 	run_cfg.geometry.grating = false;					// Legacy
 
@@ -257,7 +257,7 @@ bool fdtd::app::initialise_run()
 	if (run_cfg.thermal.two_temperature_model && run_cfg.thermal.pump && run_cfg.thermal.pump_probe)
 	{
 		fdtd::app::run_state().nr_max_time_steps += int(220e-15 / run_cfg.time.dt);
-		fdtd::io::log("setup", "Increasing Time Steps to %d\n", fdtd::app::run_state().nr_max_time_steps);
+		fdtd::io::log("setup", "time steps raised to %d", fdtd::app::run_state().nr_max_time_steps);
 	}
 	run_cfg.time.coeff_h = run_cfg.time.dt / MU0;
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -359,11 +359,12 @@ bool fdtd::app::initialise_run()
 	}
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("setup", "dimensions without CPML: %d %d %d\n", fdtd::grid::lattice().inner(0), fdtd::grid::lattice().inner(1), fdtd::grid::lattice().inner(2));
-	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("setup", "dimensions CPML: %d %d %d\n", run_cfg.grid.num_cpml_cells_x, run_cfg.grid.num_cpml_cells_y, run_cfg.grid.num_cpml_cells_z);
-	if (fdtd::grid::world_rank == ROOTPROCESS)
-		fdtd::io::log("setup", "dimensions PW: %d %d %d\n", run_cfg.grid.nr_inflate_x, run_cfg.grid.nr_inflate_y, run_cfg.grid.nr_inflate_z);
+	{
+		fdtd::io::log("domain", "part,x,y,z");
+		fdtd::io::log("domain", "interior,%d,%d,%d", fdtd::grid::lattice().inner(0), fdtd::grid::lattice().inner(1), fdtd::grid::lattice().inner(2));
+		fdtd::io::log("domain", "cpml,%d,%d,%d", run_cfg.grid.num_cpml_cells_x, run_cfg.grid.num_cpml_cells_y, run_cfg.grid.num_cpml_cells_z);
+		fdtd::io::log("domain", "plane_wave,%d,%d,%d", run_cfg.grid.nr_inflate_x, run_cfg.grid.nr_inflate_y, run_cfg.grid.nr_inflate_z);
+	}
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -906,7 +907,7 @@ bool fdtd::app::allocate_material_state()
 	double total[2] = {0, 0};
 	MPI_Reduce(bytes, total, 2, MPI_DOUBLE, MPI_SUM, ROOTPROCESS, MPI_COMM_WORLD);
 	if (fdtd::grid::world_rank == ROOTPROCESS && total[1] > 0)
-		fdtd::io::log("setup", "Dispersive state: %.1f MB (%.1f MB with full rows)\n", total[0] / 1048576.0, total[1] / 1048576.0);
+		fdtd::io::log("setup", "dispersive state %.1f MiB, %.1f MiB with full rows", total[0] / 1048576.0, total[1] / 1048576.0);
 	return true;
 }
 
@@ -920,7 +921,7 @@ bool fdtd::app::material_state_intact()
 	for (int mm = 0; mm < max_slots; ++mm)
 		fdtd::materials::dispersive_state().for_each_pole(mm, [&](fdtd::array4<double> &pole) { ok = ok && pole.padding_zero(); });
 	if (!ok)
-		std::fprintf(stderr, "rank %d: dispersive state written outside its material box\n", fdtd::grid::world_rank);
+		std::fprintf(stderr, "warning: rank %d writes dispersive state outside its material box\n", fdtd::grid::world_rank);
 	return ok;
 }
 

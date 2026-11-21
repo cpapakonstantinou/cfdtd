@@ -117,12 +117,17 @@ void write_art_spectra(int step)
 
 		str_2 = _cstring;
 		std::string dataPathART;
-		fdtd::io::log("monitors", "AreaR: %e\t AreaT: %e\n", AreaR, area_t);
+		static bool logged = false;
+		if (!logged && (logged = true))
+		{
+			fdtd::io::log("art_area", "reflection_m2,transmission_m2");
+			fdtd::io::log("art_area", "%e,%e", AreaR, area_t);
+		}
 
 		dataPathART = sp.reports_dir + "/art_" + str_2 + ".txt";
 
 		f_art = fdtd::io::open_report(dataPathART, "");
-		fprintf(f_art, "# LAMBDA[nm]\t T\t R\t A\n");
+		fprintf(f_art, "# lambda_nm\ttransmittance\treflectance\tabsorptance\n");
 
 		if (sp.abs_sigma)
 		{
@@ -130,11 +135,11 @@ void write_art_spectra(int step)
 			f_art_sigma = fdtd::io::open_report(strDataPath_ART_sigma, "");
 			if (single_photon)
 			{
-				fprintf(f_art_sigma, "# LAMBDA[nm]\t T\t R\t A_met\t A_Si\t Err\n");
+				fprintf(f_art_sigma, "# lambda_nm\ttransmittance\treflectance\tabsorptance_metal\tabsorptance_si\terror\n");
 			}
 			else
 			{
-				fprintf(f_art_sigma, "# LAMBDA[nm]\t T\t R\t A\t Err\n");
+				fprintf(f_art_sigma, "# lambda_nm\ttransmittance\treflectance\tabsorptance\terror\n");
 			}
 		}
 
@@ -205,7 +210,7 @@ void write_art_spectra(int step)
 				transm_nl_power += 2 * sp.dt * sp.dt * tran[m] * harmonic_point_width[m - sp.nr_frequencies / 2];
 				refl_nl_power += 2 * sp.dt * sp.dt * refl[m] * harmonic_point_width[m - sp.nr_frequencies / 2];
 			}
-			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# e_peak_v_m\tinput_fluence_j_m2\tinput_energy_j\tscattered_energy_j\tabsorbed_energy_j\tscattered_efficiency\tabsorbed_efficiency\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * AreaR, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * AreaR), refl_nl_power / (fdtd::sources::input_power * AreaR));
 		}
 
@@ -213,7 +218,7 @@ void write_art_spectra(int step)
 		{
 			transm_nl_power = tran[1];
 			refl_nl_power = refl[1];
-			fprintf(f_art, "# Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# e_peak_v_m\tinput_intensity_w_m2\tinput_power_w\tscattered_power_w\tabsorbed_power_w\tscattered_efficiency\tabsorbed_efficiency\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * AreaR, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * AreaR), refl_nl_power / (fdtd::sources::input_power * AreaR));
 		}
 		fclose(f_art);
