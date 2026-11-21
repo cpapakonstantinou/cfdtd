@@ -89,8 +89,8 @@ def main():
 	oldWL, oldT, oldR, _ = np.loadtxt(oldFile, unpack=True, skiprows=1)
 
 	# Load in the simulation results
-	simFile = f"{sys.argv[1] if len(sys.argv) > 1 else here + '/OUTPUT'}/reports/ART_90pol_4000.txt"
-	simWL, simT, simR, _ = np.loadtxt(simFile, unpack=True, skiprows=1)
+	simFile = f"{sys.argv[1] if len(sys.argv) > 1 else here + '/OUTPUT'}/reports/art_4000.txt"
+	simWL, simT, simR, _ = np.loadtxt(simFile, unpack=True)
 	simWL *= 1e-9
 
 	plotDict = {

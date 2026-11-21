@@ -45,7 +45,6 @@ extern std::vector<double> spectrum_omega;                    ///< Angular frequ
 extern double fundamental_step_frequency;                     ///< Frequency step of the fundamental band in Hz.
 extern bool xpol;                                           ///< Source polarised along x.
 extern bool zpol;                                           ///< Source polarised along z.
-extern std::string pol;                                          ///< Polarisation label used in output file names.
 extern double input_power;                                    ///< Incident fluence integrated over the spectrum in J/m^2.
 extern double analysis_omega[fdtd::max_frequencies];                      ///< Analysed angular frequencies in rad/s.
 extern double amplitude_normalization[fdtd::max_frequencies];    ///< |DFT of the source signal| per frequency, used to normalise spectra.

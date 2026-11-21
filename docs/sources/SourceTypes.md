@@ -70,4 +70,4 @@ e_z = 1
 
 The run stops before it starts if the time steps do not cover the signal;
 [Signal and Time Steps](../tutorial/SignalSettings.md) shows how to choose them with `fdtd signal`.
-`reports/Signal.txt` holds the signal the run used.
+`reports/source_signal.txt` holds the signal the run used.

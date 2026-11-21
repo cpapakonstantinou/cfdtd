@@ -6,6 +6,7 @@
  * probe traces of the driver context.
  */
 #include "monitors/time_probes.h"
+#include "io/text.h"
 #include "fields/fields.h"
 #include "grid/subdomain.h"
 #include "materials/material_map.h"
@@ -86,15 +87,15 @@ void TimeProbes::write(int step) const
 	for (size_t p = 0; p < point.size(); p++)
 	{
 		const ProbeCell &P = point[p];
-		const std::string path = sp.frames_dir + "/TimePlot_" + std::to_string(P.gx) + "_" + std::to_string(P.gy) + "_" +
-								 std::to_string(P.gz) + ".txt";
-		FILE *f = std::fopen(path.c_str(), "w");
+		const std::string path = sp.frames_dir + "/probe_" + std::to_string(P.gx) + "_" + std::to_string(P.gy) + "_" + std::to_string(P.gz) + ".txt";
+		FILE *f = fdtd::io::open_report(path, "");
 		if (!f)
 			continue;
 		const int x = P.x - subdomain.inner_org_x;
 		const int y = P.y - subdomain.inner_org_y;
 		const int z = P.z - subdomain.inner_org_z;
-		std::fprintf(f, "%d\t%d\t%d\n", matind_x[x][y][z], matind_y[x][y][z], matind_z[x][y][z]);
+		std::fprintf(f, "# material slots of Ex, Ey, Ez: %d %d %d\n", matind_x[x][y][z], matind_y[x][y][z], matind_z[x][y][z]);
+		std::fprintf(f, "# Ex\tEy\tEz\tHx\tHy\tHz, one row per step\n");
 		for (int s = 0; s < step; s++)
 			std::fprintf(f, "%e\t%e\t%e\t%e\t%e\t%e\n", E[0](p, s), E[1](p, s), E[2](p, s), H[0](p, s), H[1](p, s), H[2](p, s));
 		std::fclose(f);

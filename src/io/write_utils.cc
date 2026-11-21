@@ -82,39 +82,27 @@ void get_time(clock_t startTime, clock_t endTime, float &hours, float &minutes, 
 }
 
 /**
- * @brief writes inputted text to log file
- * If doesn't exist, will create the path and file
- *
- * @param text the text of the log you wish to write
- * @param dirPath [in] path string to directory you wish to put the log
- * @param verboseFlag will print to screen if true is false by default
- * @param startTime the time used to determined the time elaseped by subtracting from the current time
- * @parm logNumber allows to write to numbered log for sorting. no number by default 
- * @return true if error eccured
- * @return false if there were no issues
+ * @brief Appends a line to <dir>/run.log with the time since start, creating the directory
+ * @return true if the directory could not be made
  */
-bool fdtd::io::write_log(std::string text, std::string dirPath, clock_t startTime, std::string logName, bool verboseFlag, int logNumber)
+bool fdtd::io::write_log(const std::string &text, const std::string &dir, clock_t start, bool verbose)
 {
-	clock_t currentTime = clock(); 
-	float hours = 0; float minutes = 0; float seconds = 0;
-	bool error = ensure_directory(dirPath);
-	
-	FILE* pFile;
-	if (logNumber != 0) 
-	{
-		pFile = fopen((dirPath + "/"+ logName + std::to_string(logNumber) + ".txt").c_str(), "a");
-	}
-	else
-	{
-		pFile = fopen((dirPath + "/" + logName + ".txt").c_str(), "a");
-	}
-	if (pFile == NULL) return false;
-	
-	get_time(startTime, currentTime, hours, minutes, seconds);
-	fprintf(pFile,("%4.0fh:%2.0fm:%2.0fs %s\n") , hours, minutes, seconds,text.c_str());
-	if (verboseFlag) {
+	clock_t currentTime = clock();
+	float hours = 0;
+	float minutes = 0;
+	float seconds = 0;
+	std::string path = dir;
+	bool error = ensure_directory(path);
+
+	FILE *pFile = fopen((dir + "/run.log").c_str(), "a");
+	if (pFile == NULL)
+		return false;
+
+	get_time(start, currentTime, hours, minutes, seconds);
+	fprintf(pFile, ("%4.0fh:%2.0fm:%2.0fs %s\n"), hours, minutes, seconds, text.c_str());
+	fclose(pFile);
+	if (verbose)
 		fdtd::io::log("run", "%s (elapsed %.0f h %.0f m %.0f s)", text.c_str(), hours, minutes, seconds);
-	}
 
 	return error;
 }

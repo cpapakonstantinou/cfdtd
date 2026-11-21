@@ -119,22 +119,22 @@ void write_art_spectra(int step)
 		std::string dataPathART;
 		fdtd::io::log("monitors", "AreaR: %e\t AreaT: %e\n", AreaR, area_t);
 
-		dataPathART = sp.reports_dir + "/ART_" + fdtd::sources::pol + "_" + str_2 + ".txt";
+		dataPathART = sp.reports_dir + "/art_" + str_2 + ".txt";
 
-		f_art = fopen(dataPathART.c_str(), "w+");
-		fprintf(f_art, "LAMBDA[nm]\t T\t R\t A\n");
+		f_art = fdtd::io::open_report(dataPathART, "");
+		fprintf(f_art, "# LAMBDA[nm]\t T\t R\t A\n");
 
 		if (sp.abs_sigma)
 		{
-			std::string strDataPath_ART_sigma = sp.reports_dir + "/ART_" + fdtd::sources::pol + "_sigma.txt";
-			f_art_sigma = fopen(strDataPath_ART_sigma.c_str(), "w+");
+			std::string strDataPath_ART_sigma = sp.reports_dir + "/art_sigma.txt";
+			f_art_sigma = fdtd::io::open_report(strDataPath_ART_sigma, "");
 			if (single_photon)
 			{
-				fprintf(f_art_sigma, "LAMBDA[nm]\t T\t R\t A_met\t A_Si\t Err\n");
+				fprintf(f_art_sigma, "# LAMBDA[nm]\t T\t R\t A_met\t A_Si\t Err\n");
 			}
 			else
 			{
-				fprintf(f_art_sigma, "LAMBDA[nm]\t T\t R\t A\t Err\n");
+				fprintf(f_art_sigma, "# LAMBDA[nm]\t T\t R\t A\t Err\n");
 			}
 		}
 
@@ -193,8 +193,8 @@ void write_art_spectra(int step)
 
 	if (fdtd::grid::world_rank == ROOTPROCESS && (sp.thg || sp.shg || sp.hydrodynamics) && count_art == 9)
 	{
-		std::string dataPathART = sp.reports_dir + "/NL_Efficiency_PBC.txt";
-		f_art = fopen(dataPathART.c_str(), "w+");
+		std::string dataPathART = sp.reports_dir + "/harmonic_efficiency_periodic.txt";
+		f_art = fdtd::io::open_report(dataPathART, "");
 
 		transm_nl_power = double(0.);
 		refl_nl_power = double(0.);
@@ -205,7 +205,7 @@ void write_art_spectra(int step)
 				transm_nl_power += 2 * sp.dt * sp.dt * tran[m] * harmonic_step_frequency;
 				refl_nl_power += 2 * sp.dt * sp.dt * refl[m] * harmonic_step_frequency;
 			}
-			fprintf(f_art, "Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnengy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * AreaR, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * AreaR), refl_nl_power / (fdtd::sources::input_power * AreaR));
 		}
 
@@ -213,7 +213,7 @@ void write_art_spectra(int step)
 		{
 			transm_nl_power = tran[1];
 			refl_nl_power = refl[1];
-			fprintf(f_art, "Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * AreaR, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * AreaR), refl_nl_power / (fdtd::sources::input_power * AreaR));
 		}
 		fclose(f_art);

@@ -51,7 +51,7 @@ def load_h5(path):
 
 
 def load_table(path):
-    return np.loadtxt(path, skiprows=1, ndmin=2)
+    return np.loadtxt(path, ndmin=2)
 
 
 def close(ref, new, rtol):

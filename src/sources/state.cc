@@ -32,7 +32,6 @@ std::vector<double> spectrum_omega;
 double fundamental_step_frequency;
 bool xpol;
 bool zpol;
-std::string pol;
 double input_power;
 double analysis_omega[fdtd::max_frequencies];
 double amplitude_normalization[fdtd::max_frequencies];

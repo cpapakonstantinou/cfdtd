@@ -55,7 +55,7 @@ int n_max;                                                  ///< Last time step,
  * angular frequencies of interest. The way in which it does this varies
  * depending on the type of simulation being performed. It will also use
  * these values to output the signal used in the simulation in both the 
- * time and frequency domain into a file `Signal.txt`. 
+ * time and frequency domain into reports/source_signal.txt and source_spectrum.txt. 
  */
 int fdtd::sources::transform_pulse(int steps)
 {
@@ -85,7 +85,7 @@ int fdtd::sources::transform_pulse(int steps)
 	SignalTransformVec = fdtd::vector1<std::complex<double>>(sp.nr_frequencies);
 	FILE *sigfile = nullptr;
 	if (fdtd::grid::world_rank == ROOTPROCESS)
-		sigfile = fopen((sp.reports_dir + "/Signal.txt").c_str(), "w");
+		sigfile = fdtd::io::open_report(sp.reports_dir + "/source_signal.txt", "signal\tcarrier, one row per step from the DFT start");
 
 	for (m = 0; m < sp.nr_frequencies; ++m)
 	{
@@ -111,10 +111,8 @@ int fdtd::sources::transform_pulse(int steps)
 	{
 		fdtd::io::log("sources", "Time steps required for excitation: %d, DFT calculated from step %d\n", n_max, n_start);
 
-		std::string DFT_ampl_path = sp.reports_dir + "/DFT_module_phase.txt";
-		if (FILE *string_DFT = fopen(DFT_ampl_path.c_str(), "w+"))
+		if (FILE *string_DFT = fdtd::io::open_report(sp.reports_dir + "/source_spectrum.txt", "LAMBDA[nm]\t DFT_module\t DFT_phase\t N_samples\t DFT_re\t DFT_im"))
 		{
-			fprintf(string_DFT, "LAMBDA[nm]\t DFT_module\t DFT_phase\t N_samples\n");
 			for (m = 0; m < sp.nr_frequencies; ++m)
 			{
 				fprintf(string_DFT, "%e\t%e\t%e\t%d\t%e\t%e\n", (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9), fdtd::sources::amplitude_normalization[m], PhaseNormalization[m], n_max - n_start, fdtd::sources::dft_normalization[m].real(), fdtd::sources::dft_normalization[m].imag());

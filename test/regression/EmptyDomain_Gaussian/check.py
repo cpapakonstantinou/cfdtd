@@ -69,8 +69,8 @@ def main():
 	oldWL, oldT, oldR, _ = np.loadtxt(oldFile, unpack=True, skiprows=1)
 
 	# Load in the simulation results
-	simFile = latest(sys.argv[1] if len(sys.argv) > 1 else here + "/OUTPUT", "ART-TFSF_double_90pol_*.txt")
-	simWL, simT, simR, _ = np.loadtxt(simFile, unpack=True, skiprows=1)
+	simFile = latest(sys.argv[1] if len(sys.argv) > 1 else here + "/OUTPUT", "art_tfsf_[0-9]*.txt")
+	simWL, simT, simR, _ = np.loadtxt(simFile, unpack=True)
 	simWL *= 1e-9
 
 	plotDict = {

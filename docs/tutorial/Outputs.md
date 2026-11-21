@@ -14,13 +14,51 @@ xdmf = false
 
 | Directory | Content |
 |---|---|
-| `reports/` | text tables: `Qcoeff_*`, `ART-TFSF_*`, `ART_*`, `NL_Efficiency_*`, `Signal.txt`, `DFT_module_phase.txt`, the near/far-field point files, the 1D profiles (`1D_Ex.txt` ...), and the logs |
+| `reports/` | text tables, see [Reports](#reports), and `run.log` |
 | `fields/` | frequency-domain data: DFT planes, boxes and volumes, the near-to-far faces |
 | `frames/` | time-domain data: movie frames `Efield_<plane>_<number>.h5` (the number last, so ParaView loads them as a series) and the probe traces |
 | `materials/` | the material index maps (`MaterialIndex_*`), the geometry report |
 | `state/` | application state dumps (temperatures; the restart file later) |
 
 A directory the run does not write to is not kept. `resolved_config.ini` is in the root.
+
+## Reports
+
+Every text report starts with comment lines: what the run was, then the column header.
+
+```
+# 3D-FDTD 9e76cd2, double precision
+# config: run.ini
+# override: grid.time_steps=1000
+# source: plane_wave, gaussian, polarization z, 0 deg toward the other transverse axis, propagation y
+# spectrum: 690 to 785 nm, 5 points, frequency spacing, harmonic band third
+# grid: 500 x 500 x 500 cells of 1 x 1 x 1 nm, cpml 16 16 16
+# time: dt 1.667820e-18 s, 65000 steps
+# LAMBDA[nm]	 Qscatt	 Qabs	 Qextin
+7.850000e+02	 ...
+```
+
+`numpy.loadtxt(path)` and gnuplot skip them; with pandas,
+`pandas.read_csv(path, comment="#", sep=r"\s+", header=None)`.
+
+| File | Content |
+|---|---|
+| `cross_sections.txt` | scattering, absorption and extinction efficiencies per wavelength |
+| `cross_sections_harmonic.txt` | the same at the harmonic, hydrodynamic runs |
+| `cross_sections_sigma.txt` | with the absorption from sigma \|E\|^2, `[output] sigma_absorption` |
+| `art_tfsf_<n>.txt` | T, R, A from the flux boxes at step n; `art_tfsf_harmonic_<n>.txt`, `art_tfsf_sigma.txt` |
+| `art_<n>.txt`, `art_sigma.txt` | T, R, A from the planes of periodic runs |
+| `harmonic_efficiency.txt` | harmonic conversion efficiency from the flux boxes; `harmonic_efficiency_art.txt` from the ART-TFSF estimate, `harmonic_efficiency_periodic.txt` from the planes |
+| `multipoles_<method>.txt` | multipole moments, `exact` or `lwa`; `multipoles_<method>_full_current.txt` at the harmonic |
+| `multipoles_<method>_cross_sections.txt` | the cross section of each multipole |
+| `source_signal.txt` | the source signal and its carrier, one row per step |
+| `source_spectrum.txt` | the source spectrum the DFTs are normalised by |
+| `far_field_forward.txt`, `far_field_backward.txt`, `near_field.txt` | Ex and Ez, amplitude and phase, at one point |
+| `aux_grid_ex.txt` ... `aux_grid_hz.txt` | the fields of the 1D auxiliary grid |
+| `run.log` | the end of the run, with the elapsed time |
+
+The probe traces are `frames/probe_<x>_<y>_<z>.txt`, the tracker spectra
+`frames/tracker_<n>.txt`, with the same comment lines.
 
 ## Layout of the HDF5 files
 

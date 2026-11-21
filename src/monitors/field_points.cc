@@ -5,6 +5,7 @@
  * Replaces updateFieldMonitors.cc, five copies of one writer, and its five flag globals.
  */
 #include "monitors/field_points.h"
+#include "io/text.h"
 #include "monitors/state.h"
 #include "core/views.h"
 #include "grid/subdomain.h"
@@ -35,11 +36,9 @@ namespace
 /// one file: Ex, Ez of the E set of plane P at cell (i, j, k), for every frequency
 void write_point(const std::string &name, const DftPlane &P, int i, int j, int k)
 {
-	FILE *f = std::fopen((sp.reports_dir + "/" + name + "_" + fdtd::sources::pol + ".txt").c_str(), "w+");
+	FILE *f = fdtd::io::open_report(sp.reports_dir + "/" + name + ".txt", "LAMBDA[nm]\t |Ex|\t |Ez|\t |Ex|/|Ez|\t Ex_ph\t Ez_ph\t Ex-Ez_ph");
 	if (!f)
 		return;
-	const char *p = fdtd::sources::pol.c_str();
-	std::fprintf(f, "LAMBDA[nm]\t |Ex|_%s\t |Ez|_%s\t |Ex|/|Ez|_%s \t Ex_ph_%s \t Ez_ph_%s \t Ex-Ez_ph_%s\n", p, p, p, p, p, p);
 	const view4<double> rex = P.re[0][0][0];
 	const view4<double> iex = P.im[0][0][0];
 	const view4<double> rez = P.re[0][0][2];
@@ -76,22 +75,22 @@ void write_field_points()
 	const DftPlanes &planes = dft_planes();
 
 	if (both_planes && subdomain.art_far_y && sp.art && antenna_family)
-		write_point("FAR_FIELD_forward", art.plane[1], i, 0, k);
+		write_point("far_field_forward", art.plane[1], i, 0, k);
 	if (both_planes && subdomain.art_nea_y && sp.art && antenna_family)
-		write_point("FAR_FIELD_backward", art.plane[0], i, 0, k);
+		write_point("far_field_backward", art.plane[0], i, 0, k);
 	if (both_planes && subdomain.plots_xz_2() && (sp.shg || sp.thg) && (sp.shape == fdtd::geometry::shape::cylinder) && !sp.art)
-		write_point("FAR_FIELD_forward", planes.xz_2, i, 0, k);
+		write_point("far_field_forward", planes.xz_2, i, 0, k);
 	if (both_planes && subdomain.plots_xz_1() && (sp.shg || sp.thg) && (sp.shape == fdtd::geometry::shape::cylinder) && !sp.art)
-		write_point("FAR_FIELD_backward", planes.xz_1, i, 0, k);
+		write_point("far_field_backward", planes.xz_1, i, 0, k);
 
 	const bool near_shape = (sp.shape == fdtd::geometry::shape::dipole) || (sp.shape == fdtd::geometry::shape::lateral_dipole) || (sp.shape == fdtd::geometry::shape::x_shape) || (sp.shape == fdtd::geometry::shape::round_butterfly) || (sp.shape == fdtd::geometry::shape::round_dipole) ||
 							(sp.shape == fdtd::geometry::shape::round_tripole) || (sp.shape == fdtd::geometry::shape::round_hybrid) || (sp.shape == fdtd::geometry::shape::one_side_round_dipole);
 	if (both_planes && subdomain.plots_xz() && near_shape)
 	{
 		if (dft_plane_xz)
-			write_point("NEAR_FIELD", planes.plane[1], i, 0, k);
+			write_point("near_field", planes.plane[1], i, 0, k);
 		else if (dft_plane_yz)
-			write_point("NEAR_FIELD", planes.plane[0], 0, j, k);
+			write_point("near_field", planes.plane[0], 0, j, k);
 	}
 }
 } // namespace fdtd::monitors

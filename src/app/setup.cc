@@ -224,11 +224,6 @@ bool fdtd::app::initialise_run()
 			fdtd::sources::zpol = true;
 			fdtd::sources::polarization_angle = double(run_cfg.source.polarization_deg * PI / 180);
 		}
-		sprintf(fdtd::app::run_state().cstring, "%d", run_cfg.source.polarization_deg);
-		fdtd::sources::pol = fdtd::app::run_state().cstring;
-		fdtd::sources::pol = fdtd::sources::pol + "pol";
-		if (run_cfg.source.circ_rh || run_cfg.source.circ_lh)
-			fdtd::sources::pol = run_cfg.source.circ_rh ? "rhcp" : "lhcp";
 	}
 	fdtd::materials::thermal::str_outfilepathname_t = run_cfg.output.state_dir + "/electron_temperature_";
 	fdtd::materials::thermal::str_infilepathname_t = run_cfg.output.base_path_input + "/electron_temperature";

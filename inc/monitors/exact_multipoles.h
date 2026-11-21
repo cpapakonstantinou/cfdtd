@@ -9,8 +9,8 @@
                                                                      DFT of the nonlinear polarisation
       moments p, m, Qe, Qm with the spherical-Bessel weights of Table 2, origin at the antenna centre
    @endverbatim
- * Output, root, ART directory: Multipoles_exact_<prec>_<pol>.txt and, with SHG/THG,
- * Multipoles_exact_full_current_<prec>_<pol>.txt, plus the cross sections. Details in the source.
+ * Output, root, reports/: multipoles_exact.txt and, with SHG/THG, multipoles_exact_full_current.txt,
+ * each with its _cross_sections.txt; multipoles_lwa*.txt likewise. Details in the source.
  */
 #ifndef FDTD_MONITORS_EXACT_MULTIPOLES_H
 #define FDTD_MONITORS_EXACT_MULTIPOLES_H

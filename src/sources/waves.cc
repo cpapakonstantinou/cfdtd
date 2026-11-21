@@ -85,9 +85,7 @@ bool build_waves(std::vector<PlaneWave> &waves, WaveFrame &frame)
 								  + " nm\n\tFOCAL LENGTH:\t"
 								  + std::to_string(beamData.focalLength / 1.E-9)
 								  + " nm\n");
-			fdtd::io::write_log(beamMessage,
-									   sp.reports_dir.c_str(),
-									   sp.log_start,"log", true, 1);
+			fdtd::io::write_log(beamMessage, sp.reports_dir, sp.log_start, true);
 		}
 
 		if (sp.theta_intervals == 0 && sp.phi_intervals == 0)

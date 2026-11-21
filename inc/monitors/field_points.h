@@ -4,9 +4,9 @@
  *        the normalised DFT planes, for the antenna shapes
  *
  * @verbatim
-      FAR_FIELD_forward_<pol>.txt   periodic ART runs: the transmission plane;  SHG/THG cylinder: the forward xz plane
-      FAR_FIELD_backward_<pol>.txt  periodic ART runs: the reflection plane;    SHG/THG cylinder: the backward xz plane
-      NEAR_FIELD_<pol>.txt          the xz display plane, else the yz plane, at the animation point
+      far_field_forward.txt         periodic ART runs: the transmission plane;  SHG/THG cylinder: the forward xz plane
+      far_field_backward.txt        periodic ART runs: the reflection plane;    SHG/THG cylinder: the backward xz plane
+      near_field.txt                the xz display plane, else the yz plane, at the animation point
       each at, subdomain.i_animation, subdomain.k_animation, of the plane; columns LAMBDA[nm], |Ex|, |Ez|, |Ex|/|Ez|,
       phase Ex, phase Ez, phase difference, degrees, wrapped to [-180, 180]
    @endverbatim

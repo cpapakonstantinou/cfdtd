@@ -39,6 +39,10 @@
 
 #include <sys/resource.h>
 
+#ifndef FDTD_VERSION
+#define FDTD_VERSION "dev"
+#endif
+
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -78,6 +82,33 @@ namespace fdtd
 
 namespace
 {
+
+/// What the run was, written above the column header of every report
+std::vector<std::string> report_metadata(const config::SimConfig &c, const CliOptions &o, double dt, int steps)
+{
+	char line[256];
+	std::vector<std::string> m;
+	m.push_back(std::string("3D-FDTD ") + FDTD_VERSION + ", double precision");
+	m.push_back("config: " + o.config_file);
+	for (const std::string &s : o.overrides)
+		m.push_back("override: " + s);
+	const std::string &axis = c.plane_wave.polarization_axis;
+	if (axis == "rhcp" || axis == "lhcp")
+		std::snprintf(line, sizeof line, "source: %s, %s, polarization %s", c.source.type.c_str(), c.source.signal.c_str(), axis.c_str());
+	else
+		std::snprintf(line, sizeof line, "source: %s, %s, polarization %s, %d deg toward the other transverse axis, propagation %s",
+					  c.source.type.c_str(), c.source.signal.c_str(), axis.c_str(), c.plane_wave.polarization_angle, c.plane_wave.propagation_axis.c_str());
+	m.push_back(line);
+	std::snprintf(line, sizeof line, "spectrum: %.6g to %.6g nm, %d points, %s spacing, harmonic band %s", c.spectrum.lambda_min * 1e9,
+				  c.spectrum.lambda_max * 1e9, c.spectrum.points, c.spectrum.spacing.c_str(), c.spectrum.harmonic_band.c_str());
+	m.push_back(line);
+	std::snprintf(line, sizeof line, "grid: %d x %d x %d cells of %.6g x %.6g x %.6g nm, cpml %d %d %d", c.grid.nx, c.grid.ny, c.grid.nz, c.grid.dx * 1e9,
+				  c.grid.dy * 1e9, c.grid.dz * 1e9, c.grid.pml_x, c.grid.pml_y, c.grid.pml_z);
+	m.push_back(line);
+	std::snprintf(line, sizeof line, "time: dt %.6e s, %d steps", dt, steps);
+	m.push_back(line);
+	return m;
+}
 
 /// The output tree below one root: reports/ text tables and logs, fields/ frequency-domain data,
 /// frames/ time-domain frames and probe traces, materials/ material index maps, state/ application state dumps.
@@ -389,6 +420,7 @@ void Driver::configure_run()
 	if (!mesh_only() && !run_cfg.source.allow_truncated_signal && !agree(fdtd::sources::signal_fits(fdtd::app::run_state().nr_max_time_steps, why), why))
 		return;
 
+	fdtd::io::set_report_metadata(report_metadata(_cfg, _opt, run_cfg.time.dt, fdtd::app::run_state().nr_max_time_steps));
 	if (_opt.command != Command::Memory) // the signal's spectrum and its files: not needed to size the arrays
 		fdtd::app::run_state().nr_max_time_steps = fdtd::sources::transform_pulse(fdtd::app::run_state().nr_max_time_steps);
 	{
@@ -523,7 +555,7 @@ void Driver::setup_sources_and_monitors()
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
 		if (run_cfg.source.tfsf)
-			fdtd::io::log("run", "Start FDTD cycle: %s polarization\n", fdtd::app::run_state().cstring);
+			fdtd::io::log("run", "Start FDTD cycle: %d polarization\n", run_cfg.source.polarization_deg);
 		if ((run_cfg.source.circ_lh || run_cfg.source.circ_rh) && fdtd::sources::xpol && fdtd::sources::zpol)
 			fdtd::io::log("run", "circular polarization: %15.5e s time shift\n", run_cfg.source.circ_time_shift);
 		if (run_cfg.source.gauss_beam)
@@ -748,7 +780,7 @@ void Driver::finish_run()
 			monitor->normalize();
 	MPI_Barrier(MPI_COMM_WORLD);
 
-	fdtd::monitors::count_art = 9; // final ART pass, names the ART-TFSF files
+	fdtd::monitors::count_art = 9; // final ART pass, names the art_tfsf files
 	for (const auto& monitor : c.monitors)
 	{
 		monitor->finish();
@@ -788,7 +820,7 @@ void Driver::finalize()
 		const std::string msg = mesh_only() ? std::string("Mesh written to ") + run_cfg.output.materials_dir
 						  : _signal ? "Interrupted by signal " + std::to_string(_signal) + " after " + std::to_string(fdtd::app::run_state().timestep) + " iterations; outputs written"
 											: "Process " + std::to_string(fdtd::grid::world_rank) + " regularly concluded after " + std::to_string(fdtd::app::run_state().timestep) + " iterations";
-		fdtd::io::write_log(msg, run_cfg.output.reports_dir, fdtd::app::run_state().prgstart, "log", true, 1);
+		fdtd::io::write_log(msg, run_cfg.output.reports_dir, fdtd::app::run_state().prgstart, true);
 		// keep only the directories this run wrote to
 		std::error_code ec;
 		for (const std::string &dir : {run_cfg.output.reports_dir, run_cfg.output.fields_dir, run_cfg.output.frames_dir, run_cfg.output.materials_dir, run_cfg.output.state_dir})

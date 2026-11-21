@@ -177,23 +177,23 @@ void write_q_coefficients()
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
-		std::string strDataPath_Qcoeff = sp.reports_dir + "/Qcoeff_double_" + fdtd::sources::pol + ".txt";
-		std::string strDataPath_Qcoeff_NL = sp.reports_dir + "/Qcoeff_NL_double_" + fdtd::sources::pol + ".txt";
+		std::string strDataPath_Qcoeff = sp.reports_dir + "/cross_sections.txt";
+		std::string strDataPath_Qcoeff_NL = sp.reports_dir + "/cross_sections_harmonic.txt";
 
-		f_qcoeff = fopen(strDataPath_Qcoeff.c_str(), "w+");
+		f_qcoeff = fdtd::io::open_report(strDataPath_Qcoeff, "");
 		if (sp.hydrodynamics)
-			f_qcoeff_nl = fopen(strDataPath_Qcoeff_NL.c_str(), "w+");
+			f_qcoeff_nl = fdtd::io::open_report(strDataPath_Qcoeff_NL, "");
 
 		if (sp.abs_sigma)
 		{
-			std::string strDataPath_Qcoeff_sigma = sp.reports_dir + "/Qcoeff_sigma_double_" + fdtd::sources::pol + ".txt";
-			f_qcoeff_sigma = fopen(strDataPath_Qcoeff_sigma.c_str(), "w+");
+			std::string strDataPath_Qcoeff_sigma = sp.reports_dir + "/cross_sections_sigma.txt";
+			f_qcoeff_sigma = fdtd::io::open_report(strDataPath_Qcoeff_sigma, "");
 		}
-		fprintf(f_qcoeff, "LAMBDA[nm]\t Qscatt\t Qabs\t Qextin\n");
+		fprintf(f_qcoeff, "# LAMBDA[nm]\t Qscatt\t Qabs\t Qextin\n");
 		if (f_qcoeff_nl)
-			fprintf(f_qcoeff_nl, "LAMBDA[nm]\t Qscatt\t Qabs\t Qextin\n");
+			fprintf(f_qcoeff_nl, "# LAMBDA[nm]\t Qscatt\t Qabs\t Qextin\n");
 		if (f_qcoeff_sigma)
-			fprintf(f_qcoeff_sigma, "LAMBDA[nm]\t Qscatt\t Qabs_sigma\t Qextin\n");
+			fprintf(f_qcoeff_sigma, "# LAMBDA[nm]\t Qscatt\t Qabs_sigma\t Qextin\n");
 
 		if (geometric_cross_section > 0)
 			fdtd::io::log("monitors", "Q normalised by the geometric cross section %e m^2\n", geometric_cross_section);
@@ -275,8 +275,8 @@ void write_q_coefficients()
 	}
 	if (fdtd::grid::world_rank == ROOTPROCESS && (sp.thg || sp.shg || sp.hydrodynamics))
 	{
-		std::string dataPathART = sp.reports_dir + "/NL_Efficiency_noPBC.txt";
-		f_art = fopen(dataPathART.c_str(), "w+");
+		std::string dataPathART = sp.reports_dir + "/harmonic_efficiency.txt";
+		f_art = fdtd::io::open_report(dataPathART, "");
 
 		transm_nl_power = double(0.);
 		refl_nl_power = double(0.);
@@ -287,14 +287,14 @@ void write_q_coefficients()
 				transm_nl_power += 2 * sp.dt * sp.dt * qscattering[m] * harmonic_step_frequency;//J
 				refl_nl_power += 2 * sp.dt * sp.dt * qabsorption[m] * harmonic_step_frequency;//J
 			}
-			fprintf(f_art, "Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnengy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		if (sp.nr_frequencies == 2)
 		{
 			transm_nl_power = qscattering[1];//W
 			refl_nl_power = qabsorption[1];//W
-			fprintf(f_art, "Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		fclose(f_art);
@@ -355,26 +355,26 @@ void write_art_tfsf()
 	{
 		sprintf(_cstring, "%d", int(sp.steps / 10) + count_art * int(sp.steps / 10));
 		str_2 = _cstring;
-		std::string strDataPath_Qcoeff = sp.reports_dir + "/ART-TFSF_double_" + fdtd::sources::pol + "_" + str_2 + ".txt";
-		std::string strDataPath_Qcoeff_NL = sp.reports_dir + "/ART-TFSF_NL_double_" + fdtd::sources::pol + "_" + str_2 + ".txt";
-		f_qcoeff = fopen(strDataPath_Qcoeff.c_str(), "w+");
+		std::string strDataPath_Qcoeff = sp.reports_dir + "/art_tfsf_" + str_2 + ".txt";
+		std::string strDataPath_Qcoeff_NL = sp.reports_dir + "/art_tfsf_harmonic_" + str_2 + ".txt";
+		f_qcoeff = fdtd::io::open_report(strDataPath_Qcoeff, "");
 		if (sp.hydrodynamics)
-			f_qcoeff_nl = fopen(strDataPath_Qcoeff_NL.c_str(), "w+");
+			f_qcoeff_nl = fdtd::io::open_report(strDataPath_Qcoeff_NL, "");
 		if (sp.abs_sigma)
 		{
-			std::string strDataPath_Qcoeff_sigma = sp.reports_dir + "/ART-TFSF_sigma_double_" + fdtd::sources::pol + ".txt";
-			f_qcoeff_sigma = fopen(strDataPath_Qcoeff_sigma.c_str(), "w+");
+			std::string strDataPath_Qcoeff_sigma = sp.reports_dir + "/art_tfsf_sigma.txt";
+			f_qcoeff_sigma = fdtd::io::open_report(strDataPath_Qcoeff_sigma, "");
 		}
-		fprintf(f_qcoeff, "LAMBDA[nm]\t T\t R\t A\n");
+		fprintf(f_qcoeff, "# LAMBDA[nm]\t T\t R\t A\n");
 		if (sp.hydrodynamics)
-			fprintf(f_qcoeff_nl, "LAMBDA[nm]\t T\t R\t A\n");
+			fprintf(f_qcoeff_nl, "# LAMBDA[nm]\t T\t R\t A\n");
 
 		if (sp.abs_sigma)
 		{
 			if (single_photon)
-				fprintf(f_qcoeff_sigma, "LAMBDA[nm]\t T\t R\t A_met\t A_Si\t Gain\n");
+				fprintf(f_qcoeff_sigma, "# LAMBDA[nm]\t T\t R\t A_met\t A_Si\t Gain\n");
 			else
-				fprintf(f_qcoeff_sigma, "LAMBDA[nm]\t T\t R\t A\n");
+				fprintf(f_qcoeff_sigma, "# LAMBDA[nm]\t T\t R\t A\n");
 		}
 
 		for (m = 0; m < sp.nr_frequencies; ++m)
@@ -423,8 +423,8 @@ void write_art_tfsf()
 
 	if (fdtd::grid::world_rank == ROOTPROCESS && (sp.thg || sp.shg || sp.hydrodynamics))
 	{
-		std::string dataPathART = sp.reports_dir + "/NL_Efficiency_noPBC-ART.txt";
-		f_art = fopen(dataPathART.c_str(), "w+");
+		std::string dataPathART = sp.reports_dir + "/harmonic_efficiency_art.txt";
+		f_art = fdtd::io::open_report(dataPathART, "");
 
 		transm_nl_power = double(0.);
 		refl_nl_power = double(0.);
@@ -435,14 +435,14 @@ void write_art_tfsf()
 				transm_nl_power += 2 * sp.dt * sp.dt * (-q_face[0][0][1][0][m]) * harmonic_step_frequency;//J
 				refl_nl_power += 2 * sp.dt * sp.dt * q_face[0][1][1][1][m] * harmonic_step_frequency;//J
 			}
-			fprintf(f_art, "Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnengy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# Emax[V/m]\t InputFluence[J/m^2]\t InputEnergy[J]\t NLScatEnergy[J]\t NLAbsorpEnergy[J]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		if (sp.nr_frequencies == 2)
 		{
 			transm_nl_power = -q_face[0][0][1][0][1];//W
 			refl_nl_power = q_face[0][1][1][1][1];//W
-			fprintf(f_art, "Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
+			fprintf(f_art, "# Emax[V/m]\t InputIntensity[W/m^2]\t InputPower[W]\t NLScatPower[W]\t NLAbsorpPower[W]\t NLScatEff\t NLAbsorpEff\n");
 			fprintf(f_art, "%e\t %e\t %e\t %e\t %e\t %e\t %e\n", sp.e_peak, fdtd::sources::input_power, fdtd::sources::input_power * Area_inc, transm_nl_power, refl_nl_power, transm_nl_power / (fdtd::sources::input_power * Area_inc), refl_nl_power / (fdtd::sources::input_power * Area_inc));
 		}
 		fclose(f_art);

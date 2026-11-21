@@ -8,8 +8,8 @@
       Q_abs = (inward flux through the total-field box) / (incident intensity x area)
       area: the shape's geometric cross section, else the TF/SF box face
    @endverbatim
- * Written by root to ART/Qcoeff_<prec>_<pol>.txt, and the harmonic NL_Efficiency files, and
- * reports/ART-TFSF_<prec>_<pol>_<n>.txt.
+ * Written by root to reports/cross_sections.txt, harmonic_efficiency.txt and harmonic_efficiency_art.txt,
+ * and reports/art_tfsf_<n>.txt.
  */
 #ifndef FDTD_MONITORS_Q_COEFFICIENTS_H
 #define FDTD_MONITORS_Q_COEFFICIENTS_H

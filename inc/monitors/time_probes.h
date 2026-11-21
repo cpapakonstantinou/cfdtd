@@ -7,7 +7,7 @@
                         origin, and global index, in global (x, y, z) scan order
       E[c], H[c]        [probe][step], steps 0..N, 0 stays zero; E and H as they are after the E update
    @endverbatim
- * Written at every checkpoint to PROBES/TimePlot_<x>_<y>_<z>.txt: the material indices of the cell,
+ * Written at every checkpoint to frames/probe_<x>_<y>_<z>.txt: the material slots of the cell as a comment,
  * then one line per recorded step (Ex Ey Ez Hx Hy Hz). Recorded from the first step, also during
  * the settling periods of continuous-wave runs.
  */

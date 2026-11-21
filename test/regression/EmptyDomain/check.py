@@ -18,13 +18,13 @@ def latest(out, pattern):
 
 
 def main():
-	simFile = latest(sys.argv[1] if len(sys.argv) > 1 else here + "/OUTPUT", "ART-TFSF_double_90pol_*.txt")
+	simFile = latest(sys.argv[1] if len(sys.argv) > 1 else here + "/OUTPUT", "art_tfsf_[0-9]*.txt")
 
 	# initialize figure:
 	qFig, qAx = plt.subplots()
 
 	# Load in and plot simulation Result
-	simWL, _, R, _ = np.loadtxt(simFile, unpack=True, skiprows=1)
+	simWL, _, R, _ = np.loadtxt(simFile, unpack=True)
 
 	qAx.plot(simWL, R, 'o', label="R")
 

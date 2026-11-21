@@ -41,7 +41,7 @@ test/*.d
 fdtd
 test_config
 test_machine
-test_carray
+test_array
 test_h5io
 test_geometry
 

@@ -6,7 +6,7 @@
       R = flux back through the reflection plane / incident,  T = flux through the transmission plane / incident
       A = 1 - R - T, and with [output] sigma_absorption the conductivity-based absorption
    @endverbatim
- * Written by root to ART/ART_<pol>_<n>.txt; n numbers the intermediate spectra (count_art).
+ * Written by root to reports/art_<n>.txt; n numbers the intermediate spectra (count_art).
  */
 #ifndef FDTD_MONITORS_ART_H
 #define FDTD_MONITORS_ART_H

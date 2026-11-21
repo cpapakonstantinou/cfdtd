@@ -114,18 +114,19 @@ void FieldTrackers::sample(double t_e, double t_h)
 
 void FieldTrackers::write() const
 {
-	static const char *name[2] = {"Efield_Tracker_", "Efield_NL_Tracker_"};
+	static const char *name[2] = {"tracker_", "tracker_harmonic_"};
 	const int sets = sp.harmonic ? 2 : 1;
 	for (size_t p = 0; p < point.size(); p++)
 		for (int s = 0; s < sets; ++s)
 		{
 			const TrackPoint &P = point[p];
 			const std::string path = sp.frames_dir + "/" + name[s] + std::to_string(P.index) + ".txt";
-			FILE *f = std::fopen(path.c_str(), "w");
+			FILE *f = fdtd::io::open_report(path, "");
 			if (!f)
 				continue;
-			std::fprintf(f, "%ld\t%ld\t%ld\n", P.x + subdomain.output_start[0] - subdomain.inner_org_x - sp.centre[0],
+			std::fprintf(f, "# cell from the centre: %ld %ld %ld\n", P.x + subdomain.output_start[0] - subdomain.inner_org_x - sp.centre[0],
 						 P.y + subdomain.output_start[1] - subdomain.inner_org_y - sp.centre[1], P.z + subdomain.output_start[2] - subdomain.inner_org_z - sp.centre[2]);
+			std::fprintf(f, "# lambda[m]\tRe_Ex\tIm_Ex\tRe_Ey\tIm_Ey\tRe_Ez\tIm_Ez\tRe_Hx\tIm_Hx\tRe_Hy\tIm_Hy\tRe_Hz\tIm_Hz\n");
 			const double harmonic = s == 0 ? 1.0 : 2.0;
 			const array3<double>(&a)[2][3] = dft[s];
 			for (int m = 0; m < sp.nr_frequencies; ++m)

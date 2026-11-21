@@ -5,15 +5,25 @@
 #ifndef FDTD_IO_TEXT_H
 #define FDTD_IO_TEXT_H
 
+#include <cstdio>
 #include <ctime>
 #include <fstream>
 #include <string>
+#include <vector>
 
 namespace fdtd::io
 {
-/// appends text to <dirPath>/<logName><logNumber>.txt, with the time since startTime; also printed when verbose
-bool write_log(std::string text, std::string dirPath, clock_t startTime, std::string logName = "log", bool verboseFlag = false,
-			   int logNumber = 0);
+/// appends text to <dir>/run.log, with the time since start; also a `run:` record when verbose
+bool write_log(const std::string &text, const std::string &dir, clock_t start, bool verbose = false);
+/// the lines, without "# ", written above the column header of every report: what the run was
+void set_report_metadata(std::vector<std::string> lines);
+/**
+ * @brief Opens a text report for writing: the metadata, then the column header, each line after "# "
+ *
+ * Readers skip the comment lines: `numpy.loadtxt(path)`, `pandas.read_csv(path, comment="#", sep=r"\s+", header=None)`.
+ * @return the open file, nullptr when it cannot be opened
+ */
+FILE *open_report(const std::string &path, const std::string &columns);
 /**
  * @brief One log record per line on stdout: `key: text`, or `key[rank]: text` from a rank other than 0
  *

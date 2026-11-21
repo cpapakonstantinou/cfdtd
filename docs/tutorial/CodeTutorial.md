@@ -77,9 +77,9 @@ The output directory now holds:
 | Path | Content |
 |---|---|
 | `resolved_config.ini` | the configuration the run used, with every default filled in |
-| `reports/ART-TFSF_double_90pol_500.txt` | transmission, reflection and absorption per wavelength |
-| `reports/Qcoeff_double_90pol.txt` | scattering, absorption and extinction efficiencies |
-| `reports/Signal.txt` | the source signal |
+| `reports/art_tfsf_500.txt` | transmission, reflection and absorption per wavelength |
+| `reports/cross_sections.txt` | scattering, absorption and extinction efficiencies |
+| `reports/source_signal.txt` | the source signal |
 | `frames/Efield_XY_<n>.h5` (+ `.xmf`) | the time frames |
 | `materials/MaterialIndex_*.h5` | the material maps |
 
@@ -117,7 +117,7 @@ mpirun -n 8 ./fdtd simulate test/regression/ThinFilm/run.ini -o out/film
 python3 test/regression/ThinFilm/check.py out/film
 ```
 
-`check.py` plots the transmission and reflection of `reports/ART_90pol_4000.txt` against the
+`check.py` plots the transmission and reflection of `reports/art_4000.txt` against the
 analytical thin-film result and prints the deviations (about 0.2 % in T).
 
 To explore: change `middle_thickness` or the film's `n` from the command line, without editing the file,

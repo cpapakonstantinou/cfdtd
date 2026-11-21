@@ -49,11 +49,11 @@
  * Qm_ab = Int [r_a (r x J)_b + r_b (r x J)_a]. Like the exact set they are built from the volume
  * E-field DFT and the material permittivities, so they work with every material model.
  *
- * Output, root process, reports_dir, same style as Qcoeff files:
- *   Multipoles_exact_<prec>_<pol>.txt              all frequencies, E-contrast current
- *   Multipoles_exact_full_current_<prec>_<pol>.txt harmonic band only, contrast + nl polarization
- *   Multipoles_lwa_<prec>_<pol>.txt, Multipoles_lwa_full_current_<prec>_<pol>.txt   the LWA moments
- *   Multipoles_crossx_..., Multipoles_lwa_crossx_...   per-multipole scattering cross sections
+ * Output, root process, reports_dir, same style as cross_sections.txt:
+ *   multipoles_exact.txt                 all frequencies, E-contrast current
+ *   multipoles_exact_full_current.txt    harmonic band only, contrast + nl polarization
+ *   multipoles_lwa.txt, multipoles_lwa_full_current.txt   the LWA moments
+ *   <each>_cross_sections.txt            per-multipole scattering cross sections
  *
  * Column layout, 37 columns:
  *   LAMBDA[nm]  Re/Im px py pz  Re/Im mx my mz
@@ -444,10 +444,9 @@ static inline void multipole_cross_sections(const double *M, const double &k, do
  */
 static void write_cross_section_file(const std::string &path, const double *M, int m0, int m1, int STRIDE)
 {
-	FILE *f = fopen(path.c_str(), "w+");
+	FILE *f = fdtd::io::open_report(path, "LAMBDA[nm]\tCp\tCm\tCpq\tCmq\tCtot\tf_pd\tf_md\tf_pq\tf_mq");
 	if (f == NULL)
 		return;
-	fprintf(f, "LAMBDA[nm]\tCp\tCm\tCpq\tCmq\tCtot\tf_pd\tf_md\tf_pq\tf_mq\n");
 	for (int m = m0; m < m1; ++m)
 	{
 		double k = double(fdtd::sources::analysis_omega[m] / C0 * fdtd::materials::refractive_index(sp.medium_first, fdtd::sources::analysis_omega[m]).real());
@@ -469,16 +468,15 @@ static void write_cross_section_file(const std::string &path, const double *M, i
 /// one row per frequency in [m0, m1): LAMBDA[nm] and the 36 moment values, Re, Im pairs
 static void write_moment_file(const std::string &path, const double *M, int m0, int m1, int STRIDE)
 {
-	FILE *f = fopen(path.c_str(), "w+");
+	FILE *f = fdtd::io::open_report(path, "LAMBDA[nm]\t"
+										  "Re_px\tIm_px\tRe_py\tIm_py\tRe_pz\tIm_pz\t"
+										  "Re_mx\tIm_mx\tRe_my\tIm_my\tRe_mz\tIm_mz\t"
+										  "Re_Qexx\tIm_Qexx\tRe_Qeyy\tIm_Qeyy\tRe_Qezz\tIm_Qezz\t"
+										  "Re_Qexy\tIm_Qexy\tRe_Qexz\tIm_Qexz\tRe_Qeyz\tIm_Qeyz\t"
+										  "Re_Qmxx\tIm_Qmxx\tRe_Qmyy\tIm_Qmyy\tRe_Qmzz\tIm_Qmzz\t"
+										  "Re_Qmxy\tIm_Qmxy\tRe_Qmxz\tIm_Qmxz\tRe_Qmyz\tIm_Qmyz");
 	if (f == NULL)
 		return;
-	fprintf(f, "LAMBDA[nm]\t"
-			   "Re_px\tIm_px\tRe_py\tIm_py\tRe_pz\tIm_pz\t"
-			   "Re_mx\tIm_mx\tRe_my\tIm_my\tRe_mz\tIm_mz\t"
-			   "Re_Qexx\tIm_Qexx\tRe_Qeyy\tIm_Qeyy\tRe_Qezz\tIm_Qezz\t"
-			   "Re_Qexy\tIm_Qexy\tRe_Qexz\tIm_Qexz\tRe_Qeyz\tIm_Qeyz\t"
-			   "Re_Qmxx\tIm_Qmxx\tRe_Qmyy\tIm_Qmyy\tRe_Qmzz\tIm_Qmzz\t"
-			   "Re_Qmxy\tIm_Qmxy\tRe_Qmxz\tIm_Qmxz\tRe_Qmyz\tIm_Qmyz\n");
 	for (int m = m0; m < m1; ++m)
 	{
 		fprintf(f, "% .8e", (PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9));
@@ -681,26 +679,25 @@ void write_exact_multipoles()
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
 		const std::string dir = sp.reports_dir + "/";
-		const std::string pol = fdtd::sources::pol;
 		const int nf = sp.nr_frequencies;
 		if (exact)
 		{
-			write_moment_file(dir + "Multipoles_exact_double_" + pol + ".txt", tot.data(), 0, nf, STRIDE);
-			write_cross_section_file(dir + "Multipoles_crossx_double_" + pol + ".txt", tot.data(), 0, nf, STRIDE); // Alaee et al. Eq. 1
+			write_moment_file(dir + "multipoles_exact.txt", tot.data(), 0, nf, STRIDE);
+			write_cross_section_file(dir + "multipoles_exact_cross_sections.txt", tot.data(), 0, nf, STRIDE); // Alaee et al. Eq. 1
 			if (nl_run)
 			{
-				write_moment_file(dir + "Multipoles_exact_full_current_double_" + pol + ".txt", totNL.data(), mstart, nf, STRIDE);
-				write_cross_section_file(dir + "Multipoles_crossx_full_current_double_" + pol + ".txt", totNL.data(), mstart, nf, STRIDE);
+				write_moment_file(dir + "multipoles_exact_full_current.txt", totNL.data(), mstart, nf, STRIDE);
+				write_cross_section_file(dir + "multipoles_exact_full_current_cross_sections.txt", totNL.data(), mstart, nf, STRIDE);
 			}
 		}
 		if (lwa)
 		{
-			write_moment_file(dir + "Multipoles_lwa_double_" + pol + ".txt", totL.data(), 0, nf, STRIDE);
-			write_cross_section_file(dir + "Multipoles_lwa_crossx_double_" + pol + ".txt", totL.data(), 0, nf, STRIDE);
+			write_moment_file(dir + "multipoles_lwa.txt", totL.data(), 0, nf, STRIDE);
+			write_cross_section_file(dir + "multipoles_lwa_cross_sections.txt", totL.data(), 0, nf, STRIDE);
 			if (nl_run)
 			{
-				write_moment_file(dir + "Multipoles_lwa_full_current_double_" + pol + ".txt", totLNL.data(), mstart, nf, STRIDE);
-				write_cross_section_file(dir + "Multipoles_lwa_crossx_full_current_double_" + pol + ".txt", totLNL.data(), mstart, nf, STRIDE);
+				write_moment_file(dir + "multipoles_lwa_full_current.txt", totLNL.data(), mstart, nf, STRIDE);
+				write_cross_section_file(dir + "multipoles_lwa_full_current_cross_sections.txt", totLNL.data(), mstart, nf, STRIDE);
 			}
 		}
 	}

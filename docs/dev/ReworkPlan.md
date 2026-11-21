@@ -222,7 +222,7 @@ per checkpoint.
 | `DFT_module_phase.txt` | `source_spectrum.txt` |
 | `Signal.txt` | `source_signal.txt` |
 | `1D_Ex.txt` ... | `aux_grid_ex.txt` ... |
-| `log<rank>.txt` | `rank_<rank>.log` |
+| `log<rank>.txt` | `run.log`: only root writes it, the number was always 1 |
 
 Found on the way: `DFT_module_phase.txt` has six columns under a four-column header, and
 `Signal.txt` has no header; both are fixed with the rename. With `pol` empty the old names became
@@ -233,8 +233,8 @@ Found on the way: `DFT_module_phase.txt` has six columns under a four-column hea
 Each step bit-identical in its numbers, checked on all suites, `make regression`, the unit tests
 and `check-layers`.
 
-1. Report names and metadata headers. File names change, numbers do not.
-2. Materials as definitions and slots, by the migration above.
+1. Report names and metadata headers. File names change, numbers do not. Done 2026-11-21.
+2. Materials as definitions and slots, by the migration above. Done 2026-11-19.
 3. Module state into owned structs and the monitor list, module by module, monitors first; the
    wrapper classes and the per-module lines in setup, release and state_file go as each module
    moves.

@@ -44,7 +44,7 @@ def main():
 	sphereRadius = 20e-9
 	mieFile = f"{here}/MieTheoryResult.csv"
 	oldFile = f"{here}/OldResults.txt"
-	simFile = latest(sys.argv[1] if len(sys.argv) > 1 else here + "/OUTPUT", "Qcoeff_double_90pol.txt")
+	simFile = latest(sys.argv[1] if len(sys.argv) > 1 else here + "/OUTPUT", "cross_sections.txt")
 
 	# initialize figure:
 	qFig, qAx = plt.subplots()
@@ -61,7 +61,7 @@ def main():
 		qAx.plot(oldWL, tmpData, tmpFMT, label=tmpLabel)
 	
 	# Load in and plot simulation Result
-	simWL, T, R, A = np.loadtxt(simFile, unpack=True, skiprows=1)
+	simWL, T, R, A = np.loadtxt(simFile, unpack=True)
 	for tmpData, tmpLabel, tmpFMT in zip([T, R, A], ["Sim T", "Sim R", "Sim A"], ['bo', 'go', 'ko']):
 		qAx.plot(simWL, tmpData, tmpFMT, label=tmpLabel)
 

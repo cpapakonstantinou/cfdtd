@@ -13,7 +13,7 @@
       dft[set][E/H][component][point][frequency][cos, sin]
           set 0: the fields at analysis_omega[m];  set 1, separate linear/nonlinear fields: the harmonic fields at 2 analysis_omega[m]
    @endverbatim
- * Written at every checkpoint to PROBES/Efield_Tracker_<n>.txt, and Efield_NL_Tracker_<n>.txt, n the
+ * Written at every checkpoint to frames/tracker_<n>.txt, and tracker_harmonic_<n>.txt, n the
  * sphere-grid index of the point.
  */
 #ifndef FDTD_MONITORS_FIELD_TRACKERS_H

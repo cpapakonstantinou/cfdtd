@@ -8,7 +8,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <fstream>
+#include <cstdio>
+#include <string>
 #include <iostream>
 #include "grid/lattice.h"
 #include "sources/spec.h"
@@ -49,21 +50,11 @@ bool OneDimensionalSimulator::init(std::vector<PlaneWave> planeWaves, const Wave
 
 bool OneDimensionalSimulator::write_onedim_results()
 {
-	// create streams
-	std::ofstream fEx;
-	std::ofstream fEy;
-	std::ofstream fEz;
-	std::ofstream fHx;
-	std::ofstream fHy;
-	std::ofstream fHz;
-
-	// open file streams
-	fEx.open(sp.reports_dir + "/1D_Ex.txt");
-	fEy.open(sp.reports_dir + "/1D_Ey.txt");
-	fEz.open(sp.reports_dir + "/1D_Ez.txt");
-	fHx.open(sp.reports_dir + "/1D_Hx.txt");
-	fHy.open(sp.reports_dir + "/1D_Hy.txt");
-	fHz.open(sp.reports_dir + "/1D_Hz.txt");
+	static const char *name[6] = {"ex", "ey", "ez", "hx", "hy", "hz"};
+	FILE *f[6];
+	for (int c = 0; c < 6; ++c)
+		f[c] = fdtd::io::open_report(sp.reports_dir + "/aux_grid_" + name[c] + ".txt",
+									 "one row per frame period, one column per cell of the auxiliary grid along y");
 
 	std::array<double, 6> fields;
 
@@ -72,44 +63,28 @@ bool OneDimensionalSimulator::write_onedim_results()
 		int plotSteps = std::max({sp.plot_yz, sp.plot_xy, sp.plot_xz});
 		if (i % plotSteps == 0)
 		{
-			// set time
 			double t = i * sp.dt;
 
-			// iterate over spatial positions
 			int gridShift = singleSimulatorList[0].gridShiftIdx;
 			int gridLength = singleSimulatorList[0].gridLength;
 
 			// the last point is left out: its staggered interpolation would read one past the arrays
 			for (int j = -gridShift; j < gridLength - gridShift - 1; j++)
 			{
-				// obtain fields at y axis
 				double y = j * lat.d[1];
 				fields = return_fields(0.0, y, 0.0, t);
-
-				// write fields to file
-				fEx << std::to_string(fields[0]) << " ";
-				fEy << std::to_string(fields[1]) << " ";
-				fEz << std::to_string(fields[2]) << " ";
-				fHx << std::to_string(fields[3]) << " ";
-				fHy << std::to_string(fields[4]) << " ";
-				fHz << std::to_string(fields[5]) << " ";
+				for (int c = 0; c < 6; ++c)
+					if (f[c])
+						std::fprintf(f[c], "%s ", std::to_string(fields[c]).c_str());
 			}
-
-			fEx << "\n";
-			fEy << "\n";
-			fEz << "\n";
-			fHx << "\n";
-			fHy << "\n";
-			fHz << "\n";
+			for (int c = 0; c < 6; ++c)
+				if (f[c])
+					std::fputc('\n', f[c]);
 		}
 	}
-	// close files
-	fEx.close();
-	fEy.close();
-	fEz.close();
-	fHx.close();
-	fHy.close();
-	fHz.close();
+	for (int c = 0; c < 6; ++c)
+		if (f[c])
+			std::fclose(f[c]);
 
 	return true;
 }

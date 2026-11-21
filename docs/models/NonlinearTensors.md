@@ -84,5 +84,5 @@ Optics*, 3rd ed.
 
 ## Output
 
-`reports/NL_Efficiency_*.txt` holds the conversion efficiency; the cross-section, DFT and multipole
+`reports/harmonic_efficiency*.txt` holds the conversion efficiency; the cross-section, DFT and multipole
 outputs cover the harmonic band as well. `examples/dimer_shg.ini` is a complete configuration.
