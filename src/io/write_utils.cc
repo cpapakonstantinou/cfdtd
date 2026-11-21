@@ -122,8 +122,9 @@ std::vector<int> domain_size(int const* globalInnerSize)
 /**
  * @brief Writes the three components of a 3D field on one plane to an HDF5 file.
  *
- * The file holds datasets /x, /y, /z of shape [n_A][n_B] (A < B, e.g. XZ -> [nx][nz]),
- * plus attributes domain_size = [nx, ny, nz], physical domain, no PMLs, and plane.
+ * The file holds datasets /x, /y, /z of shape [n_B][n_A] (A < B, e.g. XZ -> [nz][nx]), x fastest,
+ * plus attributes domain_size = [nx, ny, nz], physical domain, no PMLs, plane, and position, the
+ * plane's cell along its normal.
  * Written collectively by the ranks of outputCommPlotPlane.
  *
  * @param filename Output path (".h5")
@@ -186,6 +187,7 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 	h5io::File file(filename, outputCommPlotPlane);
 	file.attribute("domain_size", domain_size(globalInnerSize));
 	file.attribute("plane", std::string{kAxis[idx_coord_A], kAxis[idx_coord_B]});
+	file.attribute("position", std::vector<int>{normalToPlaneIdx + startindices[normal]});
 	h5io::write(file, "x", block, plane_x.data());
 	h5io::write(file, "y", block, plane_y.data());
 	h5io::write(file, "z", block, plane_z.data());
@@ -206,7 +208,7 @@ int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, b
 /**
  * @brief Writes the three components of a 3D field to an HDF5 file.
  *
- * Datasets /x, /y, /z of shape [nx][ny][nz], physical domain, no PMLs, plus the
+ * Datasets /x, /y, /z of shape [nz][ny][nx], x fastest, physical domain, no PMLs, plus the
  * attribute domain_size. Written collectively by the ranks of outputCommPlot.
  * Parameters as for save_as_binary_2d.
  */

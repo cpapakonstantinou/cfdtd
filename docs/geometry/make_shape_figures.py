@@ -276,7 +276,7 @@ def mesh(fdtd, shape, spec):
         if run.returncode != 0:
             sys.exit(f"{shape}: fdtd mesh failed\n{run.stdout[-2000:]}\n{run.stderr[-500:]}")
         with h5py.File(os.path.join(tmp, "out", "materials", "MaterialIndex.h5")) as f:
-            return f["x"][...]
+            return np.transpose(f["x"][...])  # stored [z][y][x]: back to [x][y][z]
 
 
 def draw(shape, spec, vol, out):

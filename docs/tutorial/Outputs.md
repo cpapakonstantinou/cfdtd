@@ -68,14 +68,22 @@ The probe traces are `frames/probe_<x>_<y>_<z>.txt`, the tracker spectra
 | `x_re`, `x_im`, ... | real and imaginary part of a complex component (DFT outputs) |
 | `Ex_re`, `Hy_im`, ... | the tangential fields on a near-to-far face |
 
-File attributes: `domain_size` (the physical domain in cells), `plane` (`XY`, `XZ`, `YZ`)
-or `face` (`x`, `y`, `z`), `wavelength` [m]. In Python:
+Arrays are stored with x varying fastest: a volume is `[z][y][x]`, an `XY` plane `[y][x]`, an
+`XZ` plane `[z][x]`, a `YZ` plane `[z][y]`. A plane therefore shows the right way round as an
+image, its first axis across and its second up.
+
+File attributes: `domain_size` (the physical domain in cells, `[nx, ny, nz]`), `plane` (`XY`,
+`XZ`, `YZ`) or `face` (`x`, `y`, `z`), `position` (the cell of a plane along its normal),
+`wavelength` [m]. In Python:
 
 ```python
-import h5py
+import h5py, matplotlib.pyplot as plt
 with h5py.File("fields/E_500nm_XZ.h5") as f:
-    ex = f["x_re"][()] + 1j * f["x_im"][()]   # indexed [x][z]
+    ex = f["x_re"][()] + 1j * f["x_im"][()]   # indexed [z][x]
+plt.imshow(abs(ex), origin="lower")           # x across, z up
 ```
+
+`numpy.transpose(a)` gives the solver order, `[x][y][z]` or `[x][z]`.
 
 ## ParaView
 
@@ -83,7 +91,7 @@ Open the `.xmf` file (reader: *XDMF Reader*) and press *Apply*; every dataset is
 array of a uniform grid with the cell size of the run. Combine the real and imaginary
 parts with the *Calculator* filter, for example `sqrt(x_re^2 + x_im^2)` for |E_x|.
 
-The viewer reverses the index order of the HDF5 arrays (the last index runs along its X
-axis). For volumes, ParaView's X, Y, Z are the solver's z, y, x; for planes, ParaView's
-Y and Z are the plane's second and first axis (for an `XZ` plane: Y = z, Z = x). Each
-`.xmf` states its mapping in a comment.
+ParaView's X, Y and Z are the solver's x, y and z, with the run's cell size along each. A
+plane is a grid one point thick at its `position` along its normal, so the `XY`, `XZ` and `YZ`
+files of a run open together where they cut the domain, and over the volume outputs. The faces
+of the near-to-far box sit at 0 along their normal.

@@ -46,27 +46,64 @@ template <> struct type_of<double> { static hid_t mem() { return H5Tcopy(H5T_NAT
 
 } // namespace
 
-/// Shared dataset-writing path, friend of File for the transfer property list.
+namespace
+{
+/**
+ * @brief Visits this rank's block in file order: the solver's first axis varies fastest in the file
+ *
+ * f(source, destination): the offset of an element in the buffer laid out as block.local (row-major,
+ * solver order) and its offset in a dense buffer of the block in file order. Blocks of rank 1 or 2
+ * are padded in front to rank 3. Tiles keep the strided side in cache.
+ */
+template <typename F>
+void for_each_reordered(const Block &b, F f)
+{
+	const size_t rank = b.global.size();
+	const std::vector<hsize_t> &local = b.local.empty() ? b.count : b.local;
+	hsize_t c[3] = {1, 1, 1};
+	hsize_t l[3] = {1, 1, 1};
+	hsize_t s[3] = {0, 0, 0};
+	for (size_t d = 0; d < rank; ++d)
+	{
+		c[3 - rank + d] = b.count[d];
+		l[3 - rank + d] = local[d];
+		s[3 - rank + d] = b.start.empty() ? 0 : b.start[d];
+	}
+	const hsize_t tile = 32;
+	for (hsize_t i1 = 0; i1 < c[1]; ++i1)
+		for (hsize_t t0 = 0; t0 < c[0]; t0 += tile)
+			for (hsize_t t2 = 0; t2 < c[2]; t2 += tile)
+				for (hsize_t i0 = t0; i0 < std::min(t0 + tile, c[0]); ++i0)
+				{
+					const hsize_t row = ((s[0] + i0) * l[1] + s[1] + i1) * l[2] + s[2];
+					for (hsize_t i2 = t2; i2 < std::min(t2 + tile, c[2]); ++i2)
+						f(row + i2, (i2 * c[1] + i1) * c[0] + i0);
+				}
+}
+
+std::vector<hsize_t> reversed(const std::vector<hsize_t> &v)
+{
+	return std::vector<hsize_t>(v.rbegin(), v.rend());
+}
+} // namespace
+
+/// Shared dataset path, friend of File for the transfer property list. Buffers are dense, in file order.
 struct Writer
 {
 	template <typename T>
-	static void write(File& f, const std::string& name, const Block& b, const T* data)
+	static void write(File &f, const std::string &name, const Block &b, const T *dense)
 	{
 		const int rank = int(b.global.size());
 		const std::string where = f.path() + ":" + name;
-		if (b.offset.size() != size_t(rank) || b.count.size() != size_t(rank))
-			fail("block rank mismatch", where);
+		const std::vector<hsize_t> global = reversed(b.global);
+		const std::vector<hsize_t> offset = reversed(b.offset);
+		const std::vector<hsize_t> count = reversed(b.count);
 
 		hid_t ftype = type_of<T>::file();
 		hid_t mtype = type_of<T>::mem();
-		hid_t fspace = check_id(H5Screate_simple(rank, b.global.data(), nullptr), "H5Screate_simple", where);
-		hid_t dset = check_id(H5Dcreate2(f._file, name.c_str(), ftype, fspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
-							  "H5Dcreate2", where);
-
-		const std::vector<hsize_t>& local = b.local.empty() ? b.count : b.local;
-		std::vector<hsize_t> start = b.start.empty() ? std::vector<hsize_t>(rank, 0) : b.start;
-		hid_t mspace = check_id(H5Screate_simple(rank, local.data(), nullptr), "H5Screate_simple", where);
-
+		hid_t fspace = check_id(H5Screate_simple(rank, global.data(), nullptr), "H5Screate_simple", where);
+		hid_t dset = check_id(H5Dcreate2(f._file, name.c_str(), ftype, fspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT), "H5Dcreate2", where);
+		hid_t mspace = check_id(H5Screate_simple(rank, count.data(), nullptr), "H5Screate_simple", where);
 		if (b.elements() == 0)
 		{
 			// ranks without data still take part in the collective write
@@ -74,51 +111,41 @@ struct Writer
 			H5Sselect_none(mspace);
 		}
 		else
-		{
-			check(H5Sselect_hyperslab(fspace, H5S_SELECT_SET, b.offset.data(), nullptr, b.count.data(), nullptr),
-				  "file hyperslab", where);
-			check(H5Sselect_hyperslab(mspace, H5S_SELECT_SET, start.data(), nullptr, b.count.data(), nullptr),
-				  "memory hyperslab", where);
-		}
-		check(H5Dwrite(dset, mtype, mspace, fspace, f._xfer, data), "H5Dwrite", where);
+			check(H5Sselect_hyperslab(fspace, H5S_SELECT_SET, offset.data(), nullptr, count.data(), nullptr), "file hyperslab", where);
+		check(H5Dwrite(dset, mtype, mspace, fspace, f._xfer, dense), "H5Dwrite", where);
 
 		H5Sclose(mspace);
 		H5Dclose(dset);
 		H5Sclose(fspace);
 		H5Tclose(mtype);
 		H5Tclose(ftype);
-		f._datasets.push_back({name, b.global, std::is_same<T, int>::value ? "Int" : "Float", int(sizeof(T))});
+		f._datasets.push_back({name, global, std::is_same<T, int>::value ? "Int" : "Float", int(sizeof(T))});
 	}
 
 	template <typename T>
-	static void read(File& f, const std::string& name, const Block& b, T* data)
+	static void read(File &f, const std::string &name, const Block &b, T *dense)
 	{
 		const int rank = int(b.global.size());
 		const std::string where = f.path() + ":" + name;
+		const std::vector<hsize_t> global = reversed(b.global);
+		const std::vector<hsize_t> offset = reversed(b.offset);
+		const std::vector<hsize_t> count = reversed(b.count);
 		hid_t dset = check_id(H5Dopen2(f._file, name.c_str(), H5P_DEFAULT), "H5Dopen2", where);
 		hid_t fspace = H5Dget_space(dset);
 		std::vector<hsize_t> extent(rank, 0);
-		if (H5Sget_simple_extent_ndims(fspace) != rank || H5Sget_simple_extent_dims(fspace, extent.data(), nullptr) < 0 ||
-			extent != b.global)
+		if (H5Sget_simple_extent_ndims(fspace) != rank || H5Sget_simple_extent_dims(fspace, extent.data(), nullptr) < 0 || extent != global)
 			fail("dataset extent does not match the simulation domain", where);
 
 		hid_t mtype = type_of<T>::mem();
-		const std::vector<hsize_t>& local = b.local.empty() ? b.count : b.local;
-		std::vector<hsize_t> start = b.start.empty() ? std::vector<hsize_t>(rank, 0) : b.start;
-		hid_t mspace = check_id(H5Screate_simple(rank, local.data(), nullptr), "H5Screate_simple", where);
+		hid_t mspace = check_id(H5Screate_simple(rank, count.data(), nullptr), "H5Screate_simple", where);
 		if (b.elements() == 0)
 		{
 			H5Sselect_none(fspace);
 			H5Sselect_none(mspace);
 		}
 		else
-		{
-			check(H5Sselect_hyperslab(fspace, H5S_SELECT_SET, b.offset.data(), nullptr, b.count.data(), nullptr),
-				  "file hyperslab", where);
-			check(H5Sselect_hyperslab(mspace, H5S_SELECT_SET, start.data(), nullptr, b.count.data(), nullptr),
-				  "memory hyperslab", where);
-		}
-		check(H5Dread(dset, mtype, mspace, fspace, f._xfer, data), "H5Dread", where);
+			check(H5Sselect_hyperslab(fspace, H5S_SELECT_SET, offset.data(), nullptr, count.data(), nullptr), "file hyperslab", where);
+		check(H5Dread(dset, mtype, mspace, fspace, f._xfer, dense), "H5Dread", where);
 		H5Sclose(mspace);
 		H5Tclose(mtype);
 		H5Sclose(fspace);
@@ -202,11 +229,11 @@ File::~File()
 
 void File::write_xdmf() const
 {
-	// the solver axes of each dimension of a dataset, slowest first
+	// the solver axis of each dimension of a dataset as stored, slowest first: the reverse of the solver order
 	auto axes = [this](size_t rank, int out[3]) {
 		if (rank == 3)
 		{
-			out[0] = 0, out[1] = 1, out[2] = 2;
+			out[0] = 2, out[1] = 1, out[2] = 0;
 			return true;
 		}
 		if (rank != 2)
@@ -214,11 +241,11 @@ void File::write_xdmf() const
 		const std::string p = _plane;
 		if (p.size() == 2)
 		{
-			out[0] = p[0] - 'X', out[1] = p[1] - 'X';
+			out[0] = p[1] - 'X', out[1] = p[0] - 'X';
 			return out[0] >= 0 && out[0] < 3 && out[1] >= 0 && out[1] < 3;
 		}
 		const int n = _face.empty() ? 2 : _face[0] - 'x';
-		out[0] = n == 0 ? 1 : 0, out[1] = n == 2 ? 1 : 2;
+		out[0] = n == 2 ? 1 : 2, out[1] = n == 0 ? 1 : 0;
 		return true;
 	};
 	std::vector<std::vector<hsize_t>> grids; // distinct extents, in order of first use
@@ -237,36 +264,29 @@ void File::write_xdmf() const
 	if (!f)
 		return;
 	std::fprintf(f, "<?xml version=\"1.0\" ?>\n<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
-	std::fprintf(f, "<!-- %s: the viewer reverses the index order (last index fastest along its X axis) -->\n", h5.c_str());
+	std::fprintf(f, "<!-- %s: viewer X, Y, Z = solver x, y, z; arrays stored [z][y][x], x fastest -->\n", h5.c_str());
 	std::fprintf(f, "<Xdmf Version=\"2.0\">\n <Domain>\n");
 	for (size_t g = 0; g < grids.size(); ++g)
 	{
 		const std::vector<hsize_t>& e = grids[g];
 		int a[3] = {0, 1, 2};
 		axes(e.size(), a);
-		std::string dims;
-		for (hsize_t n : e)
-			dims += (dims.empty() ? "" : " ") + std::to_string(n);
-		const bool vol = e.size() == 3;
-		const char* solver = "xyz";
-		if (vol)
-			std::fprintf(f, "  <!-- viewer X, Y, Z = solver %c, %c, %c -->\n", solver[a[2]], solver[a[1]], solver[a[0]]);
-		else
-			std::fprintf(f, "  <!-- viewer Y, Z = solver %c, %c (X: one point) -->\n", solver[a[1]], solver[a[0]]);
+		// a 3D grid, z y x slowest first; a plane is one point thick along its normal, at its position
+		hsize_t points[3] = {1, 1, 1};
+		double origin[3] = {0, 0, 0};
+		for (size_t d = 0; d < e.size(); ++d)
+			points[a[d]] = e[d];
+		if (e.size() == 2)
+		{
+			const int normal = 3 - a[0] - a[1];
+			origin[normal] = _position * xdmf.cell[normal];
+		}
+		const std::string dims = std::to_string(points[2]) + " " + std::to_string(points[1]) + " " + std::to_string(points[0]);
 		std::fprintf(f, "  <Grid Name=\"grid_%zu\" GridType=\"Uniform\">\n", g);
-		std::fprintf(f, "   <Topology TopologyType=\"%s\" Dimensions=\"%s\"/>\n", vol ? "3DCoRectMesh" : "2DCoRectMesh", dims.c_str());
-		std::fprintf(f, "   <Geometry GeometryType=\"%s\">\n", vol ? "ORIGIN_DXDYDZ" : "ORIGIN_DXDY");
-		// origin and spacing in the order of the dimensions, slowest first
-		if (vol)
-		{
-			std::fprintf(f, "    <DataItem Dimensions=\"3\" Format=\"XML\">0 0 0</DataItem>\n");
-			std::fprintf(f, "    <DataItem Dimensions=\"3\" Format=\"XML\">%.9g %.9g %.9g</DataItem>\n", xdmf.cell[a[0]], xdmf.cell[a[1]], xdmf.cell[a[2]]);
-		}
-		else
-		{
-			std::fprintf(f, "    <DataItem Dimensions=\"2\" Format=\"XML\">0 0</DataItem>\n");
-			std::fprintf(f, "    <DataItem Dimensions=\"2\" Format=\"XML\">%.9g %.9g</DataItem>\n", xdmf.cell[a[0]], xdmf.cell[a[1]]);
-		}
+		std::fprintf(f, "   <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\"%s\"/>\n", dims.c_str());
+		std::fprintf(f, "   <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
+		std::fprintf(f, "    <DataItem Dimensions=\"3\" Format=\"XML\">%.9g %.9g %.9g</DataItem>\n", origin[2], origin[1], origin[0]);
+		std::fprintf(f, "    <DataItem Dimensions=\"3\" Format=\"XML\">%.9g %.9g %.9g</DataItem>\n", xdmf.cell[2], xdmf.cell[1], xdmf.cell[0]);
 		std::fprintf(f, "   </Geometry>\n");
 		for (const Dataset& d : _datasets)
 			if (d.extent == e)
@@ -284,6 +304,8 @@ void File::write_xdmf() const
 
 void File::attribute(const std::string& name, const std::vector<int>& values)
 {
+	if (name == "position" && values.size() == 1)
+		_position = values[0];
 	hsize_t n = values.size();
 	hid_t space = H5Screate_simple(1, &n, nullptr);
 	hid_t attr = check_id(H5Acreate2(_file, name.c_str(), H5T_STD_I32LE, space, H5P_DEFAULT, H5P_DEFAULT),
@@ -335,51 +357,40 @@ std::vector<int> File::int_attribute(const std::string& name)
 // writers
 
 template <typename T>
-void write(File& file, const std::string& name, const Block& block, const T* data)
+void write(File &file, const std::string &name, const Block &block, const T *data)
 {
-	Writer::write(file, name, block, data);
+	std::vector<T> dense(block.elements());
+	for_each_reordered(block, [&](hsize_t from, hsize_t to) { dense[to] = data[from]; });
+	Writer::write(file, name, block, dense.data());
 }
 
 template <typename T>
-void write_complex(File& file, const std::string& name, const Block& block, const T* re, const T* im)
+void write_complex(File &file, const std::string &name, const Block &block, const T *re, const T *im)
 {
-	Writer::write(file, name + "_re", block, re);
-	Writer::write(file, name + "_im", block, im);
+	write(file, name + "_re", block, re);
+	write(file, name + "_im", block, im);
 }
 
-/// std::complex buffers: split into dense real and imaginary parts of the selected window
+/// std::complex buffers: real and imaginary parts as two datasets
 template <>
-void write<std::complex<double>>(File& file, const std::string& name, const Block& block, const std::complex<double>* data)
+void write<std::complex<double>>(File &file, const std::string &name, const Block &block, const std::complex<double> *data)
 {
-	const size_t rank = block.global.size();
-	const std::vector<hsize_t>& local = block.local.empty() ? block.count : block.local;
-	std::vector<hsize_t> start = block.start.empty() ? std::vector<hsize_t>(rank, 0) : block.start;
 	std::vector<double> re(block.elements());
 	std::vector<double> im(block.elements());
-	std::vector<hsize_t> idx(rank, 0);
-	for (hsize_t n = 0; n < re.size(); ++n)
-	{
-		hsize_t flat = 0;
-		for (size_t d = 0; d < rank; ++d)
-			flat = flat * local[d] + start[d] + idx[d];
-		re[n] = data[flat].real();
-		im[n] = data[flat].imag();
-		for (size_t d = rank; d-- > 0;)
-		{
-			if (++idx[d] < block.count[d])
-				break;
-			idx[d] = 0;
-		}
-	}
-	const Block dense{block.global, block.offset, block.count, {}, {}};
-	Writer::write(file, name + "_re", dense, re.data());
-	Writer::write(file, name + "_im", dense, im.data());
+	for_each_reordered(block, [&](hsize_t from, hsize_t to) {
+		re[to] = data[from].real();
+		im[to] = data[from].imag();
+	});
+	Writer::write(file, name + "_re", block, re.data());
+	Writer::write(file, name + "_im", block, im.data());
 }
 
 template <typename T>
-void read(File& file, const std::string& name, const Block& block, T* data)
+void read(File &file, const std::string &name, const Block &block, T *data)
 {
-	Writer::read(file, name, block, data);
+	std::vector<T> dense(block.elements());
+	Writer::read(file, name, block, dense.data());
+	for_each_reordered(block, [&](hsize_t to, hsize_t from) { data[to] = dense[from]; });
 }
 
 template void read<double>(File&, const std::string&, const Block&, double*);

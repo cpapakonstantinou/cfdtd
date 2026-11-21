@@ -58,6 +58,28 @@ void padded_plane_round_trip()
 		f.attribute("plane", std::string("XZ"));
 		h5io::write(f, "x", h5io::Block::plane(n0, n1, first, 0, rows, n1, lrows, lcols, 1, 1), local.data());
 	}
+	// as stored: [z][x], x fastest; read by rank 0 alone, expect() is collective
+	MPI_Barrier(MPI_COMM_WORLD);
+	int stored = 1;
+	if (_rank == 0)
+	{
+		hid_t file = H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+		hid_t d = H5Dopen2(file, "x", H5P_DEFAULT);
+		hid_t space = H5Dget_space(d);
+		hsize_t ext[2] = {0, 0};
+		H5Sget_simple_extent_dims(space, ext, nullptr);
+		std::vector<double> raw(n0 * n1);
+		H5Dread(d, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, raw.data());
+		H5Sclose(space);
+		H5Dclose(d);
+		H5Fclose(file);
+		stored = ext[0] == n1 && ext[1] == n0;
+		for (hsize_t a = 0; a < n0; ++a)
+			for (hsize_t b = 0; b < n1; ++b)
+				stored &= raw[b * n0 + a] == double(a * 100 + b);
+	}
+	MPI_Bcast(&stored, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	expect(stored, "plane: stored [z][x]");
 	// read back the whole plane on every rank
 	std::vector<double> all(n0 * n1, 0.0);
 	{
@@ -121,7 +143,8 @@ void complex_volume()
 			for (hsize_t j = 0; j < g[1]; ++j)
 				for (hsize_t k = 0; k < g[2]; ++k)
 				{
-					const hsize_t n = (i * g[1] + j) * g[2] + k;
+					// stored [z][y][x], x fastest
+					const hsize_t n = (k * g[1] + j) * g[0] + i;
 					ok &= r[n] == double(i) + 0.25 * double(j) && q[n] == -double(k) - 0.5;
 				}
 		if (!ok)
@@ -138,7 +161,7 @@ void complex_volume()
 				text.append(buf, got);
 			std::fclose(x);
 		}
-		const std::string dims = std::to_string(g[0]) + " " + std::to_string(g[1]) + " " + std::to_string(g[2]);
+		const std::string dims = std::to_string(g[2]) + " " + std::to_string(g[1]) + " " + std::to_string(g[0]);
 		if (text.find("3DCoRectMesh") == std::string::npos || text.find("Dimensions=\"" + dims + "\"") == std::string::npos ||
 			text.find(":/z_re<") == std::string::npos || text.find(":/z_im<") == std::string::npos)
 			std::printf("FAIL: xdmf companion\n"), ++failures;

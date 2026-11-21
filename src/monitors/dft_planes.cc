@@ -140,13 +140,14 @@ namespace
  * buffer whose last row/column is a ghost cell; the, subdomain.output_size - 1, interior is placed at
  * subdomain.output_start in a global (globalsizes[a] - 1) x (globalsizes[b] - 1) plane.
  */
-void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, const array4<double> (&re)[3], const array4<double> (&im)[3])
+void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, const array4<double> (&re)[3], const array4<double> (&im)[3], int position)
 {
 	const auto block = h5io::Block::plane(sp.global_size[a] - 1, sp.global_size[b] - 1, subdomain.output_start[a], subdomain.output_start[b], subdomain.output_size[a] - 1,
 										  subdomain.output_size[b] - 1, subdomain.output_size[a], subdomain.output_size[b]);
 	h5io::File file(path, comm);
 	file.attribute("domain_size", std::vector<int>{fdtd::grid::lattice().inner(0), fdtd::grid::lattice().inner(1), fdtd::grid::lattice().inner(2)});
 	file.attribute("plane", std::string{"XYZ"[a], "XYZ"[b]});
+	file.attribute("position", std::vector<int>{position});
 	file.attribute("wavelength", double(PI2 * C0 / fdtd::sources::analysis_omega[m]));
 	for (int c = 0; c < 3; ++c)
 	{
@@ -165,19 +166,24 @@ void DftPlanes::write_maps()
 	static const char *tag[3] = {"YZ", "XZ", "XY"};
 	const MPI_Comm comm[3] = {fdtd::grid::output_comm_plot_yz, fdtd::grid::output_comm_plot_xz, fdtd::grid::output_comm_plot_xy};
 	const int axes[3][2] = {{1, 2}, {0, 2}, {0, 1}};
+	// the cell of each plane along its normal, physical domain
+	const int at[3] = {int(subdomain.i_animation + subdomain.output_start[0]), int(subdomain.j_animation + subdomain.output_start[1]),
+					   int(subdomain.k_animation + subdomain.output_start[2])};
+	const int at_1 = int(subdomain.j_animation_1 + subdomain.output_start[1]);
+	const int at_2 = int(subdomain.j_animation_2 + subdomain.output_start[1]);
 	// E, H and their harmonic sets of the plane with normal n, as before: E, H, E_nonlinear, H_nonlinear
 	auto full = [&](int n, int m, const std::string &wl) {
 		const std::string suffix = wl + "_" + tag[n] + ".h5";
 		const int a = axes[n][0];
 		const int b = axes[n][1];
-		write_map(dir + "E_" + suffix, comm[n], a, b, m, plane[n].re[0][0], plane[n].im[0][0]);
+		write_map(dir + "E_" + suffix, comm[n], a, b, m, plane[n].re[0][0], plane[n].im[0][0], at[n]);
 		if (dft_h)
-			write_map(dir + "H_" + suffix, comm[n], a, b, m, plane[n].re[1][0], plane[n].im[1][0]);
+			write_map(dir + "H_" + suffix, comm[n], a, b, m, plane[n].re[1][0], plane[n].im[1][0], at[n]);
 		if (sp.harmonic)
 		{
-			write_map(dir + "E_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[0][1], plane[n].im[0][1]);
+			write_map(dir + "E_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[0][1], plane[n].im[0][1], at[n]);
 			if (dft_h)
-				write_map(dir + "H_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[1][1], plane[n].im[1][1]);
+				write_map(dir + "H_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[1][1], plane[n].im[1][1], at[n]);
 		}
 	};
 	for (int m = 0; m < sp.nr_frequencies; ++m)
@@ -188,11 +194,11 @@ void DftPlanes::write_maps()
 		if (plane_on(1))
 			full(1, m, wl);
 		if (subdomain.plots_xz() && sp.graphene_optim)
-			write_map(dir + "E_graphene_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz, 0, 2, m, graphene.re[0][0], graphene.im[0][0]);
+			write_map(dir + "E_graphene_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz, 0, 2, m, graphene.re[0][0], graphene.im[0][0], at[1]);
 		if (subdomain.plots_xz_2() && dft_xz_2)
-			write_map(dir + "E_forward_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz_2, 0, 2, m, xz_2.re[0][0], xz_2.im[0][0]);
+			write_map(dir + "E_forward_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz_2, 0, 2, m, xz_2.re[0][0], xz_2.im[0][0], at_2);
 		if (subdomain.plots_xz_1() && dft_xz_1)
-			write_map(dir + "E_backward_" + wl + "_XZ.h5", output_comm_plot_xz_1, 0, 2, m, xz_1.re[0][0], xz_1.im[0][0]);
+			write_map(dir + "E_backward_" + wl + "_XZ.h5", output_comm_plot_xz_1, 0, 2, m, xz_1.re[0][0], xz_1.im[0][0], at_1);
 		if (plane_on(0))
 			full(0, m, wl);
 	}

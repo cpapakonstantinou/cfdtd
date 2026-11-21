@@ -13,6 +13,10 @@
  *             ghost cells / padding
  *     start   where the block starts inside the memory buffer
  *
+ * Blocks are given in the solver's order, [x][y][z] or the plane's [a][b], a < b. The file stores
+ * the reverse, x fastest: [z][y][x], [b][a]; write and read reorder through a dense buffer, in
+ * tiles, so readers and viewers see x across and the last axis up.
+ *
  * Complex data is stored as two real datasets <name>_re and <name>_im, ParaView's
  * XDMF reader cannot read HDF5 compound types.
  *
@@ -20,11 +24,10 @@
  * it, written by rank 0 of the file's communicator when the file closes, which
  * describes the 2D and 3D datasets as attributes on a uniform grid, so the outputs
  * open in ParaView / VisIt. The grid has the cell size given to set_xdmf; datasets
- * of the same extent share one grid. The viewer reverses the index order, the last,
- * fastest index runs along its X axis: for volumes viewer X, Y, Z = solver z, y, x,
- * for planes viewer Y, Z = the plane's second, first axis; the spacing is written to
- * match and each .xmf states the mapping in a comment. Verified with VTK's
- * vtkXdmfReader, the ParaView reader. 2D datasets use the axes
+ * of the same extent share one grid. Viewer X, Y, Z = solver x, y, z: every grid is
+ * 3D, a plane one point thick along its normal at its "position" attribute (0 when
+ * it has none). Verified with VTK's vtkXdmfReader, the ParaView reader: every point
+ * at its solver coordinates. 2D datasets use the axes
  * named by the file's "plane" attribute, "XZ": first index x, second z, or the two
  * axes tangential to its "face" attribute; 1D datasets are not described.
  *
@@ -32,6 +35,7 @@
  *     /x, /y, /z            one dataset per vector component, x_re, x_im, ... if complex
  *     attribute domain_size [nx, ny, nz] of the physical domain, no PMLs
  *     attribute plane       "XY" | "XZ" | "YZ", plane outputs only
+ *     attribute position    the plane's cell along its normal, plane outputs only
  */
 #ifndef FDTD_H5IO_H
 #define FDTD_H5IO_H
@@ -114,6 +118,7 @@ private:
 	std::vector<Dataset> _datasets;
 	std::string _plane; ///< the "plane" / "face" attributes, 2D axes
 	std::string _face; ///< the "plane" / "face" attributes, 2D axes
+	int _position = 0; ///< the "position" attribute: cell of a plane along its normal
 	friend struct Writer;
 };
 
