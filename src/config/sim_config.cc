@@ -10,6 +10,7 @@
 #include "geometry/shapes.h"
 #include "sources/kinds.h"
 #include "config/errors.h"
+#include "core/quadrature.h"
 
 #include <algorithm>
 #include <cmath>
@@ -633,41 +634,6 @@ int process_harmonic(const NonlinearSection& n)
 	return n.shg ? 2 : n.thg ? 3 : 1;
 }
 
-namespace
-{
-/// Gauss-Legendre nodes, ascending, and weights on [-1, 1], n >= 2: Newton on P_n from the Chebyshev guesses
-void gauss_legendre(int n, std::vector<double>& x, std::vector<double>& w)
-{
-	const double pi = 3.14159265358979323846;
-	x.assign(n, 0.0);
-	w.assign(n, 0.0);
-	for (int i = 0; i < (n + 1) / 2; ++i)
-	{
-		double z = std::cos(pi * (i + 0.75) / (n + 0.5));
-		double dp = 0.0;
-		for (int it = 0; it < 100; ++it)
-		{
-			double p0 = 1.0;
-			double p1 = z;
-			for (int k = 2; k <= n; ++k)
-			{
-				const double p2 = ((2.0 * k - 1.0) * z * p1 - (k - 1.0) * p0) / k;
-				p0 = p1;
-				p1 = p2;
-			}
-			dp = n * (z * p1 - p0) / (z * z - 1.0);
-			const double dz = p1 / dp;
-			z -= dz;
-			if (std::fabs(dz) < 1e-16)
-				break;
-		}
-		x[i] = -z;
-		x[n - 1 - i] = z;
-		w[i] = w[n - 1 - i] = 2.0 / ((1.0 - z * z) * dp * dp);
-	}
-}
-} // namespace
-
 std::vector<double> spectrum_weights(const SpectrumSection& s, double c0, double two_pi)
 {
 	const int n = s.points;
@@ -677,7 +643,7 @@ std::vector<double> spectrum_weights(const SpectrumSection& s, double c0, double
 	if (lower(s.spacing) == "gauss")
 	{
 		std::vector<double> x;
-		gauss_legendre(n, x, q);
+		fdtd::core::gauss_legendre(n, x, q);
 		const double half = 0.5 * (c0 / s.lambda_min - c0 / s.lambda_max);
 		for (double& v : q)
 			v *= half;
@@ -700,7 +666,7 @@ std::vector<double> spectrum_omegas(const SpectrumSection& s, double c0, double 
 	std::vector<double> nodes;
 	std::vector<double> unused;
 	if (n > 1 && lower(s.spacing) == "gauss")
-		gauss_legendre(n, nodes, unused);
+		fdtd::core::gauss_legendre(n, nodes, unused);
 	for (int m = 0; m < n; ++m)
 	{
 		if (n == 1)

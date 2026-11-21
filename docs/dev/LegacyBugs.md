@@ -319,8 +319,9 @@ the analysed frequencies, each point times one fixed step `deltafreq`:
 
 - the input fluence is the Parseval sum of the source DFT over the pump band only. Pump spectrum
   outside `[STOPLAMBDA ± STARTLAMBDA/2]` is not counted, so the input energy is too low and the
-  efficiency too high: 5 % for a 20 fs pulse at 1.26 µm over 1210–1310 nm, a factor 7.5 for a
-  broadband pulse over 400–700 nm in the rework's test;
+  efficiency too high: the band holds 52 % of a 20 fs pulse at 1.26 µm over 1210–1310 nm
+  (`fdtd signal`, `band: pump_in_band`), a factor 7.5 for a broadband pulse over 400–700 nm in the
+  rework's test;
 - every point gets a full step, the edge points included: a rectangle rule over a band half a step
   wider at each end. The energies depend on the number of points (4 % between 21 and 81 points);
   the efficiency less, because the bias partly cancels.

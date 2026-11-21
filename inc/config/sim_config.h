@@ -196,7 +196,7 @@ struct SpectrumSection
 	double lambda_min = 400e-9;     ///< [m]
 	double lambda_max = 800e-9;     ///< [m]
 	int points = 1; ///< samples in [lambda_min, lambda_max]; 1 = single wavelength (lambda_min == lambda_max)
-	std::string spacing = "wavelength"; ///< wavelength | frequency, uniform step in lambda or in omega
+	std::string spacing = "wavelength"; ///< wavelength | frequency | gauss: uniform step in lambda or in omega, or Gauss-Legendre nodes in omega
 	std::string harmonic_band = "none";  ///< none | second | third : extra band at 2w / 3w
 };
 
