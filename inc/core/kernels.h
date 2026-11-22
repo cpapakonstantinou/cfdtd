@@ -15,6 +15,7 @@
 #ifndef FDTD_KERNELS_H
 #define FDTD_KERNELS_H
 
+#include <complex>
 #include <cstddef>
 
 #ifdef FDTD_DAMM
@@ -47,6 +48,18 @@ inline void dft_accumulate(T *__restrict re, T *__restrict im, T u, T v, const T
 		im[q] += x[q] * v;
 	}
 #endif
+}
+
+/// c[q] += x[q] (u + i v): the real and imaginary parts as dft_accumulate, on one complex row
+template <typename T>
+inline void dft_accumulate(std::complex<T> *__restrict c, T u, T v, const T *__restrict x, std::size_t n)
+{
+	T *p = reinterpret_cast<T *>(c);
+	for (std::size_t q = 0; q < n; ++q)
+	{
+		p[2 * q] += x[q] * u;
+		p[2 * q + 1] += x[q] * v;
+	}
 }
 
 } // namespace kernels

@@ -174,6 +174,9 @@ the unit of a scheduler's `--mem=...G`.
   in turn, up to and including the mesh, with arrays that take no memory until they are written.
   The array figures are therefore the ones a real run allocates; `fdtd mesh` prints the same table
   in `materials/geometry_report.txt`, and a run logs its peak in the `arrays:` table when it ends.
+- **The volume DFT** costs 16 bytes per cell, component and frequency: 48 for E, 96 with H. The
+  exact and LWA multipoles alone keep it over the cells of the structure on each rank;
+  `[output] volume_dft` and `sigma_absorption` need it over the whole domain.
 - **Not counted:** the process overhead, MPI, HDF5 and the other libraries, is a measured
   constant, 0.04 to 0.065 GiB per rank with Open MPI; output buffers at the end of a run come on
   top, about 5 % in a run with a volume DFT.

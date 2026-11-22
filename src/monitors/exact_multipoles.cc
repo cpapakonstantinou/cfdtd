@@ -29,8 +29,8 @@
  * antenna center, center_position_x, center_position_y - antenna_shift/dy,
  * center_position_z, matching the geometry-creation convention.
  *
- * Requires the volume E-field DFT, VolumeDft::re/im[E], which is accumulated when
- * dfg_optim || save_output || ABS_SIGMA || exact_multipoles. Works with or
+ * Requires the volume E-field DFT, VolumeDft::field[E], over the box of multipole_box, or the whole
+ * volume when save_output or abs_sigma. Works with or
  * without the "Advanced Model" flag: there is NO dependence on the material
  * model, hydrodynamics, TTM, etc.
  *
@@ -80,6 +80,7 @@
 #include "materials/materials.h"
 #include "materials/nonlinear/nonlinear.h"
 #include "grid/subdomain.h"
+#include <algorithm>
 #include <string>
 #include <vector>
 #include "core/limits.h"
@@ -153,11 +154,13 @@ static inline void sph_bessel_weights(const double &x, double &j0v, double &f1, 
 /**
  * @brief Whether a cell component belongs to the multipole integration volume: the structure's
  *        materials, the antenna, the shell and the anapole's gap fill, in every run, so a linear
- *        run and its nonlinear twin integrate over the same volume. A cell of the host material
- *        has no contrast and adds nothing.
+ *        run and its nonlinear twin integrate over the same volume. The host material has no
+ *        contrast and is left out, also when it is the shell's, the default.
  */
 static inline bool include_in_multipole_volume(const int &mat)
 {
+	if (mat == sp.medium_first)
+		return false;
 	return mat == sp.antenna_material || (sp.shell_material >= 0 && mat == sp.shell_material) || (sp.gap_material >= 0 && mat == sp.gap_material);
 }
 
@@ -168,6 +171,58 @@ static inline bool include_in_multipole_volume(const int &mat)
 static inline int nl_chi_index(const int &mat)
 {
 	return fdtd::materials::nonlinear::nl[mat] ? mat : -1;
+}
+
+/// the full-current moments add P_NL at every nonlinear cell: SHG/THG with a harmonic band
+static inline bool nonlinear_moments() { return (sp.shg || sp.thg) && sp.nr_frequencies > 2; }
+
+CellBox multipole_box()
+{
+	const bool nl_run = nonlinear_moments();
+	int lo[3] = {subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z};
+	int hi[3] = {-1, -1, -1};
+	for (int i = 0; i < subdomain.inner_dim_x; ++i)
+		for (int j = 0; j < subdomain.inner_dim_y; ++j)
+			for (int k = 0; k < subdomain.inner_dim_z; ++k)
+			{
+				const int mat[3] = {int(matind_x[i][j][k]), int(matind_y[i][j][k]), int(matind_z[i][j][k])};
+				bool in = false;
+				for (int c = 0; c < 3; ++c)
+					in = in || include_in_multipole_volume(mat[c]) || (nl_run && nl_chi_index(mat[c]) >= 0);
+				if (!in)
+					continue;
+				const int at[3] = {i, j, k};
+				for (int a = 0; a < 3; ++a)
+				{
+					lo[a] = std::min(lo[a], at[a]);
+					hi[a] = std::max(hi[a], at[a]);
+				}
+			}
+	CellBox b;
+	if (hi[0] < 0)
+		return b;
+	for (int a = 0; a < 3; ++a)
+	{
+		b.lo[a] = lo[a];
+		b.n[a] = hi[a] - lo[a] + 1;
+	}
+	return b;
+}
+
+/// the end, exclusive, of the inner cells of box b per axis: its ghost plane is not a cell
+static inline void cells_of(const CellBox &b, int end[3])
+{
+	const int inner[3] = {subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z};
+	for (int a = 0; a < 3; ++a)
+		end[a] = std::min(b.lo[a] + b.n[a], inner[a]);
+}
+
+/// one DFT step of a real sample x into d: Re += x u, Im += x v
+static inline void accumulate(std::complex<double> &d, double x, double u, double v)
+{
+	double *p = reinterpret_cast<double *>(&d);
+	p[0] += x * u;
+	p[1] += x * v;
 }
 
 // Running dft of the nonlinear polarization
@@ -188,7 +243,7 @@ static inline int nl_chi_index(const int &mat)
 void sample_nonlinear_polarisation(double t)
 {
 	VolumeDft &V = volume_dft();
-	if (!(sp.shg || sp.thg) || sp.nr_frequencies <= 2)
+	if (!nonlinear_moments())
 		return;
 
 	int i;
@@ -210,26 +265,8 @@ void sample_nonlinear_polarisation(double t)
 	double s;
 
 	const int mstart = sp.nr_frequencies / 2;
-
-	// The harmonic-band P_NL DFT arrays must have been allocated for m>=mstart
-	// setupSimulation.cpp. If they are still NULL, the per-timestep write
-	// below would segfault at the first step; instead emit a clear one-time
-	// message and skip the P_NL DFT, the contrast-current multipoles are
-	// unaffected. This means the allocation block of RePNL*/ImPNL* was not
-	// added, or its gate does not match this run.
-	if (V.re_pnl[0] == nullptr || V.re_pnl[1] == nullptr || V.re_pnl[2] == nullptr ||
-		V.im_pnl[0] == nullptr || V.im_pnl[1] == nullptr || V.im_pnl[2] == nullptr)
-	{
-		static bool warned = false;
-		if (!warned && fdtd::grid::world_rank == ROOTPROCESS)
-		{
-			fdtd::io::log("warning", "the exact multipoles have no nonlinear polarization DFT for points %d to %d, the full-current file is not written", mstart,
-						  sp.nr_frequencies - 1);
-			fflush(stdout);
-			warned = true;
-		}
+	if (!V.pnl[0])
 		return;
-	}
 
 	// precompute the DFT kernels once per timestep
 	static double ucos[fdtd::max_frequencies];
@@ -241,13 +278,15 @@ void sample_nonlinear_polarisation(double t)
 		vsin[m] = double(sin(s));
 	}
 
-	for (i = 0; i < subdomain.inner_dim_x; ++i)
+	int end[3];
+	cells_of(V.box, end);
+	for (i = V.box.lo[0]; i < end[0]; ++i)
 	{
 		I = i + subdomain.inner_org_x;
-		for (j = 0; j < subdomain.inner_dim_y; ++j)
+		for (j = V.box.lo[1]; j < end[1]; ++j)
 		{
 			J = j + subdomain.inner_org_y;
-			for (k = 0; k < subdomain.inner_dim_z; ++k)
+			for (k = V.box.lo[2]; k < end[2]; ++k)
 			{
 				K = k + subdomain.inner_org_z;
 
@@ -281,13 +320,9 @@ void sample_nonlinear_polarisation(double t)
 
 				for (m = mstart; m < sp.nr_frequencies; ++m)
 				{
-					V.re_pnl[0][m][i][j][k] += pnlx * ucos[m];
-					V.re_pnl[1][m][i][j][k] += pnly * ucos[m];
-					V.re_pnl[2][m][i][j][k] += pnlz * ucos[m];
-
-					V.im_pnl[0][m][i][j][k] += pnlx * vsin[m];
-					V.im_pnl[1][m][i][j][k] += pnly * vsin[m];
-					V.im_pnl[2][m][i][j][k] += pnlz * vsin[m];
+					accumulate(V.pnl_at(0, m, i, j, k), pnlx, ucos[m], vsin[m]);
+					accumulate(V.pnl_at(1, m, i, j, k), pnly, ucos[m], vsin[m]);
+					accumulate(V.pnl_at(2, m, i, j, k), pnlz, ucos[m], vsin[m]);
 				}
 			}
 		}
@@ -496,31 +531,7 @@ void write_exact_multipoles()
 	const int NTOT = sp.nr_frequencies * STRIDE;
 	const int mstart = sp.nr_frequencies / 2;
 
-	// The volume E-field DFT is mandatory. If it is NULL the allocation gate in
-	// setupSimulation.cpp was not extended with ||exact_multipoles, integration
-	// step 4. Report and bail rather than dereferencing NULL.
-	if (!subdomain.cpml_only && V.re[0][0] == nullptr)
-	{
-		if (fdtd::grid::world_rank == ROOTPROCESS)
-		{
-			fdtd::io::log("warning", "the exact multipoles have no volume E-field DFT, no multipole output is written");
-			fflush(stdout);
-		}
-		return;
-	}
-
-	// Include the nonlinear-polarization, full current, moments only if those
-	// arrays were actually allocated; otherwise fall back to contrast-only.
-	bool nl_run = (sp.shg || sp.thg) && sp.nr_frequencies > 2;
-	if (nl_run && !subdomain.cpml_only && V.re_pnl[0] == nullptr)
-	{
-		if (fdtd::grid::world_rank == ROOTPROCESS)
-		{
-			fdtd::io::log("warning", "the exact multipoles have no nonlinear polarization DFT, only the contrast-current multipoles are written");
-			fflush(stdout);
-		}
-		nl_run = false;
-	}
+	const bool nl_run = nonlinear_moments();
 
 	// one set of moment rows per kind, exact, LWA, and current, contrast, contrast + nl polarisation
 	std::vector<double> loc(NTOT);
@@ -550,6 +561,8 @@ void write_exact_multipoles()
 		bool inx;
 		bool iny;
 		bool inz;
+		int end[3];
+		cells_of(V.box, end);
 
 		for (m = 0; m < sp.nr_frequencies; ++m)
 		{
@@ -563,15 +576,15 @@ void write_exact_multipoles()
 			double *accLNL = nl_run ? (locLNL.data() + m * STRIDE) : NULL;
 			const bool do_nl = nl_run && (m >= mstart);
 
-			for (i = 0; i < subdomain.inner_dim_x; ++i)
+			for (i = V.box.lo[0]; i < end[0]; ++i)
 			{
 				r[0] = double(i + subdomain.output_start[0] - cX) * lat.d[0];
 
-				for (j = 0; j < subdomain.inner_dim_y; ++j)
+				for (j = V.box.lo[1]; j < end[1]; ++j)
 				{
 					r[1] = double(j + subdomain.output_start[1] - cY) * lat.d[1];
 
-					for (k = 0; k < subdomain.inner_dim_z; ++k)
+					for (k = V.box.lo[2]; k < end[2]; ++k)
 					{
 						mx = int(matind_x[i][j][k]);
 						my = int(matind_y[i][j][k]);
@@ -581,9 +594,7 @@ void write_exact_multipoles()
 						iny = include_in_multipole_volume(my);
 						inz = include_in_multipole_volume(mz);
 
-						bool has_nl = do_nl && (V.re_pnl[0][m][i][j][k] != double(0.) || V.im_pnl[0][m][i][j][k] != double(0.) ||
-												V.re_pnl[1][m][i][j][k] != double(0.) || V.im_pnl[1][m][i][j][k] != double(0.) ||
-												V.re_pnl[2][m][i][j][k] != double(0.) || V.im_pnl[2][m][i][j][k] != double(0.));
+						const bool has_nl = do_nl && (V.pnl_at(0, m, i, j, k) != 0. || V.pnl_at(1, m, i, j, k) != 0. || V.pnl_at(2, m, i, j, k) != 0.);
 
 						if (!inx && !iny && !inz && !has_nl)
 							continue;
@@ -598,13 +609,13 @@ void write_exact_multipoles()
 
 						if (inx)
 							P[0] = EP0 * (fdtd::materials::complex_permittivity(mx, fdtd::sources::analysis_omega[m]) - eps_host) *
-								   std::complex<double>(V.re[0][0][m][i][j][k], V.im[0][0][m][i][j][k]);
+								   V.at(0, 0, m, i, j, k);
 						if (iny)
 							P[1] = EP0 * (fdtd::materials::complex_permittivity(my, fdtd::sources::analysis_omega[m]) - eps_host) *
-								   std::complex<double>(V.re[0][1][m][i][j][k], V.im[0][1][m][i][j][k]);
+								   V.at(0, 1, m, i, j, k);
 						if (inz)
 							P[2] = EP0 * (fdtd::materials::complex_permittivity(mz, fdtd::sources::analysis_omega[m]) - eps_host) *
-								   std::complex<double>(V.re[0][2][m][i][j][k], V.im[0][2][m][i][j][k]);
+								   V.at(0, 2, m, i, j, k);
 
 						if (inx || iny || inz)
 						{
@@ -617,9 +628,9 @@ void write_exact_multipoles()
 						// total current on the harmonic band: contrast + nl polarization
 						if (do_nl)
 						{
-							Pt[0] = P[0] + std::complex<double>(V.re_pnl[0][m][i][j][k], V.im_pnl[0][m][i][j][k]);
-							Pt[1] = P[1] + std::complex<double>(V.re_pnl[1][m][i][j][k], V.im_pnl[1][m][i][j][k]);
-							Pt[2] = P[2] + std::complex<double>(V.re_pnl[2][m][i][j][k], V.im_pnl[2][m][i][j][k]);
+							Pt[0] = P[0] + V.pnl_at(0, m, i, j, k);
+							Pt[1] = P[1] + V.pnl_at(1, m, i, j, k);
+							Pt[2] = P[2] + V.pnl_at(2, m, i, j, k);
 							if (exact)
 								accumulate_moments(Pt, r, kmag, miw, accNL);
 							if (lwa)

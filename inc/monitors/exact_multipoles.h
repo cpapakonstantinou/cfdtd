@@ -15,9 +15,14 @@
 #ifndef FDTD_MONITORS_EXACT_MULTIPOLES_H
 #define FDTD_MONITORS_EXACT_MULTIPOLES_H
 
+#include "monitors/volume_dft.h"
+
 namespace fdtd::monitors
 {
-/// one step of the DFT of P_NL over the harmonic band, re/im_pnl of the volume DFT, at time t
+/// the bounding box of this rank's inner cells the moments integrate: a Yee component in the
+/// multipole volume or, with SHG/THG and a harmonic band, of a nonlinear material; empty if none
+CellBox multipole_box();
+/// one step of the DFT of P_NL over the harmonic band, pnl of the volume DFT, at time t
 void sample_nonlinear_polarisation(double t);
 /// the moments and cross sections; collective, ranks with only CPML contribute zeros; returns at
 /// once unless [multipoles] exact is on

@@ -28,7 +28,6 @@
 #include "sources/spec.h"
 #include "grid/lattice.h"
 #include "boundary/cpml.h"
-#include "monitors/volume_dft.h"
 #include "monitors/flux_boxes.h"
 #include "monitors/art_planes.h"
 #include "fields/fields.h"
@@ -761,8 +760,6 @@ bool fdtd::app::allocate_fields()
 		}
 		if (!subdomain.cpml_only)
 		{
-			// the volume DFT, and P_NL / DFG copies
-			fdtd::monitors::volume_dft().allocate();
 			if (run_cfg.thermal.save_output_temperature || run_cfg.thermal.load_temperature)
 			{
 				fdtd::materials::thermal::electron_temp_tf = fdtd::field3<double>(subdomain.inner_dim_x, subdomain.inner_dim_y, subdomain.inner_dim_z);

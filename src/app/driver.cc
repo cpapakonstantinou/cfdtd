@@ -492,6 +492,11 @@ void Driver::build_geometry()
 		if (!agree(fdtd::app::allocate_material_state(), "cannot allocate the dispersive material state"))
 			return;
 	}
+	{
+		const core::memory::Scope group(core::memory::monitors);
+		if (!agree(monitors::volume_dft().allocate(), "cannot allocate the volume DFT"))
+			return;
+	}
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	// material-index dumps requested by the output settings, the mesh path forces them in DumpGeometry

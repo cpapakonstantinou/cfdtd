@@ -87,7 +87,7 @@ void transfer(fdtd::io::Archive &ar, int &step)
 	for (auto &p : fdtd::monitors::art_planes().plane)
 		plane(ar, p);
 	auto &volume = fdtd::monitors::volume_dft();
-	ar.array(volume.re), ar.array(volume.im), ar.array(volume.field), ar.array(volume.re_pnl), ar.array(volume.im_pnl);
+	ar.array(volume.field), ar.array(volume.pnl);
 	ar.array(fdtd::monitors::field_trackers().dft);
 	ar.array(fdtd::monitors::time_probes().E), ar.array(fdtd::monitors::time_probes().H);
 	for (auto &box : fdtd::monitors::custom_boxes().frequency)

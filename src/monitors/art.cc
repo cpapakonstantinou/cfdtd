@@ -234,8 +234,6 @@ void write_art_spectra(int step)
 void integrate_absorption(int material)
 {
 	const VolumeDft &V = volume_dft();
-	const view4<double> re[3] = {V.re[0][0], V.re[0][1], V.re[0][2]};
-	const view4<double> im[3] = {V.im[0][0], V.im[0][1], V.im[0][2]};
 	const array3<int> *map[3] = {&matind_x, &matind_y, &matind_z};
 	const double Vol = lat.d[0] * lat.d[1] * lat.d[2];
 	for (int m = 0; m < sp.nr_frequencies; ++m)
@@ -250,8 +248,10 @@ void integrate_absorption(int material)
 					for (int c = 0; c < 3; ++c)
 						if (int((*map[c])[i][j][k]) == material)
 						{
-							sum = count ? sum + re[c][m][i][j][k] * re[c][m][i][j][k] : re[c][m][i][j][k] * re[c][m][i][j][k];
-							sum = sum + im[c][m][i][j][k] * im[c][m][i][j][k];
+							const double re = V.at(0, c, m, i, j, k).real();
+							const double im = V.at(0, c, m, i, j, k).imag();
+							sum = count ? sum + re * re : re * re;
+							sum = sum + im * im;
 							++count;
 						}
 					if (count == 3)
