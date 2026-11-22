@@ -7,6 +7,7 @@
  * 
  * @copyright Copyright 2022
  */
+#include <complex>
 #include <string>
 #include "mpi.h"
 #include "io/text.h"
@@ -143,7 +144,7 @@ std::vector<int> domain_size(int const* globalInnerSize)
 template <typename T>
 void save_as_binary_2d(string const &filename, T ***arr_x, T ***arr_y, T ***arr_z, MPI_Comm const &outputCommPlotPlane, int const &normalToPlaneIdx,
 int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift, int const &idx_coord_A, int const &idx_coord_B,
-bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
+bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note)
 {
 	int idxShift[3] = {0, 0, 0};
 	if (use_global_coords)
@@ -182,12 +183,20 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 			}
 		}
 
+	if constexpr (std::is_same_v<T, std::complex<double>>)
+		if (note && note->scale != std::complex<double>(1))
+			for (std::vector<T> *v : {&plane_x, &plane_y, &plane_z})
+				for (T &value : *v)
+					value *= note->scale;
+
 	const auto block = h5io::Block::plane(globalInnerSize[idx_coord_A], globalInnerSize[idx_coord_B],
 										  startindices[idx_coord_A], startindices[idx_coord_B], na, nb);
 	h5io::File file(filename, outputCommPlotPlane);
 	file.attribute("domain_size", domain_size(globalInnerSize));
 	file.attribute("plane", std::string{kAxis[idx_coord_A], kAxis[idx_coord_B]});
 	file.attribute("position", std::vector<int>{normalToPlaneIdx + startindices[normal]});
+	if (note)
+		note->write(file);
 	h5io::write(file, "x", block, plane_x.data());
 	h5io::write(file, "y", block, plane_y.data());
 	h5io::write(file, "z", block, plane_z.data());
@@ -195,15 +204,15 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 
 template void save_as_binary_2d<int>(string const &filename, int ***arr_x, int ***arr_y, int ***arr_z, MPI_Comm const &outputCommPlotPlane,
 int const &normalToPlaneIdx, int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs);
+int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note);
 
 template void save_as_binary_2d<double>(string const &filename, double ***arr_x, double ***arr_y, double ***arr_z, MPI_Comm const &outputCommPlotPlane,
 int const &normalToPlaneIdx, int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs);
+int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note);
 
 template void save_as_binary_2d<std::complex<double>>(string const &filename, std::complex<double> ***arr_x, std::complex<double> ***arr_y, std::complex<double> ***arr_z, MPI_Comm const &outputCommPlotPlane,
 int const &normalToPlaneIdx, int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs);
+int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note);
 
 /**
  * @brief Writes the three components of a 3D field to an HDF5 file.
@@ -215,7 +224,7 @@ int const &idx_coord_A, int const &idx_coord_B, bool const &use_global_coords, b
 template <typename T>
 void save_as_binary_3d(string const &filename, T ***arr_x, T ***arr_y, T ***arr_z,  MPI_Comm const &outputCommPlot,
 int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
+bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note)
 {
 	int idxShift[3] = {0, 0, 0};
 	if (use_global_coords)
@@ -253,12 +262,20 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 				}
 			}
 
+	if constexpr (std::is_same_v<T, std::complex<double>>)
+		if (note && note->scale != std::complex<double>(1))
+			for (std::vector<T> *v : {&vol_x, &vol_y, &vol_z})
+				for (T &value : *v)
+					value *= note->scale;
+
 	const hsize_t global[3] = {hsize_t(globalInnerSize[0]), hsize_t(globalInnerSize[1]), hsize_t(globalInnerSize[2])};
 	const hsize_t offset[3] = {hsize_t(startindices[0]), hsize_t(startindices[1]), hsize_t(startindices[2])};
 	const hsize_t count[3] = {hsize_t(nx), hsize_t(ny), hsize_t(nz)};
 	const auto block = h5io::Block::volume(global, offset, count);
 	h5io::File file(filename, outputCommPlot);
 	file.attribute("domain_size", domain_size(globalInnerSize));
+	if (note)
+		note->write(file);
 	h5io::write(file, "x", block, vol_x.data());
 	h5io::write(file, "y", block, vol_y.data());
 	h5io::write(file, "z", block, vol_z.data());
@@ -266,15 +283,15 @@ bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs)
 
 template void save_as_binary_3d<int>(string const &filename, int ***arr_x, int ***arr_y, int ***arr_z,
 MPI_Comm const &outputComm, int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs);
+bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note);
 
 template void save_as_binary_3d<double>(string const &filename, double ***arr_x, double ***arr_y, double ***arr_z,
 MPI_Comm const &outputComm, int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs);
+bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note);
 
 template void save_as_binary_3d<std::complex<double>>(string const &filename, std::complex<double> ***arr_x, std::complex<double> ***arr_y, std::complex<double> ***arr_z,
 MPI_Comm const &outputComm, int *const &startindices, int *const &globalInnerSize, int *const &nrInnerThis, int *const &nrShift,
-bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs);
+bool const &use_global_coords, bool const &ijk_order, bool const &with_PMLs, const h5io::FieldNote *note);
 
 void fdtd::io::log(const char *key, const char *format, ...)
 {

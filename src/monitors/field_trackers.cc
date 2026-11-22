@@ -5,6 +5,7 @@
  * Replaces GetMultipolePositions, setupSources.cc, the tracker block of the step DFT and of the
  * checkpoint output, and 18 globals, the point lists, counts and the twelve per-component arrays.
  */
+#include "sources/field_scale.h"
 #include "monitors/field_trackers.h"
 #include "io/text.h"
 #include "monitors/state.h"
@@ -13,6 +14,7 @@
 #include "grid/state.h"
 #include "sources/state.h"
 #include <cmath>
+#include <complex>
 #include <cstdio>
 #include <string>
 #include "monitors/spec.h"
@@ -126,13 +128,21 @@ void FieldTrackers::write() const
 				continue;
 			std::fprintf(f, "# cell from the centre: %ld %ld %ld\n", P.x + subdomain.output_start[0] - subdomain.inner_org_x - sp.centre[0],
 						 P.y + subdomain.output_start[1] - subdomain.inner_org_y - sp.centre[1], P.z + subdomain.output_start[2] - subdomain.inner_org_z - sp.centre[2]);
-			std::fprintf(f, "# lambda_m\tre_ex\tim_ex\tre_ey\tim_ey\tre_ez\tim_ez\tre_hx\tim_hx\tre_hy\tim_hy\tre_hz\tim_hz\n");
-			const double harmonic = s == 0 ? 1.0 : 2.0;
+			std::fprintf(f, "# lambda_m\tre_ex\tim_ex\tre_ey\tim_ey\tre_ez\tim_ez\tre_hx\tim_hx\tre_hy\tim_hy\tre_hz\tim_hz\torder\treference_amplitude_v_s_m\treference_phase_rad\n");
 			const array3<double>(&a)[2][3] = dft[s];
 			for (int m = 0; m < sp.nr_frequencies; ++m)
-				std::fprintf(f, "%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\t%e\n", C0 / (harmonic * fdtd::sources::analysis_omega[m] / (2 * PI)),
-							 a[0][0][p][m][0], a[0][0][p][m][1], a[0][1][p][m][0], a[0][1][p][m][1], a[0][2][p][m][0], a[0][2][p][m][1],
-							 a[1][0][p][m][0], a[1][0][p][m][1], a[1][1][p][m][0], a[1][1][p][m][1], a[1][2][p][m][0], a[1][2][p][m][1]);
+			{
+				// the raw sums, scaled as the field maps, fdtd::sources::field_scale
+				const fdtd::sources::FieldScale scale = fdtd::sources::field_scale(m, s, phase_normalization, false);
+				std::fprintf(f, "%e", scale.wavelength);
+				for (int field = 0; field < 2; ++field)
+					for (int c = 0; c < 3; ++c)
+					{
+						const std::complex<double> v = std::complex<double>(a[field][c][p][m][0], a[field][c][p][m][1]) * scale.factor;
+						std::fprintf(f, "\t%e\t%e", v.real(), v.imag());
+					}
+				std::fprintf(f, "\t%d\t%e\t%e\n", scale.order, scale.reference_amplitude, scale.reference_phase);
+			}
 			std::fclose(f);
 		}
 }

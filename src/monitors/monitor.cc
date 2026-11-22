@@ -6,6 +6,7 @@
 #include "monitors/state.h"
 #include "grid/subdomain.h"
 #include "grid/state.h"
+#include "sources/field_scale.h"
 #include "sources/state.h"
 #include "io/binary.h"
 #include "grid/output_layout.h"
@@ -69,10 +70,12 @@ public:
 		for (int m = 0; m < sp.nr_frequencies; m++)
 		{
 			const std::string lambda = std::to_string(std::lround((PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9)));
+			// the volume is stored divided by the complex source DFT, VolumeDft::normalize
+			const h5io::FieldNote note = fdtd::sources::field_scale(m, 0, true, true).note();
 			save_as_binary_3d(sp.fields_dir + "/E_" + lambda + "nm_3D.h5", volume_dft().field[0][0][m], volume_dft().field[0][1][m], volume_dft().field[0][2][m], fdtd::grid::output_comm,
-						   L.start, L.global, L.local, L.shift, false, true, false);
+						   L.start, L.global, L.local, L.shift, false, true, false, &note);
 			save_as_binary_3d(sp.fields_dir + "/H_" + lambda + "nm_3D.h5", volume_dft().field[1][0][m], volume_dft().field[1][1][m], volume_dft().field[1][2][m], fdtd::grid::output_comm,
-						   L.start, L.global, L.local, L.shift, false, true, false);
+						   L.start, L.global, L.local, L.shift, false, true, false, &note);
 		}
 	}
 
@@ -171,15 +174,17 @@ public:
 		{
 			const std::string lambda = std::to_string(std::lround((PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9)));
 			const std::string base = sp.fields_dir + "/E_" + lambda;
+			// the volume is stored divided by the complex source DFT, VolumeDft::normalize
+			const h5io::FieldNote note = fdtd::sources::field_scale(m, 0, true, true).note();
 			if (subdomain.plots_xy() && dft_plane_xy)
 				save_as_binary_2d(base + "nm_XY.h5", volume_dft().field[0][0][m], volume_dft().field[0][1][m], volume_dft().field[0][2][m], fdtd::grid::output_comm_plot_xy, subdomain.k_animation,
-							   L.start, L.global, L.local, L.shift, 0, 1, false, true, false);
+							   L.start, L.global, L.local, L.shift, 0, 1, false, true, false, &note);
 			if (subdomain.plots_xz() && dft_plane_xz)
 				save_as_binary_2d(base + "nm_XZ.h5", volume_dft().field[0][0][m], volume_dft().field[0][1][m], volume_dft().field[0][2][m], fdtd::grid::output_comm_plot_xz, subdomain.j_animation,
-							   L.start, L.global, L.local, L.shift, 0, 2, false, true, false);
+							   L.start, L.global, L.local, L.shift, 0, 2, false, true, false, &note);
 			if (subdomain.plots_yz() && dft_plane_yz)
 				save_as_binary_2d(base + "nm_YZ.h5", volume_dft().field[0][0][m], volume_dft().field[0][1][m], volume_dft().field[0][2][m], fdtd::grid::output_comm_plot_yz, subdomain.i_animation,
-							   L.start, L.global, L.local, L.shift, 1, 2, false, true, false);
+							   L.start, L.global, L.local, L.shift, 1, 2, false, true, false, &note);
 		}
 	}
 };

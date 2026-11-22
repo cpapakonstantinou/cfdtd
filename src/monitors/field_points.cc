@@ -4,6 +4,9 @@
  *
  * Replaces updateFieldMonitors.cc, five copies of one writer, and its five flag globals.
  */
+#include "sources/field_scale.h"
+
+#include <complex>
 #include "monitors/field_points.h"
 #include "io/text.h"
 #include "monitors/state.h"
@@ -45,10 +48,25 @@ void write_point(const std::string &name, const DftPlane &P, int i, int j, int k
 	const view4<double> iez = P.im[0][0][2];
 	for (int m = 0; m < sp.nr_frequencies; ++m)
 	{
-		const double Ex_mod = std::sqrt(rex[m][i][j][k] * rex[m][i][j][k] + iex[m][i][j][k] * iex[m][i][j][k]);
-		const double Ez_mod = std::sqrt(rez[m][i][j][k] * rez[m][i][j][k] + iez[m][i][j][k] * iez[m][i][j][k]);
-		const double Ex_ph = std::atan2(iex[m][i][j][k], rex[m][i][j][k]) * 180 / PI;
-		const double Ez_ph = std::atan2(iez[m][i][j][k], rez[m][i][j][k]) * 180 / PI;
+		// the planes are stored normalised; the harmonic band scaled as the field maps, fdtd::sources::field_scale
+		const fdtd::sources::FieldScale scale = fdtd::sources::field_scale(m, 0, phase_normalization, true);
+		double ex_re = rex[m][i][j][k];
+		double ex_im = iex[m][i][j][k];
+		double ez_re = rez[m][i][j][k];
+		double ez_im = iez[m][i][j][k];
+		if (scale.factor != std::complex<double>(1))
+		{
+			const std::complex<double> ex = std::complex<double>(ex_re, ex_im) * scale.factor;
+			const std::complex<double> ez = std::complex<double>(ez_re, ez_im) * scale.factor;
+			ex_re = ex.real();
+			ex_im = ex.imag();
+			ez_re = ez.real();
+			ez_im = ez.imag();
+		}
+		const double Ex_mod = std::sqrt(ex_re * ex_re + ex_im * ex_im);
+		const double Ez_mod = std::sqrt(ez_re * ez_re + ez_im * ez_im);
+		const double Ex_ph = std::atan2(ex_im, ex_re) * 180 / PI;
+		const double Ez_ph = std::atan2(ez_im, ez_re) * 180 / PI;
 		double Ex_Ez_ph = Ex_ph - Ez_ph;
 		if (Ex_Ez_ph > 180)
 			Ex_Ez_ph -= 360;

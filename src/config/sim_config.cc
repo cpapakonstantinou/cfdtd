@@ -885,8 +885,9 @@ void validate_sim_config(const SimConfig& c)
 	const int band = harmonic_order(s.harmonic_band);
 	const int process = process_harmonic(c.nonlinear);
 	require(!(c.nonlinear.shg && c.nonlinear.thg), "[nonlinear] shg and thg cannot both be on");
-	if (band > 1 && lower(c.electrons.model) == "local" && lower(c.temperature.model) == "none")
-		require(process == band, "[spectrum] harmonic_band = " + s.harmonic_band + " requires [nonlinear] " + (band == 2 ? "shg" : "thg") + " = true");
+	// a harmonic band without a nonlinearity is a linear run that also samples k w: the pump's own content there
+	if (band > 1 && process != 1 && lower(c.electrons.model) == "local" && lower(c.temperature.model) == "none")
+		require(process == band, "[spectrum] harmonic_band = " + s.harmonic_band + " does not match [nonlinear] " + (process == 2 ? "shg" : "thg") + " = true");
 	if (process > 1)
 		require(band == process, std::string("[nonlinear] ") + (process == 2 ? "shg" : "thg") +
 									 " computes the harmonic: set [spectrum] harmonic_band = " + (process == 2 ? "second" : "third"));

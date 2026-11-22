@@ -5,6 +5,10 @@
  * Replaces writeNearFar.cc: Save_Surface_Near_to_Far_YZ / XZ / XY, one copy per face orientation
  * and Write_Ini_File_NF.
  */
+#include "sources/field_scale.h"
+
+#include <complex>
+#include <vector>
 #include "monitors/near_to_far.h"
 #include "monitors/state.h"
 #include "grid/subdomain.h"
@@ -92,13 +96,33 @@ void write_near_to_far()
 					h5io::File file(path, comm[n][side]);
 					file.attribute("domain_size", std::vector<int>{(fdtd::grid::lattice().inner(0) - 2 * sp.nr_qsca[0]), (fdtd::grid::lattice().inner(1) - 2 * sp.nr_qsca[1]), (fdtd::grid::lattice().inner(2) - 2 * sp.nr_qsca[2])});
 					file.attribute("face", std::string(axis_name[n]));
-					file.attribute("wavelength", double(PI2 * C0 / fdtd::sources::analysis_omega[m]));
+					// the faces are stored normalised, normalize_plane; the harmonic band scaled as the field maps
+					const fdtd::sources::FieldScale scale = fdtd::sources::field_scale(m, 0, phase_normalization, true);
+					scale.note().write(file);
+					std::vector<double> scaled_re;
+					std::vector<double> scaled_im;
 					for (int f = 0; f < 2; ++f)
 						for (int c : {a, b})
 						{
 							const view4<double> re = F.re[f][0][c];
 							const view4<double> im = F.im[f][0][c];
-							h5io::write_complex(file, field_name[f][c], block, &re[m][0][0][0], &im[m][0][0][0]);
+							const double *pr = &re[m][0][0][0];
+							const double *pq = &im[m][0][0][0];
+							if (scale.factor != std::complex<double>(1))
+							{
+								const std::size_t count = F.re[f][0][c].extent(1) * F.re[f][0][c].extent(2) * F.re[f][0][c].extent(3);
+								scaled_re.resize(count);
+								scaled_im.resize(count);
+								for (std::size_t i = 0; i < count; ++i)
+								{
+									const std::complex<double> v = std::complex<double>(pr[i], pq[i]) * scale.factor;
+									scaled_re[i] = v.real();
+									scaled_im[i] = v.imag();
+								}
+								pr = scaled_re.data();
+								pq = scaled_im.data();
+							}
+							h5io::write_complex(file, field_name[f][c], block, pr, pq);
 						}
 				}
 		if (n < 2)

@@ -94,9 +94,9 @@ Arrays are stored with x varying fastest: a volume is `[z][y][x]`, an `XY` plane
 `XZ` plane `[z][x]`, a `YZ` plane `[z][y]`. A plane therefore shows the right way round as an
 image, its first axis across and its second up.
 
-File attributes: `domain_size` (the physical domain in cells, `[nx, ny, nz]`), `plane` (`XY`,
-`XZ`, `YZ`) or `face` (`x`, `y`, `z`), `position` (the cell of a plane along its normal),
-`wavelength` [m]. In Python:
+File attributes: `domain_size`, the physical domain in cells, `[nx, ny, nz]`; `plane`, `XY`, `XZ`
+or `YZ`, or `face`, `x`, `y` or `z`; `position`, the cell of a plane along its normal; and on the
+frequency-domain fields the attributes of the next section. In Python:
 
 ```python
 import h5py, matplotlib.pyplot as plt
@@ -106,6 +106,58 @@ plt.imshow(abs(ex), origin="lower")           # x across, z up
 ```
 
 `numpy.transpose(a)` gives the solver order, `[x][y][z]` or `[x][z]`.
+
+## Frequency-domain fields: what the values are
+
+Every frequency-domain field, the plane and volume maps, the custom DFT boxes, the near-to-far
+faces, the tracker spectra and the near- and far-field point files, holds the DFT of the field
+divided by the DFT of the incident field, E_inc, so its values have no unit and read against the
+incident field. Each frequency is k times a pump point ω_j of `[spectrum]`: k = 1 in the pump band,
+the harmonic order in the harmonic band, twice that in the hydrodynamic `E_nonlinear_` and
+`H_nonlinear_` maps.
+
+| Frequency | Value | Reads as |
+|---|---|---|
+| pump band, k = 1 | E(ω_j) / E_inc(ω_j) | the field over the incident field at the same frequency, 1 being the incident field |
+| harmonic, k > 1 | E(kω_j) / (\|E_inc\|_peak e^{i k arg E_inc(ω_j)}) | a fraction of the peak incident spectral amplitude of the pump band |
+
+- A harmonic is not the response to one pump frequency, so the whole harmonic band takes one
+  amplitude, the largest of the pump points: the band keeps the spectral shape of the harmonic.
+- The phase k arg E_inc(ω_j) is the one a harmonic inherits from where the pulse sits on the run's
+  clock, the delay of the pulse; the pump band loses the same delay to E_inc(ω_j). Phases within a
+  map, between cells and components, are unchanged.
+- A linear run may have a harmonic band too: its harmonic maps are then the pump's own content at
+  kω, on the same scale as a harmonic, the floor a harmonic of the same pulse must rise above.
+- With `[output] phase_normalize = false` only amplitudes are divided.
+
+H divides by the same E_inc, so H maps are in A/m per V/m. Each HDF5 file says which it holds:
+
+| Attribute | |
+|---|---|
+| `wavelength` | of the field [m] |
+| `normalization` | `incident_field` or `pump_field` |
+| `harmonic_order` | k |
+| `reference_wavelength` | of the pump point whose \|E_inc\| divides [m] |
+| `reference_amplitude_v_s_m` | that \|E_inc\| [V s/m] |
+| `reference_phase_rad` | the phase taken off |
+| `dt_s` | the time step [s] |
+| `description` | one line, also in the comment of the `.xmf` file |
+
+The spectral amplitude in V s/m, the DFT times dt, and the raw DFT sum of the solver, are
+
+```python
+with h5py.File("fields/E_420nm_XY.h5") as f:
+    ez = f["z_re"][()] + 1j * f["z_im"][()]
+    a = f.attrs["reference_amplitude_v_s_m"] * np.exp(1j * f.attrs["reference_phase_rad"])
+    ez_si = ez * a                     # V s/m
+    ez_raw = ez_si / f.attrs["dt_s"]   # the solver's sum over the steps of E exp(i w t)
+```
+
+The text files carry the same values: the tracker
+spectra end with the columns `order`, `reference_amplitude_v_s_m` and `reference_phase_rad`, and
+`near_field.txt` and `far_field_*.txt` give magnitudes and phases of these values.
+
+The time-domain frames are not normalised: they are the fields in V/m at the time of the frame.
 
 ## ParaView
 

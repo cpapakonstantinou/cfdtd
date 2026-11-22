@@ -5,6 +5,8 @@
  * Replaces readMonitors.cc, setupMonitors.cc, writeMonitors.cc, UpdateCustomMonitorDFTs and the
  * Monitor<T> struct, Monitors.h; its time instantiation carried unused DFT arrays.
  */
+#include "monitors/state.h"
+#include "sources/field_scale.h"
 #include "monitors/custom_boxes.h"
 #include "io/text.h"
 #include "fields/fields.h"
@@ -174,8 +176,10 @@ void CustomBoxes::write_dft()
 			for (int m = 0; m < sp.nr_frequencies; m++)
 			{
 				const std::string wl = std::to_string(std::lround((PI2 * C0 / fdtd::sources::analysis_omega[m]) * double(1.e9)));
+				// the raw sums, scaled as the field maps
+				const h5io::FieldNote note = fdtd::sources::field_scale(m, 0, fdtd::monitors::phase_normalization, false).note();
 				save_as_binary_3d(sp.fields_dir + "/E_DFT_" + B.name + "_WL_" + wl + "nm.h5", B.dft[0][m], B.dft[1][m], B.dft[2][m],
-							   B.comm, B.relative_start, B.global_count, B.local_count, shift, false, true, false);
+							   B.comm, B.relative_start, B.global_count, B.local_count, shift, false, true, false, &note);
 			}
 	MPI_Barrier(MPI_COMM_WORLD);
 }

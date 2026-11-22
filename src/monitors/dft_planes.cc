@@ -7,10 +7,12 @@
 #include "grid/subdomain.h"
 #include "core/views.h"
 #include "grid/state.h"
+#include "sources/field_scale.h"
 #include "sources/state.h"
 #include "monitors/plane_dft.h"
 #include "io/h5io.h"
 #include <cmath>
+#include <complex>
 #include <string>
 #include <vector>
 #include "monitors/spec.h"
@@ -140,7 +142,8 @@ namespace
  * buffer whose last row/column is a ghost cell; the, subdomain.output_size - 1, interior is placed at
  * subdomain.output_start in a global (globalsizes[a] - 1) x (globalsizes[b] - 1) plane.
  */
-void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, const array4<double> (&re)[3], const array4<double> (&im)[3], int position)
+void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, const array4<double> (&re)[3], const array4<double> (&im)[3], int position,
+			   const fdtd::sources::FieldScale &scale)
 {
 	const auto block = h5io::Block::plane(sp.global_size[a] - 1, sp.global_size[b] - 1, subdomain.output_start[a], subdomain.output_start[b], subdomain.output_size[a] - 1,
 										  subdomain.output_size[b] - 1, subdomain.output_size[a], subdomain.output_size[b]);
@@ -148,12 +151,31 @@ void write_map(const std::string &path, MPI_Comm comm, int a, int b, int m, cons
 	file.attribute("domain_size", std::vector<int>{fdtd::grid::lattice().inner(0), fdtd::grid::lattice().inner(1), fdtd::grid::lattice().inner(2)});
 	file.attribute("plane", std::string{"XYZ"[a], "XYZ"[b]});
 	file.attribute("position", std::vector<int>{position});
-	file.attribute("wavelength", double(PI2 * C0 / fdtd::sources::analysis_omega[m]));
+	scale.note().write(file);
+	std::vector<double> scaled_re;
+	std::vector<double> scaled_im;
 	for (int c = 0; c < 3; ++c)
 	{
 		const view4<double> r = re[c];
 		const view4<double> q = im[c];
-		h5io::write_complex(file, std::string(1, "xyz"[c]), block, &r[m][0][0][0], &q[m][0][0][0]);
+		const double *pr = &r[m][0][0][0];
+		const double *pq = &q[m][0][0][0];
+		if (scale.factor != std::complex<double>(1))
+		{
+			// the frequency slice of a plane is one block: the accumulators' layout, see plane_dft
+			const std::size_t n = re[c].extent(1) * re[c].extent(2) * re[c].extent(3);
+			scaled_re.resize(n);
+			scaled_im.resize(n);
+			for (std::size_t i = 0; i < n; ++i)
+			{
+				const std::complex<double> v = std::complex<double>(pr[i], pq[i]) * scale.factor;
+				scaled_re[i] = v.real();
+				scaled_im[i] = v.imag();
+			}
+			pr = scaled_re.data();
+			pq = scaled_im.data();
+		}
+		h5io::write_complex(file, std::string(1, "xyz"[c]), block, pr, pq);
 	}
 }
 } // namespace
@@ -171,19 +193,22 @@ void DftPlanes::write_maps()
 					   int(subdomain.k_animation + subdomain.output_start[2])};
 	const int at_1 = int(subdomain.j_animation_1 + subdomain.output_start[1]);
 	const int at_2 = int(subdomain.j_animation_2 + subdomain.output_start[1]);
+	// the planes are stored normalised, as normalize_plane left them; the hydrodynamic harmonic set, at twice the frequency, raw
+	auto stored = [](int m) { return fdtd::sources::field_scale(m, 0, phase_normalization, true); };
+	auto raw_harmonic_set = [](int m) { return fdtd::sources::field_scale(m, 1, phase_normalization, false); };
 	// E, H and their harmonic sets of the plane with normal n, as before: E, H, E_nonlinear, H_nonlinear
 	auto full = [&](int n, int m, const std::string &wl) {
 		const std::string suffix = wl + "_" + tag[n] + ".h5";
 		const int a = axes[n][0];
 		const int b = axes[n][1];
-		write_map(dir + "E_" + suffix, comm[n], a, b, m, plane[n].re[0][0], plane[n].im[0][0], at[n]);
+		write_map(dir + "E_" + suffix, comm[n], a, b, m, plane[n].re[0][0], plane[n].im[0][0], at[n], stored(m));
 		if (dft_h)
-			write_map(dir + "H_" + suffix, comm[n], a, b, m, plane[n].re[1][0], plane[n].im[1][0], at[n]);
+			write_map(dir + "H_" + suffix, comm[n], a, b, m, plane[n].re[1][0], plane[n].im[1][0], at[n], stored(m));
 		if (sp.harmonic)
 		{
-			write_map(dir + "E_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[0][1], plane[n].im[0][1], at[n]);
+			write_map(dir + "E_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[0][1], plane[n].im[0][1], at[n], raw_harmonic_set(m));
 			if (dft_h)
-				write_map(dir + "H_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[1][1], plane[n].im[1][1], at[n]);
+				write_map(dir + "H_nonlinear_" + suffix, comm[n], a, b, m, plane[n].re[1][1], plane[n].im[1][1], at[n], raw_harmonic_set(m));
 		}
 	};
 	for (int m = 0; m < sp.nr_frequencies; ++m)
@@ -194,11 +219,11 @@ void DftPlanes::write_maps()
 		if (plane_on(1))
 			full(1, m, wl);
 		if (subdomain.plots_xz() && sp.graphene_optim)
-			write_map(dir + "E_graphene_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz, 0, 2, m, graphene.re[0][0], graphene.im[0][0], at[1]);
+			write_map(dir + "E_graphene_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz, 0, 2, m, graphene.re[0][0], graphene.im[0][0], at[1], stored(m));
 		if (subdomain.plots_xz_2() && dft_xz_2)
-			write_map(dir + "E_forward_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz_2, 0, 2, m, xz_2.re[0][0], xz_2.im[0][0], at_2);
+			write_map(dir + "E_forward_" + wl + "_XZ.h5", fdtd::grid::output_comm_plot_xz_2, 0, 2, m, xz_2.re[0][0], xz_2.im[0][0], at_2, stored(m));
 		if (subdomain.plots_xz_1() && dft_xz_1)
-			write_map(dir + "E_backward_" + wl + "_XZ.h5", output_comm_plot_xz_1, 0, 2, m, xz_1.re[0][0], xz_1.im[0][0], at_1);
+			write_map(dir + "E_backward_" + wl + "_XZ.h5", output_comm_plot_xz_1, 0, 2, m, xz_1.re[0][0], xz_1.im[0][0], at_1, stored(m));
 		if (plane_on(0))
 			full(0, m, wl);
 	}

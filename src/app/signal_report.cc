@@ -239,7 +239,7 @@ int fdtd::app::signal_report(int argc, char *argv[])
 				sum += fdtd::sources::signal_value(n * dt) * std::exp(std::complex<double>(0, omegas[m] * n * dt));
 			amplitude[m] = std::abs(sum) * dt;
 		}
-		// the linear spectra divide by the pump points; the harmonic band is the raw DFT, not normalised
+		// each pump point divides its own spectra; the harmonic band divides by the peak pump amplitude, not by its own
 		const double top = omegas.empty() ? 0 : *std::max_element(amplitude.begin(), amplitude.begin() + std::min(pump_points, omegas.size()));
 		int weak = 0;
 		std::printf("spectrum: lambda_nm,band,amplitude,relative,flag\n");
@@ -249,7 +249,7 @@ int fdtd::app::signal_report(int argc, char *argv[])
 			const bool pump = m < pump_points;
 			weak += pump && rel < 1e-2;
 			std::printf("spectrum: %.4f,%s,%.4e,%.4e,%s\n", 2 * M_PI * fdtd::constants::C0 / omegas[m] * 1e9, pump ? "pump" : "harmonic", amplitude[m], rel,
-						!pump ? "raw" : rel < 1e-2 ? "weak" : "ok");
+						!pump ? "peak" : rel < 1e-2 ? "weak" : "ok");
 		}
 
 		// The pump's own spectral power at 2 f and 3 f, from a DFT over the run's steps as the solver's

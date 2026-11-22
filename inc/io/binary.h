@@ -4,14 +4,16 @@
 #include <string>
 #include <utility>
 #include "core/array.h"
+#include "io/h5io.h"
 #include "mpi.h"
 
 // Saving Binary Files
-template <typename T> void save_as_binary_2d(std::string const &, T ***, T ***, T ***, MPI_Comm const &, int const &, 
-int* const &, int* const &, int* const &, int* const &, int const &, int const &, bool const &, bool const &, bool const&);
+template <typename T> void save_as_binary_2d(std::string const &, T ***, T ***, T ***, MPI_Comm const &, int const &,
+int* const &, int* const &, int* const &, int* const &, int const &, int const &, bool const &, bool const &, bool const&, const h5io::FieldNote *note = nullptr);
 
-template <typename T> void save_as_binary_3d(std::string const &, T ***, T ***, T ***, MPI_Comm const &, int* const &, int* const &, 
-int* const &, int* const &, bool const &, bool const &, bool const&);
+/// `note`: a complex field's scale and its attributes, see h5io::FieldNote
+template <typename T> void save_as_binary_3d(std::string const &, T ***, T ***, T ***, MPI_Comm const &, int* const &, int* const &,
+int* const &, int* const &, bool const &, bool const &, bool const&, const h5io::FieldNote *note = nullptr);
 
 /// carray owners: forward their views
 template <typename T, typename... Rest>

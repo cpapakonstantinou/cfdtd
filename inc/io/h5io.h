@@ -119,6 +119,7 @@ private:
 	std::string _plane; ///< the "plane" / "face" attributes, 2D axes
 	std::string _face; ///< the "plane" / "face" attributes, 2D axes
 	int _position = 0; ///< the "position" attribute: cell of a plane along its normal
+	std::string _description; ///< the "description" attribute, in the XDMF comment
 	friend struct Writer;
 };
 
@@ -135,6 +136,37 @@ void read(File& file, const std::string& name, const Block& block, T* data);
 /// separate real and imaginary buffers, both laid out as block.local.
 template <typename T>
 void write_complex(File& file, const std::string& name, const Block& block, const T* re, const T* im);
+
+/**
+ * What a frequency-domain field file holds: the stored DFT times `scale`, and the attributes that say
+ * so. `description` also goes into the comment of the XDMF file.
+ *
+ *     attribute wavelength                  of the field [m]
+ *     attribute normalization               "incident_field" or "pump_field"
+ *     attribute harmonic_order              k, the field's frequency over its pump point's
+ *     attribute reference_wavelength        of the pump point whose |E_inc| divides [m]
+ *     attribute reference_amplitude_v_s_m   that |E_inc| [V s/m]
+ *     attribute reference_phase_rad         the phase taken off
+ *     attribute dt_s                        the time step: the raw DFT sum is the spectral amplitude over dt
+ *     attribute description                 one line
+ *
+ * The spectral amplitude in V s/m is value * reference_amplitude_v_s_m * exp(i reference_phase_rad).
+ */
+struct FieldNote
+{
+	std::complex<double> scale = 1;
+	double wavelength = 0;
+	std::string normalization;
+	int order = 1;
+	double reference_wavelength = 0;
+	double reference_amplitude = 0;
+	double reference_phase = 0;
+	double dt = 0;
+	std::string description;
+
+	/// collective, the attributes above
+	void write(File& file) const;
+};
 
 } // namespace h5io
 

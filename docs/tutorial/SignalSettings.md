@@ -21,7 +21,7 @@ signal: gaussian,3.335641e-18,30000,464,2.273056e+08,18268,27240,27785,28720,cov
 spectrum: lambda_nm,band,amplitude,relative,flag
 spectrum: 1308.8225,pump,2.1761e-06,8.9408e-01,ok
 ...
-spectrum: 436.2742,harmonic,4.4833e-13,1.8420e-07,raw
+spectrum: 436.2742,harmonic,4.4833e-13,1.8420e-07,peak
 ...
 harmonic: fundamental_nm,reference
 harmonic: 1260.0000,carrier
@@ -58,8 +58,8 @@ the last step.
 
 `spectrum:` has the signal amplitude at each analysed wavelength, the DFT over the configured
 steps as the monitors take it. `weak` marks a pump point below 1e-2 of the strongest, where the
-normalised linear spectra are noisy; harmonic-band points are `raw`, as the solver keeps the raw
-DFT there and does not normalise it.
+normalised linear spectra are noisy. Harmonic-band points are `peak`: their field outputs divide by
+the peak pump amplitude, not by their own, see Outputs.md, so their weakness does not matter.
 
 The same test runs in two more places:
 

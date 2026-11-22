@@ -262,7 +262,9 @@ int main()
 		CHECK(fdtd::config::spectrum_omegas(load(BASIC, with({"--set", "spectrum.harmonic_band=second", "--set", "spectrum.spacing=frequency"})).spectrum).size() == 82);
 		// no mystery mutations: a harmonic without an explicit band is rejected, not silently doubled
 		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, base); }, "harmonic_band = second"));
-		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, {"--set", "spectrum.harmonic_band=third"}); }, "requires [nonlinear] thg"));
+		// a band without a nonlinearity is a linear run that also samples k w; a band other than the process is rejected
+		CHECK(fdtd::config::spectrum_omegas(load(BASIC, {"--set", "spectrum.harmonic_band=third"}).spectrum).size() == 82);
+		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, with({"--set", "spectrum.harmonic_band=third"})); }, "does not match [nonlinear] shg"));
 		w = fdtd::config::spectrum_omegas(load(BASIC, with({"--set", "spectrum.harmonic_band=second"})).spectrum); // band uniform in wavelength
 		CHECK(w.size() == 82 && !close(w[1] - w[0], w[2] - w[1]) && close(w[41], 2 * w[0]) && close(w[81], 2 * w[40]));
 		CHECK(throws<fdtd::config::validation_error>([&] { load(BASIC, {"--set", "spectrum.points=1"}); }, "lambda_min = lambda_max"));

@@ -265,6 +265,8 @@ void File::write_xdmf() const
 		return;
 	std::fprintf(f, "<?xml version=\"1.0\" ?>\n<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
 	std::fprintf(f, "<!-- %s: viewer X, Y, Z = solver x, y, z; arrays stored [z][y][x], x fastest -->\n", h5.c_str());
+	if (!_description.empty())
+		std::fprintf(f, "<!-- %s -->\n", _description.c_str());
 	std::fprintf(f, "<Xdmf Version=\"2.0\">\n <Domain>\n");
 	for (size_t g = 0; g < grids.size(); ++g)
 	{
@@ -321,6 +323,8 @@ void File::attribute(const std::string& name, const std::string& value)
 		_plane = value;
 	if (name == "face")
 		_face = value;
+	if (name == "description")
+		_description = value;
 	hid_t type = H5Tcopy(H5T_C_S1);
 	H5Tset_size(type, value.size() ? value.size() : 1);
 	hid_t space = H5Screate(H5S_SCALAR);
@@ -400,5 +404,17 @@ template void write<float>(File&, const std::string&, const Block&, const float*
 template void write<double>(File&, const std::string&, const Block&, const double*);
 template void write_complex<double>(File&, const std::string&, const Block&, const double*, const double*);
 template void write_complex<float>(File&, const std::string&, const Block&, const float*, const float*);
+
+void FieldNote::write(File& file) const
+{
+	file.attribute("wavelength", wavelength);
+	file.attribute("normalization", normalization);
+	file.attribute("harmonic_order", std::vector<int>{order});
+	file.attribute("reference_wavelength", reference_wavelength);
+	file.attribute("reference_amplitude_v_s_m", reference_amplitude);
+	file.attribute("reference_phase_rad", reference_phase);
+	file.attribute("dt_s", dt);
+	file.attribute("description", description);
+}
 
 } // namespace h5io

@@ -85,7 +85,7 @@ lambda_min = 300e-9
 lambda_max = 800e-9
 points = 31
 spacing = wavelength        ; frequency: a uniform step in omega; gauss: Gauss-Legendre nodes in omega
-harmonic_band = none        ; second | third: adds a band at 2w / 3w of every point
+harmonic_band = none        ; second | third: adds a band at 2w / 3w of every point, with or without the nonlinearity
 ```
 
 These keys mean the same thing in every simulation, and every frequency-domain output uses these
