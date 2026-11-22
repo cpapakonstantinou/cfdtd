@@ -229,12 +229,10 @@ void Driver::load_configuration()
 		if (_opt.command == Command::Memory)
 			_size = fdtd::grid::world_size = needed; // one process plays every rank in turn
 		if (needed != _size)
-			throw fdtd::config::validation_error("[parallel] ranks_x*ranks_y*ranks_z = " + std::to_string(needed) + " but the job runs on " +
-										std::to_string(_size) + " MPI processes");
+			throw fdtd::config::validation_error("[parallel] ranks_x*ranks_y*ranks_z = " + std::to_string(needed) + " but the job runs on " + std::to_string(_size) + " MPI processes");
 		const int nfreq = int(config::spectrum_omegas(_cfg.spectrum).size());
 		if (nfreq > fdtd::max_frequencies)
-			throw fdtd::config::validation_error("[spectrum]: " + std::to_string(nfreq) + " DFT frequencies exceed the limit of " +
-										std::to_string(fdtd::max_frequencies));
+			throw fdtd::config::validation_error("[spectrum]: " + std::to_string(nfreq) + " DFT frequencies exceed the limit of " + std::to_string(fdtd::max_frequencies));
 
 		run_cfg.output.base_path_input = _cfg.paths.input_dir;
 		assign_output_paths(_cfg.paths.output_dir);
