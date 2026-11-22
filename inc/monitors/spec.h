@@ -40,7 +40,7 @@ struct Spec
 	double thickness = 0; ///< [m]
 	int antenna_material = 0;
 	int shell_material = 0;
-	int gap_material = 0;
+	int gap_material = -1;           ///< the anapole's gap fill, -1 for none
 	int medium_first = 0;
 	int medium_second = 0;
 	// source

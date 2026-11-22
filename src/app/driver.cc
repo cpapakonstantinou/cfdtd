@@ -416,7 +416,7 @@ void Driver::configure_run()
 		sp.shape = g.antenna_type, sp.draw = g.nano_antenna, sp.graphene_optim = g.graphene_optim, sp.grating = g.grating;
 		sp.centre[0] = g.center_position_x, sp.centre[1] = g.center_position_y, sp.centre[2] = g.center_position_z;
 		sp.antenna_shift = g.antenna_shift, sp.thickness = g.thickness;
-		sp.antenna_material = run_cfg.materials.antenna_material, sp.shell_material = g.shell_material, sp.gap_material = 0;
+		sp.antenna_material = run_cfg.materials.antenna_material, sp.shell_material = g.shell_material, sp.gap_material = fdtd::app::anapole_input.gap_material;
 		sp.medium_first = run_cfg.materials.first_medium, sp.medium_second = run_cfg.materials.second_medium;
 		sp.e_peak = run_cfg.source.e_peak, sp.fundamental_frequency = run_cfg.source.fundamental_frequency;
 		sp.polarization_deg = run_cfg.source.polarization_deg;

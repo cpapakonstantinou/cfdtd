@@ -157,6 +157,23 @@ The text files carry the same values: the tracker
 spectra end with the columns `order`, `reference_amplitude_v_s_m` and `reference_phase_rad`, and
 `near_field.txt` and `far_field_*.txt` give magnitudes and phases of these values.
 
+The multipole moments, `multipoles_*.txt`, are integrals of the same normalised field and take the
+same scale: per unit E_inc(ω_j) on the pump band, per unit peak incident spectral amplitude on the
+harmonic band. Their cross sections, `multipoles_*_cross_sections.txt`, are then m² on both bands:
+
+- pump band: the scattering cross section of each multipole, Alaee et al. 2018, Eq. 1;
+- harmonic band: the harmonic energy radiated per unit frequency over the incident spectral fluence
+  at the peak pump point. The radiated harmonic energy is
+  W = 2 n / η₀ · A² · Σ_m C(Ω_m) w_m, with A the `reference_amplitude_v_s_m` of a harmonic field
+  file, or `dft_abs` · dt of the strongest pump row of `source_spectrum.txt`, n the index of the
+  first medium and w_m the band weights in Hz; for the full current it matches
+  `scattered_energy_j` of `harmonic_efficiency.txt` to the multipole truncation.
+
+The fractions `f_pd`, `f_md`, `f_pq`, `f_mq` do not depend on the scale. The moments integrate over
+the structure's materials, the `[geometry] material`, the shell and the anapole's gap fill, in every
+run; `_full_current` adds the nonlinear polarisation and exists in nonlinear runs only, a linear run
+having none.
+
 The time-domain frames are not normalised: they are the fields in V/m at the time of the frame.
 
 ## ParaView

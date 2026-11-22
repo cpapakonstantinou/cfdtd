@@ -59,15 +59,17 @@
  *   LAMBDA[nm]  Re/Im px py pz  Re/Im mx my mz
  *   Re/Im Qe_xx yy zz xy xz yz  Re/Im Qm_xx yy zz xy xz yz
  *
- * Units: p [C m], m [A m^2], Qe [C m^2], Qm [A m^3], all per the DFT
- * normalization in use, fundamental band: normalized to the incident-pulse
- * spectrum, i.e. "per unit incident field"; harmonic band: raw DFT, identical
- * to the convention of the ART / Q-coefficient outputs.
+ * Units: p [C m], m [A m^2], Qe [C m^2], Qm [A m^3] per unit incident field, scaled as the field
+ * outputs, sources/field_scale.h: on the pump band per unit E_inc(w), on the harmonic band per unit
+ * peak incident spectral amplitude, the pulse delay taken off the phase. The cross sections are then
+ * m^2 on both bands: on the pump band the scattering cross section, on the harmonic band the harmonic
+ * energy radiated per unit frequency over the incident spectral fluence at the peak pump point.
  *
  * @copyright Copyright 2026
  */
 
 #include "monitors/exact_multipoles.h"
+#include "sources/field_scale.h"
 #include "io/text.h"
 #include "monitors/state.h"
 #include "monitors/volume_dft.h"
@@ -149,29 +151,14 @@ static inline void sph_bessel_weights(const double &x, double &j0v, double &f1, 
 // Material helpers
 
 /**
- * @brief Decides whether a cell/component belongs to the multipole
- * integration volume.
- *
- * @details Default, linear runs, dfg_optim < 3: the antenna material only.
- * For SHG/THG runs (dfg_optim = 3..6) the gap material and the shell are
- * treated as part of the emitting volume, since the bulk around a plasmonic
- * structure can act as the source of the nonlinear emission.
+ * @brief Whether a cell component belongs to the multipole integration volume: the structure's
+ *        materials, the antenna, the shell and the anapole's gap fill, in every run, so a linear
+ *        run and its nonlinear twin integrate over the same volume. A cell of the host material
+ *        has no contrast and adds nothing.
  */
 static inline bool include_in_multipole_volume(const int &mat)
 {
-	const int base = mat;
-
-	if (base == sp.antenna_material)
-		return true;
-
-	if (sp.shg || sp.thg) // dfg_optim == 3,4, THG, or 5,6, SHG
-	{
-		if (base == sp.gap_material)
-			return true;
-		if (base == sp.shell_material)
-			return true;
-	}
-	return false;
+	return mat == sp.antenna_material || (sp.shell_material >= 0 && mat == sp.shell_material) || (sp.gap_material >= 0 && mat == sp.gap_material);
 }
 
 /**
@@ -407,11 +394,10 @@ static inline void accumulate_moments(const std::complex<double> P[3], const dou
  *   Cpq   = Cpref (k^2/120) ( sum_diag |Qe|^2 + 2 sum_offdiag |Qe|^2 )
  *   Cmq   = Cpref (k^2/120) ( sum_diag |Qm|^2 + 2 sum_offdiag |Qm|^2 ) / c^2
  *
- * The stored moments are already normalized to the incident spectrum on the
- * fundamental band (dft_normalization), so |E0| = 1 in those units and Cp..Cmq
- * are the physical per-unit-incident-field scattering cross sections. On a
- * harmonic band, raw DFT, there is no incident field to normalize against, so
- * the same combination is a raw analog, not a literal cross section.
+ * The moments are per unit incident field, see the file comment, so |E0| = 1 in those units. On the
+ * pump band Cp..Cmq are the scattering cross sections; on the harmonic band, with the moments per
+ * unit peak incident spectral amplitude, they are the radiated harmonic spectral energy over the
+ * incident spectral fluence at the peak pump point, both per unit frequency.
  *
  * Moment row layout, idx 0..17, each = Re,Im pair:
  *   p: 0,1,2   m: 3,4,5   Qe: 6..11 (xx yy zz xy xz yz)   Qm: 12..17
@@ -671,6 +657,23 @@ void write_exact_multipoles()
 
 	if (fdtd::grid::world_rank == ROOTPROCESS)
 	{
+		// the moments are linear in the volume field, stored normalised: the harmonic rows take the
+		// scale of the field outputs, the pump rows keep theirs, factor 1
+		for (m = 0; m < sp.nr_frequencies; ++m)
+		{
+			const std::complex<double> factor = fdtd::sources::field_scale(m, 0, true, true).factor;
+			if (factor == std::complex<double>(1))
+				continue;
+			for (std::vector<double> *v : {&tot, &totNL, &totL, &totLNL})
+				if (!v->empty())
+					for (int n = 0; n < NR_MOMENTS; ++n)
+					{
+						double *pair = v->data() + m * STRIDE + 2 * n;
+						const std::complex<double> value = std::complex<double>(pair[0], pair[1]) * factor;
+						pair[0] = value.real();
+						pair[1] = value.imag();
+					}
+		}
 		const std::string dir = sp.reports_dir + "/";
 		const int nf = sp.nr_frequencies;
 		if (exact)

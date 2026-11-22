@@ -151,7 +151,8 @@ step = 1                    ; time monitors: steps between frames
 
 The cross-section and reflection / transmission tables are always written.
 `[multipoles] exact = true` adds the exact multipole decomposition of the structure, `lwa = true`
-the long-wavelength one.
+the long-wavelength one, over the `[geometry] material`, the shell and the anapole gap fill; their
+units are in [Viewing the Outputs](Outputs.md).
 
 ## Run control: `[run]`, `[paths]`
 
