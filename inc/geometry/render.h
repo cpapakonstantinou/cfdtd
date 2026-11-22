@@ -3,7 +3,7 @@
  * @file geometry/render.h
  * @brief Render geometry-layer drawings into this rank's material maps
  */
-#include "geometry/anapole.h"
+#include "geometry/drawings.h"
 
 /// How a staircased run, `[grid] staircase = true`, assigns one material to all three components
 enum class Staircase
@@ -25,6 +25,3 @@ enum class Staircase
  * When staircasing, one material is written to all three components according to `staircase`.
  */
 void render_parts(const std::vector<geom::Part>& parts, int ci, int cj, int ck, Staircase staircase = Staircase::AllComponents);
-
-/// shape = anapole: the patch centred on cell (ci, cj, ck), drawn with `material`
-void create_plasmonic_anapole(const geom::AnapoleSpec &a, int material, int ci, int cj, int ck);

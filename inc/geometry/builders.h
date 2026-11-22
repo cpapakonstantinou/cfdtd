@@ -10,6 +10,8 @@
 #ifndef FDTD_GEOMETRY_BUILDERS_H
 #define FDTD_GEOMETRY_BUILDERS_H
 
+#include "geometry/drawings.h"
+
 namespace fdtd::geometry
 {
 /// basic.cc: primitives and the classic antennas
@@ -31,6 +33,8 @@ bool create_cylinder(const int &, const int &, const int &, const double &, cons
 bool create_cylinder_shell(int centerx, int centery, int centerz, double radius_core, double core_length, double radius_shell, double shell_length, int index, int shell_index);
 bool create_ellipse(int centerx, int centery_bulk, int centerz, double radius_x, double radius_z, double thickness, double theta, int index, double antenna_shift);
 bool create_cylinder_xz(const int &, const int &, const int &, const double &, const double &, const double &, const int &);
+/// shape = anapole, drawn with the geometry layers, geom::anapole_parts
+bool create_anapole(const geom::AnapoleSpec &a, int material, int ci, int cj, int ck);
 
 /// legacy.cc: older shapes kept on the keep-list
 bool create_lateral_dipole(const int &, const int &, const int &, const double &, const double &, const double &, const double &, const double &, const int &, const double &, const double &, const double &);

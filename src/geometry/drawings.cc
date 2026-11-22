@@ -1,8 +1,8 @@
 /**
- * @file geometry/anapole.cc
- * @brief Plasmonic anapole nanoantenna after Hassan et al., Laser Photonics Rev. 19, 2400118, 2025
+ * @file geometry/drawings.cc
+ * @brief The shapes drawn with the geometry layers, see geometry/drawings.h
  *
- * Drawing, in the local frame, u along the lobe axis, v across it, origin at the patch centre:
+ * Anapole, in the local frame, u along the lobe axis, v across it, origin at the patch centre:
  *
  *     patch    = rounded_rect(w, w, corner_radius)
  *     gap      = rect(gap_length, gap_width)
@@ -13,11 +13,11 @@
  *
  * with w = patch_edge, A = lobe_length, B = lobe_height, p = lobe_exponent, X0 = lobe_offset.
  * Optional fills: aperture_material fills the whole aperture, gap_material the gap alone.
- *
- * At rotation 0 the lobe axis u is x and v is z; the thickness is along y.
- * Default parameters: the fit to the published design, w = 200 nm, t = 30 nm, gap 12.04 x 15.91 nm.
+ * At rotation 0 the lobe axis u is x and v is z. Default parameters: the fit to the published design,
+ * w = 200 nm, t = 30 nm, gap 12.04 x 15.91 nm.
  */
-#include "geometry/anapole.h"
+#include "geometry/drawings.h"
+#include "core/constants.h"
 
 #include <cmath>
 
@@ -53,6 +53,26 @@ Shape lobe_polygon(const AnapoleSpec& a, double cx, double cz)
 	return polygon(pts);
 }
 } // namespace
+
+std::vector<Part> cylinder_shell_parts(double radius_core, double core_length, double radius_shell, double shell_length, int core_material, int shell_material)
+{
+	// a disc in the x-z plane extruded along y; length 0 spans the domain, as cylinder_z
+	auto cylinder = [](double radius, double length) {
+		const double half = length > 0 ? 0.5 * length : 1e3;
+		return radius > 0 ? extrude(circle(0, 0, radius), -half, half) : Solid();
+	};
+	return {{cylinder(radius_shell, shell_length), shell_material}, {cylinder(radius_core, core_length), core_material}};
+}
+
+std::vector<Part> ellipse_parts(double radius_x, double radius_z, double thickness, double theta, int material)
+{
+	using fdtd::constants::PI;
+	std::vector<std::pair<double, double>> outline;
+	for (int n = 0; n < 360; ++n)
+		outline.push_back({radius_x * std::cos(n * PI / 180), radius_z * std::sin(n * PI / 180)});
+	const Shape ellipse = polygon(outline).rotated(theta, 0, 0);
+	return {{extrude(ellipse, -0.5 * thickness, 0.5 * thickness), material}};
+}
 
 double anapole_cross_section(const AnapoleSpec& a)
 {

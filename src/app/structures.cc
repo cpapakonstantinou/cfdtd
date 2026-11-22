@@ -270,7 +270,7 @@ void fdtd::app::create_structures()
 
 	else if (run_cfg.geometry.is(shape::anapole))
 	{
-		create_plasmonic_anapole(anapole_input, run_cfg.materials.antenna_material, run_cfg.geometry.center_position_x,
+		fdtd::geometry::create_anapole(anapole_input, run_cfg.materials.antenna_material, run_cfg.geometry.center_position_x,
 							   run_cfg.geometry.center_position_y - int(run_cfg.geometry.antenna_shift / lat.d[1]), run_cfg.geometry.center_position_z);
 		fdtd::monitors::geometric_cross_section = geom::anapole_cross_section(anapole_input);
 	}

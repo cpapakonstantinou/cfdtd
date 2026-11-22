@@ -20,7 +20,7 @@
 #include <vector>
 #include "materials/definition.h"
 #include "io/ini.h"
-#include "geometry/anapole.h"
+#include "geometry/drawings.h"
 #include "geometry/block.h"
 #include "sources/mode_spec.h"
 #include "monitors/inputs.h"
@@ -268,7 +268,7 @@ struct MaterialsSection
  * The lobe coefficients are in units of patch_edge and were fitted at patch_edge = 200 nm; the gap is absolute.
  * aperture_material fills the lobes and the gap, gap_material the gap alone.
  */
-using AnapoleSection = geom::AnapoleSpec; ///< [anapole], geometry/anapole.h
+using AnapoleSection = geom::AnapoleSpec; ///< [anapole], geometry/drawings.h
 
 /// the materials of the anapole's fills by name; empty: the background
 struct AnapoleFill

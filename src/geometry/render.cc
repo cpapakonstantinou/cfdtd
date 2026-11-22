@@ -1,21 +1,14 @@
 /**
  * @file geometry/render.cc
- * @brief Render geometry-layer drawings into the material maps; the plasmonic anapole
+ * @brief Render geometry-layer drawings into the material maps
  */
 #include "grid/subdomain.h"
 #include "core/array.h"
 #include "geometry/csg.h"
-#include "materials/component.h"
 #include "materials/material_map.h"
-#include "materials/slots.h"
-#include "core/constants.h"
-#include "io/text.h"
 #include "geometry/render.h"
-#include "grid/state.h"
-#include "materials/nonlinear/state.h"
 #include "grid/lattice.h"
 #include "geometry/scene.h"
-using fdtd::constants::ROOTPROCESS;
 using fdtd::grid::subdomain;
 using fdtd::materials::matind_x;
 using fdtd::materials::matind_y;
@@ -79,22 +72,4 @@ void render_parts(const std::vector<geom::Part>& parts, int ci, int cj, int ck, 
 					fill(*map, i, j, row, part.material);
 			}
 		}
-}
-
-void create_plasmonic_anapole(const geom::AnapoleSpec &a, int material, int ci, int cj, int ck)
-{
-	// drawn about the patch centre cell (ci, cj, ck), with the patch material, nonlinear offset included
-	const auto parts = geom::anapole_parts(a, material, 0, 0, 0);
-	if (fdtd::grid::world_rank == ROOTPROCESS)
-	{
-		const double s_gap = (0.5 * a.gap_length / a.patch_edge - a.lobe_offset) / a.lobe_length;
-		fdtd::io::log("anapole", "patch_nm,thickness_nm,corner_radius_nm,gap_length_nm,gap_width_nm,lobe_tip_nm,lobe_half_height_nm");
-		fdtd::io::log("anapole", "%.4g,%.4g,%.4g,%.4g,%.4g,%.4g,%.4g",
-					a.patch_edge * 1e9, a.thickness * 1e9, a.corner_radius * 1e9, a.gap_length * 1e9, a.gap_width * 1e9,
-					a.patch_edge * (a.lobe_offset + a.lobe_length) * 1e9,
-					a.patch_edge * a.lobe_height * std::pow(s_gap, a.lobe_exponent) * std::sqrt(1 - s_gap * s_gap) * 1e9);
-		if (a.gap_length < 2 * lat.d[0] || a.gap_width < 2 * lat.d[2])
-			fdtd::io::log("warning", "the anapole gap is less than two cells wide, %.3g nm cells", lat.d[0] * 1e9);
-	}
-	render_parts(parts, ci, cj, ck, Staircase::CellCentre);
 }

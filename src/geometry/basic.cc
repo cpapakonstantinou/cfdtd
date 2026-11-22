@@ -510,13 +510,7 @@ bool fdtd::geometry::create_cylinder_shell(int centerx, int centery, int centerz
 {
 	if (!sc.draw)
 		return true;
-	// a disc in the x-z plane extruded along y; length 0 spans the domain, as cylinder_z
-	auto cylinder = [](double radius, double length) {
-		const double half = length > 0 ? 0.5 * length : 1e3;
-		return radius > 0 ? geom::extrude(geom::circle(0, 0, radius), -half, half) : geom::Solid();
-	};
-	// in this order: the core overwrites the shell where they overlap
-	render_parts({{cylinder(radius_shell, shell_length), shell_index}, {cylinder(radius_core, core_length), index}}, centerx, centery, centerz);
+	render_parts(geom::cylinder_shell_parts(radius_core, core_length, radius_shell, shell_length, index, shell_index), centerx, centery, centerz);
 	return true;
 }
 
@@ -554,11 +548,27 @@ bool fdtd::geometry::create_ellipse(int centerx, int centery_bulk, int centerz, 
 {
 	if (!sc.draw || !(radius_x > 0 && radius_z > 0))
 		return true;
-	std::vector<std::pair<double, double>> outline;
-	for (int n = 0; n < 360; ++n)
-		outline.push_back({radius_x * std::cos(n * PI / 180), radius_z * std::sin(n * PI / 180)});
-	const geom::Shape ellipse = geom::polygon(outline).rotated(theta, 0, 0);
-	render_parts({{geom::extrude(ellipse, -0.5 * thickness, 0.5 * thickness), index}}, centerx, centery_bulk - int(antenna_shift / lat.d[1]), centerz);
+	render_parts(geom::ellipse_parts(radius_x, radius_z, thickness, theta, index), centerx, centery_bulk - int(antenna_shift / lat.d[1]), centerz);
+	return true;
+}
+
+/**
+ * @brief The plasmonic anapole, geom::anapole_parts, about the patch centre cell (ci, cj, ck), with the
+ *        patch material; the aperture and gap fills of the spec. Staircasing: the cell centre inside.
+ */
+bool fdtd::geometry::create_anapole(const geom::AnapoleSpec &a, int material, int ci, int cj, int ck)
+{
+	if (fdtd::grid::world_rank == fdtd::constants::ROOTPROCESS)
+	{
+		const double s_gap = (0.5 * a.gap_length / a.patch_edge - a.lobe_offset) / a.lobe_length;
+		fdtd::io::log("anapole", "patch_nm,thickness_nm,corner_radius_nm,gap_length_nm,gap_width_nm,lobe_tip_nm,lobe_half_height_nm");
+		fdtd::io::log("anapole", "%.4g,%.4g,%.4g,%.4g,%.4g,%.4g,%.4g", a.patch_edge * 1e9, a.thickness * 1e9, a.corner_radius * 1e9, a.gap_length * 1e9,
+					  a.gap_width * 1e9, a.patch_edge * (a.lobe_offset + a.lobe_length) * 1e9,
+					  a.patch_edge * a.lobe_height * std::pow(s_gap, a.lobe_exponent) * std::sqrt(1 - s_gap * s_gap) * 1e9);
+		if (a.gap_length < 2 * lat.d[0] || a.gap_width < 2 * lat.d[2])
+			fdtd::io::log("warning", "the anapole gap is less than two cells wide, %.3g nm cells", lat.d[0] * 1e9);
+	}
+	render_parts(geom::anapole_parts(a, material, 0, 0, 0), ci, cj, ck, Staircase::CellCentre);
 	return true;
 }
 

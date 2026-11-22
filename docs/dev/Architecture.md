@@ -36,7 +36,7 @@ what the derived classes work around and the upstream patches that would remove 
 | `update` | the E and H update scans |
 | `sources` | the time `Signal`; the sources as `Source` objects: TF/SF plane wave with its 1D auxiliary grid, plane-wave superposition and Gaussian beam with their 1D layered simulations, dipoles, the mode source |
 | `monitors` | the monitors as `Monitor` objects: flux boxes and Q coefficients, ART planes, DFT planes, volume DFT, custom boxes, time probes, near-to-far faces, multipoles |
-| `geometry` | the `Scene` to draw into; shapes as set operations on primitives (`csg.h`, `render.h`, the anapole) and the point-wise builders of the other shapes; blocks |
+| `geometry` | the `Scene` to draw into; set operations on primitives (`csg.h`), the shapes drawn with them (`drawings.h`: anapole, cylinder shell, ellipse) and their rendering into the material maps (`render.h`); the builders of every shape (`builders.h`), point-wise for the older ones; blocks |
 | `config` | `SimConfig` (one struct per section), validation, the template, the material catalog, `with_catalog`, and `apply_sim_config`, which translates `SimConfig` into the application's `RunConfig` |
 | `app` | `Driver` (the phases of a run) and its state machine, `RunConfig`, `RunState`, the set-up that hands each module its input, the time loop, state files for restart, signal handling |
 

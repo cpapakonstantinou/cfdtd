@@ -5,7 +5,7 @@
 #ifndef FDTD_APP_STRUCTURES_H
 #define FDTD_APP_STRUCTURES_H
 
-#include "geometry/anapole.h"
+#include "geometry/drawings.h"
 #include "geometry/block.h"
 
 namespace fdtd::app

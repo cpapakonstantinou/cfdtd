@@ -348,6 +348,81 @@ def draw(shape, spec, vol, out):
     plt.close(fig)
 
 
+# prose written after a shape's key table
+NOTES = {
+    "anapole": """
+A square patch with a dumbbell aperture, two lobes joined by a narrow gap, after Hassan et al.,
+*Anapole Plasmonic Meta-Atoms for Nearly Transparent Metamaterials*, Laser Photonics Rev. 19,
+2400118, 2025. The published design is a 200 x 200 x 30 nm silver patch: its scattering cross
+section peaks near 580 and 985 nm, with the anapole dip near 735 nm, where the field in the gap is
+still enhanced about 30 times. The patch material is `[geometry] material`.
+
+In the frame of the patch, u runs along the lobe axis and v across it; at `rotation = 0` they are x
+and z, and the thickness is along y:
+
+```
+patch    = rounded_rect(patch_edge, patch_edge, corner_radius)
+gap      = rect(gap_length, gap_width)
+lobe     = v = +-patch_edge lobe_height s^lobe_exponent sqrt(1 - s^2),  s = (|u| / patch_edge - lobe_offset) / lobe_length
+           from the gap face |u| = gap_length / 2 to the tip |u| = patch_edge (lobe_offset + lobe_length)
+aperture = the two lobes + gap
+antenna  = extrude(patch - aperture, thickness), rotated by rotation
+```
+
+The drawing is `geom::anapole_parts`, `inc/geometry/drawings.h`. Staircased, a cell takes a material
+when its centre is inside.
+
+- The defaults are the fit to the published design. The lobe keys are in units of `patch_edge`, so
+  changing it scales the lobes with the patch; the gap and the corner radius are absolute. The corner
+  radius, 11 nm, is read off the figures of the paper and is not part of the fit.
+- Where the lobes meet the gap they are wider than it, 37.5 nm against 15.9 nm with the defaults, so
+  a metal tooth stands on each side of the gap. The field enhancement of the paper is the average
+  over the 12 x 12 x 30 nm volume between the teeth.
+- `gap_material` fills the gap between the teeth only, `aperture_material` the lobes and the gap;
+  with both set the gap takes `gap_material`. Both count as structure in the multipole volume.
+- The polarisation matters: `[plane_wave] polarization_axis = z` puts E across the lobe axis and
+  drives the gap, the anapole case; `x` puts E along the lobes and the dip disappears.
+
+`examples/anapole.ini` is the published case: the silver patch in air, normal incidence, 400 to
+1200 nm, with the cross sections, the field in the plane of the patch and in the gap volume, and the
+probe at the gap centre; it lists the overrides for a filled gap or aperture, a glass substrate, a
+periodic metasurface and a coarse first look. `examples/anapole_ito.ini` fills the aperture with ITO:
+
+```ini
+[anapole]
+aperture_material = ito      ; ITO in the lobes and the gap
+; gap_material = ito         ; instead: the gap alone
+
+[material.ito]
+extends = ito_10p5_drude
+carrier_density = 1.054e27   ; free carriers, m^-3
+```
+
+The ITO Drude materials take their plasma frequency from `carrier_density`. With 1.054e27 m^-3 the
+permittivity of the fill falls from 3.3 at 500 nm through 2.5 at 735 nm to zero near 1240 nm: a
+dielectric at the anapole dip, epsilon near zero at the long-wavelength resonance.
+
+The exact multipoles are off in the example: they keep a DFT of the field in the whole domain at
+every wavelength, 37 GiB with its grid and 81 wavelengths. Lower `[spectrum] points` and ask
+`fdtd memory` first.
+
+The fit shifts the spectrum to the red: expect the dip and the peaks some tens of nm above the paper.
+
+| cells | dip | peaks |
+|---|---|---|
+| paper | 735 nm | 580 and 985 nm |
+| 2 nm | 800 nm | 640 and 1060 nm |
+| 4 nm | 880 nm | 680 and 1100 nm |
+
+The positions still move with the cell size, so part of the shift at 2 nm is the grid. Both runs
+sampled every 20 nm; the 2 nm run used a smaller domain than the example, 280 x 120 x 280 nm.
+`test/test_geometry.cc` compares the rendered patch with a point-wise predicate of the outline on a
+1 nm grid, 130032 cells, none differ; the regression case `test/regression/Anapole` is that patch
+scaled to 400 nm, silver in air on glass.
+""",
+}
+
+
 def write_page(fdtd, path):
     """docs/geometry/Shapes.md: every shape section with its keys (from `fdtd template`) and its figure"""
     text = subprocess.run([fdtd, "template"], capture_output=True, text=True, stdin=subprocess.DEVNULL).stdout
@@ -370,6 +445,8 @@ def write_page(fdtd, path):
             f.write(f"\n## {name}\n\n![{name}](shapes/{name}.png)\n\n| key | meaning |\n|---|---|\n")
             for key, doc in keys.get(name, []):
                 f.write(f"| `{key}` | {doc} |\n")
+            if name in NOTES:
+                f.write(NOTES[name])
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 // Unit tests of the draw-then-render geometry, inc/geometry.h.
 // The raster of every drawing is checked cell by cell against direct point sampling.
 #include "geometry/csg.h"
-#include "geometry/anapole.h"
+#include "geometry/drawings.h"
 
 #include <algorithm>
 #include <cmath>
